@@ -122,13 +122,14 @@ export function createUploader(folder, options = {}) {
 
 function getMaxFileSize(folder) {
   const MAX_FILE_SIZES = {
-    shop_files: 5 * 1024 * 1024,              // 5MB
-    broadcast_attachments: 50 * 1024 * 1024,  // 50MB
-    email_attachments: 10 * 1024 * 1024,      // 10MB
-    tickets: 5 * 1024 * 1024,                 // 5MB
+    shop_files: 5 * 1024 * 1024,
+    broadcast_attachments: 50 * 1024 * 1024,
+    email_attachments: 10 * 1024 * 1024,
+    tickets: 5 * 1024 * 1024,
+    rider_documents: 5 * 1024 * 1024,   // ← ADDED
   };
 
-  return MAX_FILE_SIZES[folder] || 10 * 1024 * 1024; // Default 10MB
+  return MAX_FILE_SIZES[folder] || 10 * 1024 * 1024;
 }
 
 // ============================================

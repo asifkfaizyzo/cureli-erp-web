@@ -1,4 +1,3 @@
-//backend\src\modules\rider\onboarding\rider.onboarding.controller.js
 import { fail, success } from "../../../utils/response.js";
 import {
   personalDetailsSchema,
@@ -18,7 +17,6 @@ import {
   getDocumentStatus,
   submitApplication,
   acceptTerms,
-  resubmitApplication,
 } from "./rider.onboarding.service.js";
 
 // ── Status ────────────────────────────────────────────────────
@@ -26,7 +24,7 @@ import {
 export async function getStatus(req, res) {
   try {
     const result = await getOnboardingStatus(req.rider.rider_id);
-    return success(res, "Onboarding status retrieved", result);
+    return success(res, result, "Onboarding status retrieved");
   } catch (err) {
     if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
     return fail(res, "Failed to fetch onboarding status", 500);
@@ -43,7 +41,7 @@ export async function updatePersonalDetails(req, res) {
 
   try {
     const result = await savePersonalDetails(req.rider.rider_id, parsed.data);
-    return success(res, "Personal details saved", result);
+    return success(res, result, "Personal details saved");
   } catch (err) {
     if (err.code === "EMAIL_TAKEN") return fail(res, err.message, 409);
     return fail(res, "Failed to save details", 500);
@@ -60,7 +58,7 @@ export async function updateLocation(req, res) {
 
   try {
     const result = await saveLocation(req.rider.rider_id, parsed.data);
-    return success(res, "Location saved", result);
+    return success(res, result, "Location saved");
   } catch {
     return fail(res, "Failed to save location", 500);
   }
@@ -76,7 +74,7 @@ export async function updateVehicleDetails(req, res) {
 
   try {
     const result = await saveVehicleDetails(req.rider.rider_id, parsed.data);
-    return success(res, "Vehicle details saved", result);
+    return success(res, result, "Vehicle details saved");
   } catch {
     return fail(res, "Failed to save vehicle details", 500);
   }
@@ -92,7 +90,7 @@ export async function updateBankDetails(req, res) {
 
   try {
     const result = await saveBankDetails(req.rider.rider_id, parsed.data);
-    return success(res, "Bank details saved", result);
+    return success(res, result, "Bank details saved");
   } catch {
     return fail(res, "Failed to save bank details", 500);
   }
@@ -108,8 +106,8 @@ export async function updateEmergencyContact(req, res) {
 
   try {
     const result = await saveEmergencyContact(req.rider.rider_id, parsed.data);
-    return success(res, "Emergency contact saved", result);
-  } catch {
+    return success(res, result, "Emergency contact saved");
+  } catch (err) {
     return fail(res, "Failed to save emergency contact", 500);
   }
 }
@@ -131,7 +129,7 @@ export async function uploadDocument(req, res) {
     return fail(
       res,
       `Invalid document type. Must be one of: ${validTypes.join(", ")}`,
-      400
+      400,
     );
   }
 
@@ -145,9 +143,9 @@ export async function uploadDocument(req, res) {
       req.rider.rider_id,
       document_type,
       req.file,
-      isFront
+      isFront,
     );
-    return success(res, "Document uploaded successfully", result);
+    return success(res, result, "Document uploaded successfully");
   } catch (err) {
     if (err.code === "NO_FILE") return fail(res, err.message, 400);
     if (err.code === "INVALID_TYPE") return fail(res, err.message, 400);
@@ -160,27 +158,22 @@ export async function uploadDocument(req, res) {
 export async function getDocuments(req, res) {
   try {
     const docs = await getDocumentStatus(req.rider.rider_id);
-    return success(res, "Documents retrieved", docs);
+    return success(res, docs, "Documents retrieved");
   } catch {
     return fail(res, "Failed to fetch documents", 500);
   }
 }
 
-// ── Submit ────────────────────────────────────────────────────
+// ── Submit (fallback) ─────────────────────────────────────────
 
 export async function submitOnboarding(req, res) {
   try {
     const result = await submitApplication(req.rider.rider_id);
-    return success(res, "Application submitted for review", result);
+    return success(res, result, "Application submitted for review");
   } catch (err) {
     const statusMap = {
       NOT_FOUND: 404,
-      INVALID_STATUS: 400,
-      INCOMPLETE_PROFILE: 400,
-      INCOMPLETE_LOCATION: 400,
-      INCOMPLETE_VEHICLE: 400,
-      MISSING_DOCUMENTS: 400,
-      REJECTED_DOCUMENTS: 400,
+      INCOMPLETE: 400,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -191,27 +184,11 @@ export async function submitOnboarding(req, res) {
 export async function acceptTermsAndConditions(req, res) {
   try {
     const result = await acceptTerms(req.rider.rider_id);
-    return success(res, "Terms accepted", result);
+    return success(res, result, "Terms accepted");
   } catch (err) {
     const statusMap = {
       NOT_FOUND: 404,
       NOT_APPROVED: 400,
-    };
-    return fail(res, err.message, statusMap[err.code] ?? 500);
-  }
-}
-
-// ── Resubmit ──────────────────────────────────────────────────
-
-export async function resubmitOnboarding(req, res) {
-  try {
-    const result = await resubmitApplication(req.rider.rider_id);
-    return success(res, "Application resubmitted for review", result);
-  } catch (err) {
-    const statusMap = {
-      NOT_FOUND: 404,
-      INVALID_STATUS: 400,
-      REJECTED_DOCUMENTS_REMAIN: 400,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }

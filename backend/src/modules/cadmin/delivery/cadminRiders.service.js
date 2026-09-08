@@ -141,6 +141,7 @@ export async function reviewDocument(
     data: {
       status: action,
       rejection_reason: action === "REJECTED" ? rejectionReason : null,
+      was_rejected_this_cycle: action === "REJECTED", // ← NEW
       reviewed_by: reviewedBy,
       reviewed_at: new Date(),
     },
@@ -163,7 +164,6 @@ export async function approveRider(riderId, reviewedBy) {
     throw err;
   }
 
-  // All documents must be approved
   const unapproved = rider.documents.filter((d) => d.status !== "APPROVED");
   if (unapproved.length > 0) {
     const err = new Error(
@@ -174,12 +174,22 @@ export async function approveRider(riderId, reviewedBy) {
     throw err;
   }
 
-  await prisma.rider.update({
-    where: { rider_id: riderId },
-    data: { status: "ACTIVE" },
-  });
+  await prisma.$transaction([
+    prisma.rider.update({
+      where: { rider_id: riderId },
+      data: {
+        status: "ACTIVE",
+        onboarding_step: "COMPLETED", // ← NEW
+        is_resubmission: false, // ← NEW
+      },
+    }),
+    // Clear all rejection cycle flags
+    prisma.riderDocument.updateMany({
+      where: { rider_id: riderId },
+      data: { was_rejected_this_cycle: false }, // ← NEW
+    }),
+  ]);
 
-  // Notify rider via SSE if connected
   sseService.notifyRider(riderId, "APPLICATION_APPROVED", {
     message: "Your application has been approved. You can now go online.",
   });
@@ -196,9 +206,53 @@ export async function rejectRider(riderId, reason, reviewedBy) {
     throw err;
   }
 
+  // Find which docs are rejected to compute the earliest step to send user back to
+  const STEP_ORDER = [
+    "RC_UPLOAD",
+    "DL_UPLOAD",
+    "AADHAAR_UPLOAD",
+    "PAN_UPLOAD",
+    "LIVE_PHOTO",
+  ];
+  const DOC_TYPE_TO_STEP = {
+    VEHICLE_RC: "RC_UPLOAD",
+    DRIVING_LICENSE_FRONT: "DL_UPLOAD",
+    AADHAAR_FRONT: "AADHAAR_UPLOAD",
+    PAN_FRONT: "PAN_UPLOAD",
+    PROFILE_PHOTO: "LIVE_PHOTO",
+  };
+
+  const rider = await prisma.rider.findUnique({
+    where: { rider_id: riderId },
+    include: {
+      documents: {
+        where: { status: "REJECTED" },
+        select: { type: true },
+      },
+    },
+  });
+
+  // Compute earliest rejected step
+  let earliestStep = "RC_UPLOAD"; // fallback
+  if (rider && rider.documents.length > 0) {
+    const rejectedSteps = rider.documents
+      .map((d) => DOC_TYPE_TO_STEP[d.type])
+      .filter(Boolean)
+      .sort((a, b) => STEP_ORDER.indexOf(a) - STEP_ORDER.indexOf(b));
+    if (rejectedSteps.length > 0) {
+      earliestStep = rejectedSteps[0];
+    }
+  }
+
   await prisma.rider.update({
     where: { rider_id: riderId },
-    data: { status: "REJECTED" },
+    data: {
+      status: "REJECTED",
+      submitted_for_review: false, // ← NEW
+      is_resubmission: true, // ← NEW
+      onboarding_step: earliestStep, // ← NEW: user resumes here
+      last_resubmitted_at: new Date(), // ← NEW
+    },
   });
 
   sseService.notifyRider(riderId, "APPLICATION_REJECTED", {

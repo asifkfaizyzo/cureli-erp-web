@@ -85,6 +85,13 @@ function formatRiderForResponse(rider) {
     created_at: rider.created_at,
     last_seen_at: rider.last_seen_at,
     documents: rider.documents ?? [],
+
+    // ── NEW: Onboarding tracking ──────────────────
+    onboarding_step: rider.onboarding_step ?? "PERSONAL_DETAILS",
+    submitted_for_review: rider.submitted_for_review ?? false,
+    is_resubmission: rider.is_resubmission ?? false,
+
+    // ── Computed flags (kept for frontend compat) ─
     has_personal_details: !!(rider.full_name && rider.date_of_birth),
     has_location: !!(rider.current_city && rider.residential_address),
     has_vehicle_details: !!(rider.vehicle_type && rider.vehicle_number),
@@ -554,7 +561,7 @@ async function _completeRiderVerification(rider, deviceInfo, requestMeta) {
         last_seen_at: now,
       },
       // ADDED: Select all fields needed for the full profile response
-      select: {
+            select: {
         rider_id: true,
         phone: true,
         rider_type: true,
@@ -585,6 +592,9 @@ async function _completeRiderVerification(rider, deviceInfo, requestMeta) {
         referral_code: true,
         created_at: true,
         last_seen_at: true,
+        onboarding_step: true,         // ← NEW
+        submitted_for_review: true,    // ← NEW
+        is_resubmission: true,         // ← NEW
         documents: {
           select: {
             document_id: true,
@@ -786,6 +796,9 @@ export async function getRiderMe(riderId) {
       referral_code: true,
       created_at: true,
       last_seen_at: true,
+      onboarding_step: true,         // ← NEW
+      submitted_for_review: true,    // ← NEW
+      is_resubmission: true,         // ← NEW
       documents: {
         select: {
           document_id: true,
@@ -804,49 +817,5 @@ export async function getRiderMe(riderId) {
     throw err;
   }
 
-  return {
-    rider_id: rider.rider_id,
-    phone: rider.phone,
-    rider_type: rider.rider_type,
-    full_name: rider.full_name,
-    email: rider.email,
-    date_of_birth: rider.date_of_birth
-      ? rider.date_of_birth.toISOString().split("T")[0]
-      : null,
-    sex: rider.sex ?? null,
-    profile_photo_key: rider.profile_photo_key,
-    status: rider.status,
-    suspension_reason: rider.suspension_reason,
-    current_city: rider.current_city,
-    residential_address: rider.residential_address,
-    preferred_lat: rider.preferred_lat ? Number(rider.preferred_lat) : null,
-    preferred_lng: rider.preferred_lng ? Number(rider.preferred_lng) : null,
-    preferred_address: rider.preferred_address,
-    is_online: rider.is_online,
-    rating: rider.rating,
-    total_ratings: rider.total_ratings,
-    total_deliveries: rider.total_deliveries,
-    vehicle_type: rider.vehicle_type,
-    vehicle_number: rider.vehicle_number,
-    vehicle_make_model: rider.vehicle_make_model,
-    bank_holder_name: rider.bank_holder_name,
-    bank_ifsc: rider.bank_ifsc,
-    bank_account_last4: rider.bank_account_number
-      ? rider.bank_account_number.slice(-4)
-      : null,
-    bank_verified: rider.bank_verified,
-    terms_accepted_at: rider.terms_accepted_at,
-    referral_code: rider.referral_code,
-    created_at: rider.created_at,
-    last_seen_at: rider.last_seen_at,
-    documents: rider.documents,
-    has_personal_details: !!(rider.full_name && rider.date_of_birth),
-    has_location: !!(rider.current_city && rider.residential_address),
-    has_vehicle_details: !!(rider.vehicle_type && rider.vehicle_number),
-    has_bank_details: !!(rider.bank_account_number && rider.bank_ifsc),
-    has_all_documents:
-      rider.documents.length >= 5 &&
-      rider.documents.every((d) => d.status === "APPROVED"),
-    has_accepted_terms: !!rider.terms_accepted_at,
-  };
+  return formatRiderForResponse(rider);
 }
