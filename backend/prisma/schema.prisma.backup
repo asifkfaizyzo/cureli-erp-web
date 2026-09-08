@@ -1909,7 +1909,7 @@ model Rider {
   vehicle_make_model       String?      @db.VarChar(100)
 
   // Status
-  status                   RiderStatus  @default(PENDING_REVIEW)
+  status                   RiderStatus  @default(DRAFT)   
 
   // Zone
   zone_id                  String?      @db.Uuid
@@ -3847,6 +3847,7 @@ enum PrescriptionRecipientStatus {
 }
 
 enum RiderStatus {
+  DRAFT            
   PENDING_REVIEW
   ACTIVE
   SUSPENDED

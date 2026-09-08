@@ -1,3 +1,4 @@
+//backend\src\modules\rider\auth\rider.auth.service.js
 import crypto from "crypto";
 import prisma from "../../../config/prisma.js";
 import {
@@ -54,18 +55,43 @@ function formatRiderForResponse(rider) {
     rider_type: rider.rider_type,
     full_name: rider.full_name,
     email: rider.email,
+    date_of_birth: rider.date_of_birth
+      ? new Date(rider.date_of_birth).toISOString().split("T")[0]
+      : null,
+    sex: rider.sex ?? null,
+    profile_photo_key: rider.profile_photo_key,
     status: rider.status,
+    suspension_reason: rider.suspension_reason,
+    current_city: rider.current_city,
+    residential_address: rider.residential_address,
+    preferred_lat: rider.preferred_lat ? Number(rider.preferred_lat) : null,
+    preferred_lng: rider.preferred_lng ? Number(rider.preferred_lng) : null,
+    preferred_address: rider.preferred_address,
     is_online: rider.is_online,
     rating: rider.rating,
+    total_ratings: rider.total_ratings ?? 0,
     total_deliveries: rider.total_deliveries,
-    profile_photo_key: rider.profile_photo_key,
-    suspension_reason: rider.suspension_reason,
+    vehicle_type: rider.vehicle_type,
+    vehicle_number: rider.vehicle_number,
+    vehicle_make_model: rider.vehicle_make_model,
+    bank_holder_name: rider.bank_holder_name,
+    bank_ifsc: rider.bank_ifsc,
+    bank_account_last4: rider.bank_account_number
+      ? rider.bank_account_number.slice(-4)
+      : null,
+    bank_verified: rider.bank_verified ?? false,
+    terms_accepted_at: rider.terms_accepted_at,
+    referral_code: rider.referral_code,
     created_at: rider.created_at,
     last_seen_at: rider.last_seen_at,
+    documents: rider.documents ?? [],
     has_personal_details: !!(rider.full_name && rider.date_of_birth),
     has_location: !!(rider.current_city && rider.residential_address),
     has_vehicle_details: !!(rider.vehicle_type && rider.vehicle_number),
     has_bank_details: !!(rider.bank_account_number && rider.bank_ifsc),
+    has_all_documents:
+      (rider.documents ?? []).length >= 5 &&
+      (rider.documents ?? []).every((d) => d.status === "APPROVED"),
     has_accepted_terms: !!rider.terms_accepted_at,
   };
 }
@@ -197,19 +223,13 @@ export async function sendRiderOtp(phone) {
     rider = await prisma.rider.create({
       data: {
         phone: phone,
-        status: "PENDING_REVIEW",
+        status: "DRAFT",
         rider_type: "INDEPENDENT",
         login_otp_hash: otpHash,
         login_otp_expires: otpExpires,
         login_otp_attempts: 0,
       },
     });
-  }
-
-  // 7. Dev bypass
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[RiderAuth] DEV OTP for ${phone}: ${otp}`);
-    return { timeout: OTP_VALIDITY_SECONDS };
   }
 
   // 8. Send SMS
@@ -532,6 +552,48 @@ async function _completeRiderVerification(rider, deviceInfo, requestMeta) {
         otp_cycle_failures: 0,
         otp_locked_until: null,
         last_seen_at: now,
+      },
+      // ADDED: Select all fields needed for the full profile response
+      select: {
+        rider_id: true,
+        phone: true,
+        rider_type: true,
+        full_name: true,
+        email: true,
+        date_of_birth: true,
+        sex: true,
+        profile_photo_key: true,
+        status: true,
+        suspension_reason: true,
+        current_city: true,
+        residential_address: true,
+        preferred_lat: true,
+        preferred_lng: true,
+        preferred_address: true,
+        is_online: true,
+        rating: true,
+        total_ratings: true,
+        total_deliveries: true,
+        vehicle_type: true,
+        vehicle_number: true,
+        vehicle_make_model: true,
+        bank_account_number: true,
+        bank_holder_name: true,
+        bank_ifsc: true,
+        bank_verified: true,
+        terms_accepted_at: true,
+        referral_code: true,
+        created_at: true,
+        last_seen_at: true,
+        documents: {
+          select: {
+            document_id: true,
+            type: true,
+            status: true,
+            rejection_reason: true,
+            uploaded_at: true,
+          },
+        },
       },
     });
 

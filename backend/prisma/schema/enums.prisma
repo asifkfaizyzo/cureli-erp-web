@@ -238,6 +238,7 @@ enum PrescriptionRecipientStatus {
 }
 
 enum RiderStatus {
+  DRAFT           
   PENDING_REVIEW
   ACTIVE
   SUSPENDED
@@ -253,6 +254,18 @@ enum RiderDocumentType {
   DRIVING_LICENSE_FRONT
   DRIVING_LICENSE_BACK
   VEHICLE_RC
+}
+
+enum OnboardingStep {
+  PERSONAL_DETAILS
+  LOCATION
+  VEHICLE_DETAILS
+  RC_UPLOAD
+  DL_UPLOAD
+  AADHAAR_UPLOAD
+  PAN_UPLOAD
+  LIVE_PHOTO
+  COMPLETED
 }
 
 enum RiderDocumentStatus {

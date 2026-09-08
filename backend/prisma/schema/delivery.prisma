@@ -78,87 +78,93 @@ model DeliveryIncentive {
 }
 
 model Rider {
-  rider_id                 String       @id @default(uuid()) @db.Uuid
-  phone                    String       @unique @db.VarChar(15)
-  password_hash            String?      @db.VarChar(255)
-  rider_type               RiderType    @default(INDEPENDENT)
+  rider_id                 String         @id @default(uuid()) @db.Uuid
+  phone                    String         @unique @db.VarChar(15)
+  password_hash            String?        @db.VarChar(255)
+  rider_type               RiderType      @default(INDEPENDENT)
 
   // ── Personal Details ──────────────────────────────────────
-  full_name                String?      @db.VarChar(200)
-  email                    String?      @unique @db.VarChar(255)
-  date_of_birth            DateTime?    @db.Date
+  full_name                String?        @db.VarChar(200)
+  email                    String?        @unique @db.VarChar(255)
+  date_of_birth            DateTime?      @db.Date
   sex                      UserSex?
-  profile_photo_key        String?      @db.VarChar(500)
+  profile_photo_key        String?        @db.VarChar(500)
 
-  // ── Location (no zones — radial dispatch) ─────────────────
-  current_city             String?      @db.VarChar(100)
-  residential_address      String?      @db.VarChar(500)
-  preferred_lat            Decimal?     @db.Decimal(10, 8)
-  preferred_lng            Decimal?     @db.Decimal(11, 8)
-  preferred_address        String?      @db.VarChar(500)
+  // ── Location ──────────────────────────────────────────────
+  current_city             String?        @db.VarChar(100)
+  residential_address      String?        @db.VarChar(500)
+  preferred_lat            Decimal?       @db.Decimal(10, 8)
+  preferred_lng            Decimal?       @db.Decimal(11, 8)
+  preferred_address        String?        @db.VarChar(500)
 
   // ── Vehicle ───────────────────────────────────────────────
-  vehicle_type             String?      @db.VarChar(20)
-  vehicle_number           String?      @db.VarChar(20)
-  vehicle_make_model       String?      @db.VarChar(100)
+  vehicle_type             String?        @db.VarChar(20)
+  vehicle_number           String?        @db.VarChar(20)
+  vehicle_make_model       String?        @db.VarChar(100)
 
   // ── Status ────────────────────────────────────────────────
-  status                   RiderStatus  @default(PENDING_REVIEW)
+  status                   RiderStatus    @default(DRAFT)   // ← CHANGED from PENDING_REVIEW
 
-  // ── Real-time telemetry (radial matching) ─────────────────
-  is_online                Boolean      @default(false)
-  current_lat              Decimal?     @db.Decimal(10, 8)
-  current_lng              Decimal?     @db.Decimal(11, 8)
-  last_location_at         DateTime?    @db.Timestamptz(6)
+  // ── Onboarding Progress ─────────────────────────────
+  onboarding_step          OnboardingStep @default(PERSONAL_DETAILS)
+  submitted_for_review     Boolean        @default(false)
+  first_submitted_at       DateTime?      @db.Timestamptz(6)
+  last_resubmitted_at      DateTime?      @db.Timestamptz(6)
+  is_resubmission          Boolean        @default(false)
 
-  // ── Bank details (post-approval) ──────────────────────────
-  bank_account_number      String?      @db.VarChar(30)
-  bank_ifsc                String?      @db.VarChar(15)
-  bank_holder_name         String?      @db.VarChar(200)
-  bank_name                String?      @db.VarChar(100)
-  bank_verified            Boolean      @default(false)
+  // ── Real-time telemetry ───────────────────────────────────
+  is_online                Boolean        @default(false)
+  current_lat              Decimal?       @db.Decimal(10, 8)
+  current_lng              Decimal?       @db.Decimal(11, 8)
+  last_location_at         DateTime?      @db.Timestamptz(6)
+
+  // ── Bank details ──────────────────────────────────────────
+  bank_account_number      String?        @db.VarChar(30)
+  bank_ifsc                String?        @db.VarChar(15)
+  bank_holder_name         String?        @db.VarChar(200)
+  bank_name                String?        @db.VarChar(100)
+  bank_verified            Boolean        @default(false)
 
   // ── Compliance ────────────────────────────────────────────
-  terms_accepted_at        DateTime?    @db.Timestamptz(6)
+  terms_accepted_at        DateTime?      @db.Timestamptz(6)
 
   // ── Emergency contact ─────────────────────────────────────
-  emergency_contact_name   String?      @db.VarChar(200)
-  emergency_contact_phone  String?      @db.VarChar(15)
+  emergency_contact_name   String?        @db.VarChar(200)
+  emergency_contact_phone  String?        @db.VarChar(15)
 
   // ── Ratings ───────────────────────────────────────────────
-  rating                   Float        @default(0)
-  total_ratings            Int          @default(0)
-  total_deliveries         Int          @default(0)
+  rating                   Float          @default(0)
+  total_ratings            Int            @default(0)
+  total_deliveries         Int            @default(0)
 
   // ── Referral ──────────────────────────────────────────────
-  referral_code            String?      @unique @db.VarChar(20)
-  referred_by_code         String?      @db.VarChar(20)
+  referral_code            String?        @unique @db.VarChar(20)
+  referred_by_code         String?        @db.VarChar(20)
 
   // ── Suspension ────────────────────────────────────────────
-  suspension_reason        String?      @db.VarChar(500)
-  suspended_at             DateTime?    @db.Timestamptz(6)
-  suspended_by             String?      @db.Uuid
+  suspension_reason        String?        @db.VarChar(500)
+  suspended_at             DateTime?      @db.Timestamptz(6)
+  suspended_by             String?        @db.Uuid
 
   // ── Auth OTP fields ───────────────────────────────────────
   login_otp_hash           String?
-  login_otp_expires        DateTime?    @db.Timestamptz(6)
-  login_otp_attempts       Int          @default(0)
-  otp_cycle_failures       Int          @default(0)
-  otp_locked_until         DateTime?    @db.Timestamptz(6)
+  login_otp_expires        DateTime?      @db.Timestamptz(6)
+  login_otp_attempts       Int            @default(0)
+  otp_cycle_failures       Int            @default(0)
+  otp_locked_until         DateTime?      @db.Timestamptz(6)
 
   // ── Session control ───────────────────────────────────────
-  logout_all_issued_at     DateTime?    @db.Timestamptz(6)
+  logout_all_issued_at     DateTime?      @db.Timestamptz(6)
 
   // ── Soft delete ───────────────────────────────────────────
-  deleted_at               DateTime?    @db.Timestamptz(6)
-  deletion_reason          String?      @db.VarChar(500)
+  deleted_at               DateTime?      @db.Timestamptz(6)
+  deletion_reason          String?        @db.VarChar(500)
 
-  created_at               DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime     @updatedAt @db.Timestamptz(6)
-  last_seen_at             DateTime?    @db.Timestamptz(6)
+  created_at               DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime       @updatedAt @db.Timestamptz(6)
+  last_seen_at             DateTime?      @db.Timestamptz(6)
 
   // ── Relations ─────────────────────────────────────────────
-  // REMOVED: zone DeliveryZone? relation
   sessions                 RiderSession[]
   documents                RiderDocument[]
   zoneChangeRequests       ZoneChangeRequest[]
@@ -180,7 +186,34 @@ model Rider {
   @@index([referral_code])
   @@index([deleted_at])
   @@index([created_at(sort: Desc)])
+  @@index([onboarding_step])              // ← NEW
+  @@index([submitted_for_review])         // ← NEW
   @@map("riders")
+}
+
+model RiderDocument {
+  document_id              String              @id @default(uuid()) @db.Uuid
+  rider_id                 String              @db.Uuid
+  type                     RiderDocumentType
+  storage_key              String?             @db.VarChar(500)
+  back_storage_key         String?             @db.VarChar(500)
+  status                   RiderDocumentStatus @default(PENDING)
+  rejection_reason         String?             @db.VarChar(500)
+  reviewed_by              String?             @db.Uuid
+  reviewed_at              DateTime?           @db.Timestamptz(6)
+  resubmission_count       Int                 @default(0)
+  was_rejected_this_cycle  Boolean             @default(false)   
+  uploaded_at              DateTime?           @db.Timestamptz(6)
+  created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime            @updatedAt @db.Timestamptz(6)
+
+  rider                    Rider               @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
+
+  @@unique([rider_id, type])
+  @@index([rider_id])
+  @@index([rider_id, type])
+  @@index([status])
+  @@map("rider_documents")
 }
 
 model RiderSession {
@@ -213,29 +246,7 @@ model RiderSession {
   @@map("rider_sessions")
 }
 
-model RiderDocument {
-  document_id       String              @id @default(uuid()) @db.Uuid
-  rider_id          String              @db.Uuid
-  type              RiderDocumentType
-  storage_key       String?             @db.VarChar(500)
-  back_storage_key  String?             @db.VarChar(500)
-  status            RiderDocumentStatus @default(PENDING)
-  rejection_reason  String?             @db.VarChar(500)
-  reviewed_by       String?             @db.Uuid
-  reviewed_at       DateTime?           @db.Timestamptz(6)
-  resubmission_count Int                @default(0)
-  uploaded_at       DateTime?           @db.Timestamptz(6)
-  created_at        DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime            @updatedAt @db.Timestamptz(6)
 
-  rider             Rider               @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
-
-  @@unique([rider_id, type])
-  @@index([rider_id])
-  @@index([rider_id, type])
-  @@index([status])
-  @@map("rider_documents")
-}
 
 model ZoneChangeRequest {
   request_id   String           @id @default(uuid()) @db.Uuid

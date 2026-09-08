@@ -1,3 +1,4 @@
+//backend\src\modules\rider\onboarding\rider.onboarding.service.js
 import prisma from "../../../config/prisma.js";
 import { uploadFile } from "../../../services/fileStorage.service.js";
 
@@ -142,7 +143,7 @@ export async function getOnboardingStatus(riderId) {
   let next_step = null;
   let is_complete = false;
 
-  if (rider.status === "ACTIVE") {
+    if (rider.status === "ACTIVE") {
     if (!steps.bank_details) {
       next_step = "bank_details";
     } else if (!steps.terms_accepted) {
@@ -154,14 +155,17 @@ export async function getOnboardingStatus(riderId) {
   } else if (rider.status === "PENDING_REVIEW") {
     next_step = "status";
   } else if (rider.status === "REJECTED") {
-    next_step = "status"; // Status screen shows rejection + retry
-  } else {
-    // Still filling out onboarding
+    next_step = "status";
+  } else if (rider.status === "DRAFT") {
+    // Rider is still filling out onboarding
     if (!steps.personal_details) next_step = "personal_details";
     else if (!steps.location) next_step = "location";
     else if (!steps.vehicle_details) next_step = "vehicle_details";
     else if (!allDocsUploaded || anyDocRejected) next_step = "documents";
     else next_step = "submit";
+  } else {
+    // Fallback for any unknown status
+    next_step = "personal_details";
   }
 
   return {
@@ -457,8 +461,8 @@ export async function submitApplication(riderId) {
     throw err;
   }
 
-  // Only allow submission from PENDING_REVIEW (initial) or REJECTED (resubmit)
-  if (!["PENDING_REVIEW", "REJECTED"].includes(rider.status)) {
+    // Allow submission from DRAFT (first time), PENDING_REVIEW (edge), or REJECTED (resubmit)
+  if (!["DRAFT", "PENDING_REVIEW", "REJECTED"].includes(rider.status)) {
     const err = new Error("Application cannot be submitted in current status.");
     err.code = "INVALID_STATUS";
     throw err;

@@ -1,3 +1,4 @@
+// backend/src/modules/rider/auth/rider.auth.controller.js
 import { fail, success } from "../../../utils/response.js";
 import {
   checkPhoneSchema,
@@ -29,7 +30,8 @@ export async function checkPhone(req, res) {
 
   try {
     const result = await checkRiderPhone(parsed.data.phone);
-    return success(res, "Phone checked", result);
+    // FIXED: Swapped result and message
+    return success(res, result, "Phone checked");
   } catch {
     return fail(res, "Failed to check phone", 500);
   }
@@ -45,15 +47,16 @@ export async function sendOtp(req, res) {
 
   try {
     const result = await sendRiderOtp(parsed.data.phone);
-    return success(res, "OTP sent successfully", result);
+    // FIXED: Swapped result and message
+    return success(res, result, "OTP sent successfully");
   } catch (err) {
     const statusMap = {
-      OTP_DAILY_LIMIT:   429,
-      OTP_COOLDOWN:      429,
-      OTP_LOCKED:        429,
+      OTP_DAILY_LIMIT: 429,
+      OTP_COOLDOWN: 429,
+      OTP_LOCKED: 429,
       ACCOUNT_SUSPENDED: 403,
-      ACCOUNT_BLOCKED:   403,
-      SMS_FAILED:        503,
+      ACCOUNT_BLOCKED: 403,
+      SMS_FAILED: 503,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -72,14 +75,15 @@ export async function verifyOtp(req, res) {
 
   try {
     const result = await verifyRiderOtp(phone, otp, deviceInfo, requestMeta);
-    return success(res, "OTP verified successfully", result);
+    // FIXED: Swapped result and message
+    return success(res, result, "OTP verified successfully");
   } catch (err) {
     const statusMap = {
-      NO_OTP:            400,
-      OTP_EXPIRED:       400,
-      INVALID_OTP:       400,
+      NO_OTP: 400,
+      OTP_EXPIRED: 400,
+      INVALID_OTP: 400,
       TOO_MANY_ATTEMPTS: 429,
-      OTP_LOCKED:        429,
+      OTP_LOCKED: 429,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -98,14 +102,15 @@ export async function login(req, res) {
 
   try {
     const result = await loginRider(phone, password, deviceInfo, requestMeta);
-    return success(res, "Login successful", result);
+    // FIXED: Swapped result and message
+    return success(res, result, "Login successful");
   } catch (err) {
     const statusMap = {
-      NOT_FOUND:          404,
-      INVALID_PASSWORD:   401,
-      NO_PASSWORD:        400,
-      ACCOUNT_SUSPENDED:  403,
-      ACCOUNT_BLOCKED:    403,
+      NOT_FOUND: 404,
+      INVALID_PASSWORD: 401,
+      NO_PASSWORD: 400,
+      ACCOUNT_SUSPENDED: 403,
+      ACCOUNT_BLOCKED: 403,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -123,13 +128,19 @@ export async function setPassword(req, res) {
   const requestMeta = { ip: req.ip, userAgent: req.headers["user-agent"] };
 
   try {
-    const result = await setRiderPassword(temp_token, password, deviceInfo, requestMeta);
-    return success(res, "Password set successfully", result);
+    const result = await setRiderPassword(
+      temp_token,
+      password,
+      deviceInfo,
+      requestMeta,
+    );
+    // FIXED: Swapped result and message
+    return success(res, result, "Password set successfully");
   } catch (err) {
     const statusMap = {
       INVALID_TEMP_TOKEN: 401,
-      NOT_FOUND:          404,
-      ALREADY_SET:        400,
+      NOT_FOUND: 404,
+      ALREADY_SET: 400,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -145,16 +156,17 @@ export async function refreshToken(req, res) {
 
   try {
     const result = await refreshRiderToken(parsed.data.refresh_token);
-    return success(res, "Token refreshed", result);
+    // FIXED: Swapped result and message
+    return success(res, result, "Token refreshed");
   } catch (err) {
     const statusMap = {
       INVALID_REFRESH_TOKEN: 401,
-      SESSION_REVOKED:       401,
-      SESSION_EXPIRED:       401,
-      SESSION_INVALIDATED:   401,
-      ACCOUNT_DELETED:       404,
-      ACCOUNT_SUSPENDED:     403,
-      ACCOUNT_BLOCKED:       403,
+      SESSION_REVOKED: 401,
+      SESSION_EXPIRED: 401,
+      SESSION_INVALIDATED: 401,
+      ACCOUNT_DELETED: 404,
+      ACCOUNT_SUSPENDED: 403,
+      ACCOUNT_BLOCKED: 403,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -165,7 +177,8 @@ export async function refreshToken(req, res) {
 export async function logout(req, res) {
   try {
     await logoutRider(req.riderSession.id);
-    return success(res, "Logged out successfully");
+    // FIXED: Added empty data object as 2nd arg
+    return success(res, {}, "Logged out successfully");
   } catch {
     return fail(res, "Logout failed", 500);
   }
@@ -176,7 +189,8 @@ export async function logout(req, res) {
 export async function logoutAll(req, res) {
   try {
     await logoutAllRider(req.rider.rider_id);
-    return success(res, "All sessions revoked");
+    // FIXED: Added empty data object as 2nd arg
+    return success(res, {}, "All sessions revoked");
   } catch {
     return fail(res, "Logout failed", 500);
   }
@@ -187,7 +201,8 @@ export async function logoutAll(req, res) {
 export async function getMe(req, res) {
   try {
     const rider = await getRiderMe(req.rider.rider_id);
-    return success(res, "Rider profile retrieved", rider);
+    // FIXED: Swapped rider and message
+    return success(res, rider, "Rider profile retrieved");
   } catch (err) {
     if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
     return fail(res, "Failed to fetch profile", 500);

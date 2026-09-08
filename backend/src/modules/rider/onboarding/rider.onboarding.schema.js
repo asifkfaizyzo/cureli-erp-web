@@ -1,3 +1,5 @@
+//backend\src\modules\rider\onboarding\rider.onboarding.schema.js
+
 import { z } from "zod";
 
 // ── Personal Details (Step 1) ─────────────────────────────────

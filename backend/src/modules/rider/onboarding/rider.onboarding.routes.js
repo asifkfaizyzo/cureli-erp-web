@@ -1,3 +1,4 @@
+//backend\src\modules\rider\onboarding\rider.onboarding.routes.js
 import { Router } from "express";
 import { riderAuth } from "../../../middleware/rider.auth.js";
 import { createUploader, handleMulterError } from "../../../config/multer.js";
