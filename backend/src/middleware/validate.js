@@ -1,52 +1,47 @@
-// src/middleware/validate.js
+// backend/src/middleware/validate.js
+
 import { fail } from "../utils/response.js";
 
-export const validateBody = (schema) => (req, res, next) => {
-  try {
-    const parsed = schema.parse(req.body || {});
-    req.body = parsed;
-    req.validated = parsed;
-    return next();
-  } catch (err) {
-    const message = err?.errors?.[0]?.message || "Validation failed";
-    return fail(res, message, 400, err.errors);
-  }
-};
-
-// Flexible validate function for body, query, or params
+/**
+ * Universal validation middleware for Express + Zod
+ * Supports body, query, and params validation
+ *
+ * @param {import("zod").ZodSchema} schema - Zod Schema to validate against
+ * @param {"body" | "query" | "params"} [source="body"] - Target request property
+ */
 export const validate = (schema, source = "body") => (req, res, next) => {
   try {
-    const data = req[source] || {};
-    const parsed = schema.parse(data);
+    const rawData = req[source] || {};
+    const parsed = schema.parse(rawData);
 
     if (source === "body") {
       req.body = parsed;
       req.validated = parsed;
     } else if (source === "query") {
-      req.query = parsed;
+      try {
+        req.query = parsed;
+      } catch {
+        Object.assign(req.query, parsed);
+      }
       req.validatedQuery = parsed;
+      req.validated = { ...(req.validated || {}), ...parsed };
     } else if (source === "params") {
-      req.params = parsed;
+      try {
+        req.params = parsed;
+      } catch {
+        Object.assign(req.params, parsed);
+      }
       req.validatedParams = parsed;
+      req.validated = { ...(req.validated || {}), ...parsed };
     }
-    
+
     return next();
   } catch (err) {
     const message = err?.errors?.[0]?.message || "Validation failed";
-    return fail(res, message, 400, err.errors);
+    return fail(res, message, 400, err?.errors || err);
   }
 };
 
-export function validateQuery(schema) {
-  return async (req, res, next) => {
-    try {
-      const validated = await schema.parseAsync(req.query || {});
-      req.query = validated;
-      req.validated = { ...req.validated, ...validated };
-      next();
-    } catch (error) {
-      const message = error.errors?.map((e) => e.message).join(", ") || "Invalid query parameters";
-      return fail(res, message, 400, error.errors);
-    }
-  };
-}
+export const validateBody = (schema) => validate(schema, "body");
+export const validateQuery = (schema) => validate(schema, "query");
+export const validateParams = (schema) => validate(schema, "params");
