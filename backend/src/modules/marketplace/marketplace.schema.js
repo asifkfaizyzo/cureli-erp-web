@@ -94,6 +94,7 @@ export const branchConfigSchema = z
     is_24_hours: z.boolean().default(false),
     pickup_enabled: z.boolean().default(false),
     delivery_enabled: z.boolean().default(false),
+    open_days: z.array(z.enum(["MON","TUE","WED","THU","FRI","SAT","SUN"])).optional(),
     delivery_mode: z.enum(["CURELI", "SELF"]).default("CURELI"), // <-- Added DeliveryMode configuration
     contact_override: z.string().max(20).nullable().optional(),
   })
