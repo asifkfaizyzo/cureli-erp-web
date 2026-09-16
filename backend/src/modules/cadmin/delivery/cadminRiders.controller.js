@@ -21,7 +21,7 @@ import {
 export async function getRiders(req, res) {
   try {
     const result = await listRiders(req.query);
-    return success(res, "Riders retrieved", result);
+    return success(res, result, "Riders retrieved");
   } catch {
     return fail(res, "Failed to fetch riders", 500);
   }
@@ -30,7 +30,7 @@ export async function getRiders(req, res) {
 export async function getRider(req, res) {
   try {
     const rider = await getRiderDetail(req.params.riderId);
-    return success(res, "Rider retrieved", rider);
+    return success(res, rider, "Rider retrieved");
   } catch (err) {
     if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
     return fail(res, "Failed to fetch rider", 500);
@@ -47,7 +47,7 @@ export async function reviewRiderDocument(req, res) {
       rejection_reason,
       req.cadmin.cadmin_id,
     );
-    return success(res, "Document reviewed", result);
+    return success(res, result, "Document reviewed");
   } catch (err) {
     const map = { INVALID_ACTION: 400, REASON_REQUIRED: 400, NOT_FOUND: 404 };
     return fail(res, err.message, map[err.code] ?? 500);
@@ -57,7 +57,7 @@ export async function reviewRiderDocument(req, res) {
 export async function approveRiderApplication(req, res) {
   try {
     const result = await approveRider(req.params.riderId, req.cadmin.cadmin_id);
-    return success(res, "Rider approved and activated", result);
+    return success(res, result, "Rider approved and activated");
   } catch (err) {
     const map = { NOT_FOUND: 404, DOCUMENTS_PENDING: 400 };
     return fail(res, err.message, map[err.code] ?? 500);
@@ -72,7 +72,7 @@ export async function rejectRiderApplication(req, res) {
       reason,
       req.cadmin.cadmin_id,
     );
-    return success(res, "Rider application rejected", result);
+    return success(res, result, "Rider application rejected");
   } catch (err) {
     const map = { REASON_REQUIRED: 400, NOT_FOUND: 404 };
     return fail(res, err.message, map[err.code] ?? 500);
@@ -87,7 +87,7 @@ export async function suspendRiderAccount(req, res) {
       reason,
       req.cadmin.cadmin_id,
     );
-    return success(res, "Rider suspended", result);
+    return success(res, result, "Rider suspended");
   } catch (err) {
     const map = { REASON_REQUIRED: 400, NOT_FOUND: 404 };
     return fail(res, err.message, map[err.code] ?? 500);
@@ -97,7 +97,7 @@ export async function suspendRiderAccount(req, res) {
 export async function reactivateRiderAccount(req, res) {
   try {
     const result = await reactivateRider(req.params.riderId);
-    return success(res, "Rider reactivated", result);
+    return success(res, result, "Rider reactivated");
   } catch (err) {
     const map = { NOT_FOUND: 404, INVALID_STATUS: 400 };
     return fail(res, err.message, map[err.code] ?? 500);
@@ -122,8 +122,8 @@ export async function createRider(req, res) {
     );
     return success(
       res,
-      "Team rider created and pre-approved successfully",
       rider,
+      "Team rider created and pre-approved successfully",
       201,
     );
   } catch (err) {
@@ -140,7 +140,7 @@ export async function createRider(req, res) {
 export async function getZones(req, res) {
   try {
     const zones = await listZones(req.query);
-    return success(res, "Zones retrieved", zones);
+    return success(res, zones, "Zones retrieved");
   } catch {
     return fail(res, "Failed to fetch zones", 500);
   }
@@ -152,7 +152,7 @@ export async function addZone(req, res) {
     return fail(res, "Name, city, and state are required", 400);
   try {
     const zone = await createZone({ name, city, state }, req.cadmin.cadmin_id);
-    return success(res, "Zone created", zone, 201);
+    return success(res, zone, "Zone created", 201);
   } catch {
     return fail(res, "Failed to create zone", 500);
   }
@@ -161,7 +161,7 @@ export async function addZone(req, res) {
 export async function editZone(req, res) {
   try {
     const zone = await updateZone(req.params.zoneId, req.body);
-    return success(res, "Zone updated", zone);
+    return success(res, zone, "Zone updated");
   } catch (err) {
     if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
     return fail(res, "Failed to update zone", 500);
@@ -171,7 +171,7 @@ export async function editZone(req, res) {
 export async function getPendingReviews(req, res) {
   try {
     const result = await listPendingReviews(req.query);
-    return success(res, "Pending reviews retrieved", result);
+    return success(res, result, "Pending reviews retrieved");
   } catch {
     return fail(res, "Failed to fetch pending reviews", 500);
   }

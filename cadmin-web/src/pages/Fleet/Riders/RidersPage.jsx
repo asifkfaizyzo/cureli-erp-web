@@ -1,3 +1,5 @@
+// cadmin-web/src/pages/Fleet/Riders/RidersPage.jsx
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Users,
@@ -15,13 +17,13 @@ import { getRiders } from "../../../api/cadminRiders";
 import { useToast } from "../../../components/common/Toast";
 import useDynamicRowCount from "../../../hooks/useDynamicRowCount";
 
+// Main table only displays active/verified fleet.
+// Pending and rejected applicants belong in RiderVerificationPage.
 const STATUS_OPTIONS = [
-  { value: "", label: "All Status" },
+  { value: "", label: "All Active Fleet" },
   { value: "ACTIVE", label: "Active" },
-  { value: "PENDING_REVIEW", label: "Pending Review" },
   { value: "SUSPENDED", label: "Suspended" },
   { value: "BLOCKED", label: "Blocked" },
-  { value: "REJECTED", label: "Rejected" },
 ];
 
 const TYPE_OPTIONS = [
@@ -106,8 +108,8 @@ const RidersPage = () => {
               <Users size={20} className="text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-gray-900 truncate">Rider Management</h1>
-              <p className="text-sm text-gray-500">{totalItems} total rider{totalItems !== 1 ? "s" : ""}</p>
+              <h1 className="text-xl font-bold text-gray-900 truncate">Rider Fleet Management</h1>
+              <p className="text-sm text-gray-500">{totalItems} active / verified rider{totalItems !== 1 ? "s" : ""}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

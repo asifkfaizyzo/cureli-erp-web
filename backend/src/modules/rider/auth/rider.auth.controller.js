@@ -1,4 +1,3 @@
-// backend/src/modules/rider/auth/rider.auth.controller.js
 import { fail, success } from "../../../utils/response.js";
 import {
   checkPhoneSchema,
@@ -6,6 +5,7 @@ import {
   verifyOtpSchema,
   loginSchema,
   setPasswordSchema,
+  resetPasswordSchema,
   refreshTokenSchema,
 } from "./rider.auth.schema.js";
 import {
@@ -14,6 +14,7 @@ import {
   verifyRiderOtp,
   loginRider,
   setRiderPassword,
+  resetRiderPassword,
   refreshRiderToken,
   logoutRider,
   logoutAllRider,
@@ -30,7 +31,6 @@ export async function checkPhone(req, res) {
 
   try {
     const result = await checkRiderPhone(parsed.data.phone);
-    // FIXED: Swapped result and message
     return success(res, result, "Phone checked");
   } catch {
     return fail(res, "Failed to check phone", 500);
@@ -46,11 +46,11 @@ export async function sendOtp(req, res) {
   }
 
   try {
-    const result = await sendRiderOtp(parsed.data.phone);
-    // FIXED: Swapped result and message
+    const result = await sendRiderOtp(parsed.data.phone, parsed.data.purpose);
     return success(res, result, "OTP sent successfully");
   } catch (err) {
     const statusMap = {
+      NOT_FOUND: 404,
       OTP_DAILY_LIMIT: 429,
       OTP_COOLDOWN: 429,
       OTP_LOCKED: 429,
@@ -70,12 +70,11 @@ export async function verifyOtp(req, res) {
     return fail(res, parsed.error.errors[0].message, 400);
   }
 
-  const { phone, otp, ...deviceInfo } = parsed.data;
+  const { phone, otp, purpose, ...deviceInfo } = parsed.data;
   const requestMeta = { ip: req.ip, userAgent: req.headers["user-agent"] };
 
   try {
-    const result = await verifyRiderOtp(phone, otp, deviceInfo, requestMeta);
-    // FIXED: Swapped result and message
+    const result = await verifyRiderOtp(phone, otp, purpose, deviceInfo, requestMeta);
     return success(res, result, "OTP verified successfully");
   } catch (err) {
     const statusMap = {
@@ -102,7 +101,6 @@ export async function login(req, res) {
 
   try {
     const result = await loginRider(phone, password, deviceInfo, requestMeta);
-    // FIXED: Swapped result and message
     return success(res, result, "Login successful");
   } catch (err) {
     const statusMap = {
@@ -134,13 +132,36 @@ export async function setPassword(req, res) {
       deviceInfo,
       requestMeta,
     );
-    // FIXED: Swapped result and message
     return success(res, result, "Password set successfully");
   } catch (err) {
     const statusMap = {
       INVALID_TEMP_TOKEN: 401,
       NOT_FOUND: 404,
       ALREADY_SET: 400,
+    };
+    return fail(res, err.message, statusMap[err.code] ?? 500);
+  }
+}
+
+// ── resetPassword ─────────────────────────────────────────────
+
+export async function resetPassword(req, res) {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return fail(res, parsed.error.errors[0].message, 400);
+  }
+
+  const { reset_token, password } = parsed.data;
+
+  try {
+    const result = await resetRiderPassword(reset_token, password);
+    return success(res, result, "Password reset successfully");
+  } catch (err) {
+    const statusMap = {
+      INVALID_RESET_TOKEN: 401,
+      NOT_FOUND: 404,
+      ACCOUNT_SUSPENDED: 403,
+      ACCOUNT_BLOCKED: 403,
     };
     return fail(res, err.message, statusMap[err.code] ?? 500);
   }
@@ -156,7 +177,6 @@ export async function refreshToken(req, res) {
 
   try {
     const result = await refreshRiderToken(parsed.data.refresh_token);
-    // FIXED: Swapped result and message
     return success(res, result, "Token refreshed");
   } catch (err) {
     const statusMap = {
@@ -177,7 +197,6 @@ export async function refreshToken(req, res) {
 export async function logout(req, res) {
   try {
     await logoutRider(req.riderSession.id);
-    // FIXED: Added empty data object as 2nd arg
     return success(res, {}, "Logged out successfully");
   } catch {
     return fail(res, "Logout failed", 500);
@@ -189,7 +208,6 @@ export async function logout(req, res) {
 export async function logoutAll(req, res) {
   try {
     await logoutAllRider(req.rider.rider_id);
-    // FIXED: Added empty data object as 2nd arg
     return success(res, {}, "All sessions revoked");
   } catch {
     return fail(res, "Logout failed", 500);
@@ -201,7 +219,6 @@ export async function logoutAll(req, res) {
 export async function getMe(req, res) {
   try {
     const rider = await getRiderMe(req.rider.rider_id);
-    // FIXED: Swapped rider and message
     return success(res, rider, "Rider profile retrieved");
   } catch (err) {
     if (err.code === "NOT_FOUND") return fail(res, err.message, 404);

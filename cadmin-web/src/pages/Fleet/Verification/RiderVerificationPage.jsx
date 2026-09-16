@@ -1,3 +1,5 @@
+// cadmin-web/src/pages/Fleet/Verification/RiderVerificationPage.jsx
+
 import { useState, useEffect, useCallback } from "react";
 import {
   ShieldCheck,
@@ -9,7 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Eye,
-  FileText,
+  RotateCcw,
+  Calendar,
 } from "lucide-react";
 import RiderVerificationModal from "./comps/RiderVerificationModal";
 import { getPendingReviews } from "../../../api/cadminRiders";
@@ -81,9 +84,9 @@ const RiderVerificationPage = () => {
               <ShieldCheck size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Rider Verification</h1>
+              <h1 className="text-xl font-bold text-gray-900">Rider Verification Queue</h1>
               <p className="text-sm text-gray-500">
-                {totalItems} application{totalItems !== 1 ? "s" : ""} awaiting document review
+                {totalItems} application{totalItems !== 1 ? "s" : ""} awaiting document verification
               </p>
             </div>
           </div>
@@ -93,10 +96,11 @@ const RiderVerificationPage = () => {
             className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 shadow-sm flex items-center gap-2 disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            <span className="text-sm font-medium">Refresh</span>
           </button>
         </div>
 
-        {/* Search Input */}
+        {/* Search Bar */}
         <div className="bg-white rounded-xl border border-gray-200 p-3">
           <div className="relative max-w-md">
             <Search
@@ -121,7 +125,6 @@ const RiderVerificationPage = () => {
           </div>
         </div>
 
-        {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
             <AlertCircle size={18} />
@@ -130,23 +133,24 @@ const RiderVerificationPage = () => {
         )}
       </div>
 
-      {/* Table Container */}
+      {/* Table */}
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
         <div className={styles.container.wrapper}>
           {(loading || riders.length > 0) && (
             <div className="flex-1 min-h-0 overflow-auto">
-              <table className="w-full border-collapse text-sm" style={{ minWidth: "900px" }}>
+              <table className="w-full border-collapse text-sm" style={{ minWidth: "980px" }}>
                 <thead className="sticky top-0 z-10">
                   <tr className={styles.header.row}>
                     <th style={{ width: 50 }} className={styles.header.cell}>#</th>
                     <th style={{ width: 220 }} className={styles.header.cell}>Rider Info</th>
-                    <th style={{ width: 140 }} className={styles.header.cell}>Phone</th>
-                    <th style={{ width: 130 }} className={styles.header.cell}>Location</th>
+                    <th style={{ width: 130 }} className={styles.header.cell}>Phone</th>
+                    <th style={{ width: 120 }} className={styles.header.cell}>Location</th>
                     <th style={{ width: 140 }} className={styles.header.cell}>Vehicle</th>
-                    <th style={{ width: 180 }} className={`${styles.header.cell} text-center`}>
-                      Document Status
+                    <th style={{ width: 120 }} className={`${styles.header.cell} text-center`}>Type</th>
+                    <th style={{ width: 160 }} className={`${styles.header.cell} text-center`}>
+                      Documents Status
                     </th>
-                    <th style={{ width: 130 }} className={styles.header.cell}>Submitted</th>
+                    <th style={{ width: 120 }} className={styles.header.cell}>Submitted</th>
                     <th style={{ width: 100 }} className={`${styles.header.cell} text-center`}>
                       Action
                     </th>
@@ -156,11 +160,13 @@ const RiderVerificationPage = () => {
                   {loading ? (
                     <TableSkeleton
                       rows={rowsPerPage}
-                      columns={["rider", "phone", "location", "vehicle", "docs", "date"]}
+                      columns={["rider", "phone", "location", "vehicle", "type", "docs", "date"]}
                     />
                   ) : (
                     riders.map((rider, index) => {
                       const stats = getDocStats(rider.documents);
+                      const isResubmission = rider.is_resubmission || rider.status === "REJECTED";
+
                       return (
                         <tr
                           key={rider.rider_id}
@@ -172,7 +178,7 @@ const RiderVerificationPage = () => {
                             {startIndex + index + 1}
                           </td>
 
-                          {/* Rider Info */}
+                          {/* Rider info */}
                           <td className={`${styles.cell.base} ${styles.cell.primary}`}>
                             <div className="flex items-center gap-2.5">
                               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#05015A] to-[#0a0280] flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -212,27 +218,40 @@ const RiderVerificationPage = () => {
                                 {rider.vehicle_type || "—"}
                               </span>
                               {rider.vehicle_number && (
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-gray-400 font-mono">
                                   {rider.vehicle_number}
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          {/* Document Status Badges */}
+                          {/* Resubmission / Submission Type Badge */}
+                          <td className={`${styles.cell.base} ${styles.cell.center}`}>
+                            {isResubmission ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                <RotateCcw size={11} /> Resubmission
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                First Review
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Document Status */}
                           <td className={`${styles.cell.base} ${styles.cell.center}`}>
                             <div className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full text-xs font-medium">
-                              <span className="flex items-center gap-1 text-emerald-600">
+                              <span className="flex items-center gap-1 text-emerald-600 font-semibold" title="Approved">
                                 <CheckCircle2 size={12} /> {stats.approved}
                               </span>
                               <span className="text-gray-300">/</span>
-                              <span className="flex items-center gap-1 text-amber-600">
+                              <span className="flex items-center gap-1 text-amber-600 font-semibold" title="Pending">
                                 <Clock size={12} /> {stats.pending}
                               </span>
                               {stats.rejected > 0 && (
                                 <>
                                   <span className="text-gray-300">/</span>
-                                  <span className="flex items-center gap-1 text-red-600">
+                                  <span className="flex items-center gap-1 text-red-600 font-semibold" title="Rejected">
                                     <XCircle size={12} /> {stats.rejected}
                                   </span>
                                 </>
@@ -240,22 +259,28 @@ const RiderVerificationPage = () => {
                             </div>
                           </td>
 
-                          {/* Submitted */}
+                          {/* Submitted Date */}
                           <td className={`${styles.cell.base} ${styles.cell.muted}`}>
-                            {new Date(rider.updated_at || rider.created_at).toLocaleDateString(
-                              "en-IN",
-                              { day: "2-digit", month: "short", year: "numeric" }
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              <Calendar size={13} className="text-gray-400" />
+                              <span>
+                                {new Date(rider.updated_at || rider.created_at).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
                           </td>
 
-                          {/* Action Button */}
+                          {/* Action button */}
                           <td className={`${styles.cell.base} ${styles.cell.center}`}>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedRider(rider);
                               }}
-                              className="px-3 py-1.5 bg-[#05015A] text-white text-xs font-semibold rounded-lg hover:bg-[#0a0280] transition-colors flex items-center justify-center gap-1 mx-auto"
+                              className="px-3 py-1.5 bg-[#05015A] text-white text-xs font-semibold rounded-lg hover:bg-[#0a0280] transition-colors flex items-center justify-center gap-1 mx-auto shadow-sm"
                             >
                               <Eye size={12} />
                               Review
@@ -289,7 +314,7 @@ const RiderVerificationPage = () => {
         </div>
       </div>
 
-      {/* Verification Review Modal */}
+      {/* Modal */}
       {selectedRider && (
         <RiderVerificationModal
           rider={selectedRider}

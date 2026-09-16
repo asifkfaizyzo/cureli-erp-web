@@ -17,6 +17,16 @@ const VALID_STATUSES = [
   "CANCELLED",
 ];
 
+const VALID_PAYMENT_STATUSES = [
+  "PENDING",
+  "PAID",
+  "FAILED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+];
+
+const REASON_REQUIRED_PAYMENT_STATUSES = ["REFUNDED", "PARTIALLY_REFUNDED"];
+
 // ─────────────────────────────────────────────
 // LIST ALL ORDERS (across all shops)
 // ─────────────────────────────────────────────
@@ -425,4 +435,158 @@ function formatOrderDetail(order) {
       created_at: h.created_at,
     })),
   };
+}
+/**
+ * CAdmin override: change payment status.
+ * Fires push + email to customer when REFUNDED or PARTIALLY_REFUNDED.
+ */
+export const updatePaymentStatus = async ({
+  order_id,
+  new_payment_status,
+  reason = "",
+  cadmin_name = "CAdmin",
+}) => {
+  if (!VALID_PAYMENT_STATUSES.includes(new_payment_status)) {
+    const err = new Error("Invalid payment status");
+    err.code = "INVALID_PAYMENT_STATUS";
+    throw err;
+  }
+
+  const order = await prisma.marketplaceOrder.findUnique({
+    where: { order_id },
+    select: {
+      order_id: true,
+      order_number: true,
+      payment_status: true,
+      customer_id: true,
+      total_amount: true,
+      customer: {
+        select: {
+          id: true,
+          full_name: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    const err = new Error("Order not found");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  if (order.payment_status === new_payment_status) {
+    const err = new Error("Payment status is already set to this value");
+    err.code = "SAME_STATUS";
+    throw err;
+  }
+
+  if (
+    REASON_REQUIRED_PAYMENT_STATUSES.includes(new_payment_status) &&
+    !reason?.trim()
+  ) {
+    const err = new Error(
+      "Reason is required when marking as refunded or partially refunded"
+    );
+    err.code = "REASON_REQUIRED";
+    throw err;
+  }
+
+  const old_payment_status = order.payment_status;
+  const now = new Date();
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // 1. Update payment_status
+    const result = await tx.marketplaceOrder.update({
+      where: { order_id },
+      data: {
+        payment_status: new_payment_status,
+        updated_at: now,
+      },
+    });
+
+    // 2. Record in status history (reuse existing table)
+    await tx.marketplaceOrderStatusHistory.create({
+      data: {
+        order_id,
+        from_status: result.status, // order status unchanged
+        to_status: result.status,
+        changed_by_type: "cadmin",
+        reason: `payment_status: ${old_payment_status} → ${new_payment_status}${reason?.trim() ? ` | ${reason.trim()}` : ""}`,
+      },
+    });
+
+    return result;
+  });
+
+  // 3. Fire notifications post-commit (non-blocking)
+  if (REASON_REQUIRED_PAYMENT_STATUSES.includes(new_payment_status)) {
+    _firePaymentRefundNotifications({
+      customer_id: order.customer_id,
+      customer_name: order.customer?.full_name || "Customer",
+      customer_email: order.customer?.email || null,
+      order_number: order.order_number,
+      total_amount: Number(order.total_amount),
+      payment_status: new_payment_status,
+    }).catch((err) =>
+      console.error(
+        `[CAdmin Orders] Payment refund notification failed:`,
+        err.message
+      )
+    );
+  }
+
+  return updated;
+};
+
+/**
+ * Internal: fire push + email for refund events.
+ * Non-blocking — called with .catch() by the caller.
+ */
+async function _firePaymentRefundNotifications({
+  customer_id,
+  customer_name,
+  customer_email,
+  order_number,
+  total_amount,
+  payment_status,
+}) {
+  const { MobilePush } = await import(
+    "../../mobile/push/mobile.push.service.js"
+  );
+  const { sendEmail } = await import("../../../utils/email.js");
+
+  const isPartial = payment_status === "PARTIALLY_REFUNDED";
+  const label = isPartial ? "partially refunded" : "refunded";
+
+  // ── Push notification ────────────────────────────────────
+  if (customer_id) {
+    await MobilePush.paymentRefunded(
+      customer_id,
+      order_number,
+      payment_status
+    );
+  }
+
+  // ── Email notification ───────────────────────────────────
+  if (customer_email) {
+    const { default: paymentRefundedTemplate } = await import(
+      "../../notifications/templates/email/paymentRefunded.js"
+    );
+
+    const html = paymentRefundedTemplate({
+      customerName: customer_name,
+      orderNumber: order_number,
+      totalAmount: total_amount.toFixed(2),
+      isPartial,
+    });
+
+    await sendEmail({
+      to: customer_email,
+      subject: `Payment ${label} — Order ${order_number}`,
+      html,
+    });
+  }
 }
