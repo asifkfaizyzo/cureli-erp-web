@@ -21,6 +21,9 @@ import {
   updateMarketplaceOrderPaymentStatus,
 } from "../../../../api/cadminMarketplaceOrders";
 
+// Import your custom select component (Adjust this relative path if necessary)
+import StyledSelect from "../../../../components/common/StyledSelect";
+
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
@@ -378,7 +381,7 @@ const StatusUpdateBox = ({ order, onUpdated, onToast }) => {
 };
 
 // ─────────────────────────────────────────────
-// PAYMENT STATUS DROPDOWN
+// PAYMENT STATUS DROPDOWN (USING STYLED SELECT)
 // ─────────────────────────────────────────────
 
 const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
@@ -396,6 +399,12 @@ const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
     setReason("");
     setEditing(false);
   }, [order.order_id, order.payment_status]);
+
+  // Construct options array in the format `{ value, label }` expected by StyledSelect
+  const paymentStatusOptions = ALL_PAYMENT_STATUSES.map((status) => ({
+    value: status,
+    label: PAYMENT_STATUS_CONFIG[status]?.label || status,
+  }));
 
   const handleSave = async () => {
     if (newPaymentStatus === order.payment_status) {
@@ -461,26 +470,20 @@ const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Replaced standard HTML <select> with StyledSelect */}
           <div>
-            <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-              Payment Status
-            </label>
-            <select
+            <StyledSelect
+              label="Payment Status"
               value={newPaymentStatus}
-              onChange={(e) => setNewPaymentStatus(e.target.value)}
-              className="mt-1.5 w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#05015A]/40 focus:ring-2 focus:ring-[#05015A]/10"
-            >
-              {ALL_PAYMENT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {PAYMENT_STATUS_CONFIG[s]?.label || s}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setNewPaymentStatus(val)}
+              options={paymentStatusOptions}
+              placeholder="Select payment status..."
+            />
           </div>
 
           {reasonRequired && (
             <div>
-              <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+              <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider block mb-1">
                 Reason <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -488,7 +491,7 @@ const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
                 onChange={(e) => setReason(e.target.value)}
                 rows={2}
                 placeholder="Why is this payment being refunded?"
-                className="mt-1.5 w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#05015A]/40 focus:ring-2 focus:ring-[#05015A]/10 resize-none"
+                className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#05015A]/40 focus:ring-2 focus:ring-[#05015A]/10 resize-none"
               />
             </div>
           )}
