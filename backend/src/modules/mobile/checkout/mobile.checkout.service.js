@@ -374,7 +374,26 @@ export async function confirmCheckoutPayment({
   if (!session || session.customer_id !== customer_id)
     throw new Error("Session not found");
   if (session.status === "expired") throw new Error("Session expired");
-  if (session.status === "paid") throw new Error("Already paid");
+
+  // ── 2. IDEMPOTENCY: Webhook already processed this payment ──
+  //    Razorpay webhook (payment.captured) can beat the app's
+  //    /confirm call by milliseconds. If the session is already
+  //    paid AND has an order, return that order as success.
+  if (session.status === "paid" && session.order_id) {
+    const existingOrder = await prisma.marketplaceOrder.findUnique({
+      where: { order_id: session.order_id },
+    });
+    if (existingOrder) {
+      return {
+        order_id: existingOrder.order_id,
+        order_number: existingOrder.order_number,
+        status: existingOrder.status,
+        total_amount: Number(existingOrder.total_amount),
+        placed_at: existingOrder.placed_at,
+      };
+    }
+  }
+
   if (new Date() > session.expires_at) {
     await prisma.checkoutSession.update({
       where: { session_id },
@@ -383,7 +402,7 @@ export async function confirmCheckoutPayment({
     throw new Error("Session expired");
   }
 
-  // ── 2. Verify Razorpay signature ─────────────────────────
+  // ── 3. Verify Razorpay signature ─────────────────────────
   const isValid = verifyMobilePaymentSignature(
     razorpay_order_id,
     razorpay_payment_id,
@@ -398,7 +417,7 @@ export async function confirmCheckoutPayment({
     throw new Error("Invalid payment signature");
   }
 
-  // ── 3. Create MarketplaceOrder + mark session paid (atomic) ─
+  // ── 4. Create MarketplaceOrder + mark session paid (atomic) ─
   const order = await _createOrderFromSession({
     session,
     razorpay_payment_id,
