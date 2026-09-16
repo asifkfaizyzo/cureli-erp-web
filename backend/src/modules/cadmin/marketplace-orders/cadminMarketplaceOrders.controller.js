@@ -1,9 +1,8 @@
-// backend/src/modules/cadmin/marketplace-orders/cadminMarketplaceOrders.controller.js
-
 import {
   listAllOrders,
   getOrderDetail,
   updateOrderStatus,
+  updatePaymentStatus,
 } from "./cadminMarketplaceOrders.service.js";
 import { success, fail } from "../../../utils/response.js";
 
@@ -73,6 +72,43 @@ export async function updateStatus(req, res) {
       NOT_FOUND: 404,
       INVALID_STATUS: 400,
       TERMINAL_STATE: 409,
+      SAME_STATUS: 409,
+      REASON_REQUIRED: 400,
+    };
+
+    return fail(res, err.message, statusMap[err.code] || 500);
+  }
+}
+
+/**
+ * PATCH /cadmin/marketplace-orders/:orderId/payment-status
+ * Body: { payment_status, reason? }
+ */
+export async function updatePaymentStatusHandler(req, res) {
+  try {
+    const { payment_status, reason = "" } = req.body || {};
+
+    if (!payment_status) {
+      return fail(res, "payment_status is required", 400);
+    }
+
+    const cadmin_name =
+      req.cadmin?.username || req.cadmin?.full_name || "CAdmin";
+
+    const data = await updatePaymentStatus({
+      order_id: req.params.orderId,
+      new_payment_status: payment_status,
+      reason,
+      cadmin_name,
+    });
+
+    return success(res, data, "Payment status updated");
+  } catch (err) {
+    console.error("[CAdmin Orders] updatePaymentStatus error:", err.message);
+
+    const statusMap = {
+      NOT_FOUND: 404,
+      INVALID_PAYMENT_STATUS: 400,
       SAME_STATUS: 409,
       REASON_REQUIRED: 400,
     };

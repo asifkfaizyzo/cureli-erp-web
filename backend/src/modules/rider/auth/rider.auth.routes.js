@@ -1,4 +1,3 @@
-//backend\src\modules\rider\auth\rider.auth.routes.js
 import { Router } from "express";
 import { riderAuth } from "../../../middleware/rider.auth.js";
 import {
@@ -7,6 +6,7 @@ import {
   verifyOtp,
   login,
   setPassword,
+  resetPassword,
   refreshToken,
   logout,
   logoutAll,
@@ -16,16 +16,17 @@ import {
 const router = Router();
 
 // ── Public — no auth required ─────────────────────────────────
-router.post("/check-phone",    checkPhone);
-router.post("/send-otp",       sendOtp);
-router.post("/verify-otp",     verifyOtp);
-router.post("/login",          login);
-router.post("/set-password",   setPassword);
-router.post("/refresh",        refreshToken);
+router.post("/check-phone",     checkPhone);
+router.post("/send-otp",        sendOtp);
+router.post("/verify-otp",      verifyOtp);
+router.post("/login",           login);
+router.post("/set-password",    setPassword);
+router.post("/reset-password",  resetPassword);
+router.post("/refresh",         refreshToken);
 
 // ── Protected — requires valid rider session ──────────────────
-router.post("/logout",         riderAuth, logout);
-router.post("/logout-all",     riderAuth, logoutAll);
-router.get("/me",              riderAuth, getMe);
+router.post("/logout",          riderAuth, logout);
+router.post("/logout-all",      riderAuth, logoutAll);
+router.get("/me",               riderAuth, getMe);
 
 export default router;

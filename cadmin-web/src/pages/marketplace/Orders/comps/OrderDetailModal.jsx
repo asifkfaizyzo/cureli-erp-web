@@ -18,6 +18,7 @@ import {
 import {
   getMarketplaceOrderById,
   updateMarketplaceOrderStatus,
+  updateMarketplaceOrderPaymentStatus,
 } from "../../../../api/cadminMarketplaceOrders";
 
 // ─────────────────────────────────────────────
@@ -68,6 +69,44 @@ const ALL_STATUSES = [
 
 const TERMINAL_STATES = ["COMPLETED", "REJECTED", "CANCELLED"];
 
+const PAYMENT_STATUS_CONFIG = {
+  PENDING: {
+    label: "Pending",
+    cls: "bg-amber-50 text-amber-700 border-amber-200",
+    dot: "bg-amber-500",
+  },
+  PAID: {
+    label: "Paid",
+    cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500",
+  },
+  FAILED: {
+    label: "Failed",
+    cls: "bg-red-50 text-red-700 border-red-200",
+    dot: "bg-red-500",
+  },
+  REFUNDED: {
+    label: "Refunded",
+    cls: "bg-violet-50 text-violet-700 border-violet-200",
+    dot: "bg-violet-500",
+  },
+  PARTIALLY_REFUNDED: {
+    label: "Partially Refunded",
+    cls: "bg-orange-50 text-orange-700 border-orange-200",
+    dot: "bg-orange-500",
+  },
+};
+
+const ALL_PAYMENT_STATUSES = [
+  "PENDING",
+  "PAID",
+  "FAILED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+];
+
+const PAYMENT_REASON_REQUIRED = ["REFUNDED", "PARTIALLY_REFUNDED"];
+
 const TABS = [
   { key: "overview", label: "Overview" },
   { key: "items", label: "Items" },
@@ -102,6 +141,23 @@ const fmtAmount = (n) =>
 
 const StatusBadge = ({ status }) => {
   const cfg = STATUS_CONFIG[status] || {
+    label: status,
+    dot: "bg-gray-400",
+    cls: "bg-gray-50 text-gray-600 border-gray-100",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cfg.cls}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
+};
+
+const PaymentStatusBadge = ({ status }) => {
+  const cfg = PAYMENT_STATUS_CONFIG[status] || {
     label: status,
     dot: "bg-gray-400",
     cls: "bg-gray-50 text-gray-600 border-gray-100",
@@ -305,6 +361,163 @@ const StatusUpdateBox = ({ order, onUpdated, onToast }) => {
             <button
               onClick={handleSave}
               disabled={saving || newStatus === order.status}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-[#05015A] text-white hover:bg-[#05015A]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {saving ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Save size={12} />
+              )}
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
+    </HorizontalCard>
+  );
+};
+
+// ─────────────────────────────────────────────
+// PAYMENT STATUS DROPDOWN
+// ─────────────────────────────────────────────
+
+const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
+  const [editing, setEditing] = useState(false);
+  const [newPaymentStatus, setNewPaymentStatus] = useState(
+    order.payment_status || "PENDING"
+  );
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const reasonRequired = PAYMENT_REASON_REQUIRED.includes(newPaymentStatus);
+
+  useEffect(() => {
+    setNewPaymentStatus(order.payment_status || "PENDING");
+    setReason("");
+    setEditing(false);
+  }, [order.order_id, order.payment_status]);
+
+  const handleSave = async () => {
+    if (newPaymentStatus === order.payment_status) {
+      onToast("Payment status unchanged", "warning");
+      return;
+    }
+
+    if (reasonRequired && !reason.trim()) {
+      onToast("Reason is required for refund", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateMarketplaceOrderPaymentStatus(
+        order.order_id,
+        newPaymentStatus,
+        reason.trim()
+      );
+      onToast(
+        `Payment status updated to ${PAYMENT_STATUS_CONFIG[newPaymentStatus]?.label || newPaymentStatus}`
+      );
+      setEditing(false);
+      setReason("");
+      onUpdated();
+    } catch (err) {
+      onToast(
+        err.response?.data?.message || "Failed to update payment status",
+        "error"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <HorizontalCard>
+      <SectionTitle
+        icon={CreditCard}
+        title="Payment"
+        action={
+          !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#05015A] hover:underline"
+            >
+              <Edit3 size={11} />
+              Change
+            </button>
+          )
+        }
+      />
+
+      {!editing ? (
+        <div>
+          <DetailRow label="Method" value={order.payment_method} />
+          <div className="flex items-start justify-between gap-4 py-2">
+            <span className="text-xs text-gray-500 flex-shrink-0 w-36">
+              Status
+            </span>
+            <PaymentStatusBadge status={order.payment_status} />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+              Payment Status
+            </label>
+            <select
+              value={newPaymentStatus}
+              onChange={(e) => setNewPaymentStatus(e.target.value)}
+              className="mt-1.5 w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#05015A]/40 focus:ring-2 focus:ring-[#05015A]/10"
+            >
+              {ALL_PAYMENT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {PAYMENT_STATUS_CONFIG[s]?.label || s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {reasonRequired && (
+            <div>
+              <label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={2}
+                placeholder="Why is this payment being refunded?"
+                className="mt-1.5 w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#05015A]/40 focus:ring-2 focus:ring-[#05015A]/10 resize-none"
+              />
+            </div>
+          )}
+
+          {PAYMENT_REASON_REQUIRED.includes(newPaymentStatus) && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-violet-50 border border-violet-100">
+              <AlertCircle size={12} className="text-violet-500 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-violet-700">
+                The customer will receive a push notification and email about
+                this refund immediately.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              onClick={() => {
+                setEditing(false);
+                setNewPaymentStatus(order.payment_status || "PENDING");
+                setReason("");
+              }}
+              disabled={saving}
+              className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || newPaymentStatus === order.payment_status}
               className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-[#05015A] text-white hover:bg-[#05015A]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {saving ? (
@@ -636,21 +849,11 @@ const OrderDetailModal = ({ orderId, onClose, onStatusUpdated, onToast }) => {
               </div>
 
               <div className="xl:col-span-1">
-                <HorizontalCard>
-                  <SectionTitle icon={CreditCard} title="Payment" />
-                  <div>
-                    <DetailRow label="Method" value={order.payment_method} />
-                    <DetailRow
-                      label="Status"
-                      value={
-                        order.payment_status
-                          ? order.payment_status.charAt(0).toUpperCase() +
-                            order.payment_status.slice(1).toLowerCase()
-                          : null
-                      }
-                    />
-                  </div>
-                </HorizontalCard>
+                <PaymentStatusBox
+                  order={order}
+                  onUpdated={handleUpdated}
+                  onToast={onToast}
+                />
               </div>
 
               <div className="xl:col-span-1">

@@ -1,10 +1,11 @@
-//backend\src\modules\rider\auth\rider.auth.service.js
 import crypto from "crypto";
 import prisma from "../../../config/prisma.js";
 import {
   signRiderAccessToken,
   signRiderTempToken,
+  signRiderResetToken,
   verifyRiderTempToken,
+  verifyRiderResetToken,
   RIDER_REFRESH_TOKEN_EXPIRY_MS,
   RIDER_ACCESS_TOKEN_EXPIRY_SECONDS,
 } from "../../../config/rider_jwt.js";
@@ -85,13 +86,9 @@ function formatRiderForResponse(rider) {
     created_at: rider.created_at,
     last_seen_at: rider.last_seen_at,
     documents: rider.documents ?? [],
-
-    // ── NEW: Onboarding tracking ──────────────────
     onboarding_step: rider.onboarding_step ?? "PERSONAL_DETAILS",
     submitted_for_review: rider.submitted_for_review ?? false,
     is_resubmission: rider.is_resubmission ?? false,
-
-    // ── Computed flags (kept for frontend compat) ─
     has_personal_details: !!(rider.full_name && rider.date_of_birth),
     has_location: !!(rider.current_city && rider.residential_address),
     has_vehicle_details: !!(rider.vehicle_type && rider.vehicle_number),
@@ -135,7 +132,7 @@ export async function checkRiderPhone(phone) {
 
 // ── sendRiderOtp ──────────────────────────────────────────────
 
-export async function sendRiderOtp(phone) {
+export async function sendRiderOtp(phone, purpose = "register") {
   // 1. Daily SMS limit
   const limitCheck = await checkSmsOtpLimit(`rider:${phone}`);
   if (!limitCheck.allowed) {
@@ -156,7 +153,14 @@ export async function sendRiderOtp(phone) {
     },
   });
 
-  // 3. Account state checks
+  // 3. For login / reset: rider MUST exist
+  if ((purpose === "login" || purpose === "reset") && !rider) {
+    const err = new Error("No account found with this mobile number.");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  // 4. Account state checks (only when rider exists)
   if (rider) {
     if (rider.status === "BLOCKED") {
       const err = new Error(
@@ -175,7 +179,7 @@ export async function sendRiderOtp(phone) {
       throw err;
     }
 
-    // 4. Lockout check
+    // Lockout check
     if (
       rider.otp_locked_until &&
       new Date(rider.otp_locked_until) > new Date()
@@ -190,7 +194,7 @@ export async function sendRiderOtp(phone) {
       throw err;
     }
 
-    // 5. Cooldown check
+    // Cooldown check
     if (rider.login_otp_expires) {
       const expiresAt = new Date(rider.login_otp_expires);
       const now = new Date();
@@ -212,7 +216,7 @@ export async function sendRiderOtp(phone) {
     }
   }
 
-  // 6. Generate and store OTP
+  // 5. Generate and store OTP
   const otp = generateOtp(OTP_LENGTH);
   const otpHash = await hashOtp(otp);
   const otpExpires = new Date(Date.now() + OTP_VALIDITY_MS);
@@ -227,6 +231,7 @@ export async function sendRiderOtp(phone) {
       },
     });
   } else {
+    // Only reachable when purpose === "register"
     rider = await prisma.rider.create({
       data: {
         phone: phone,
@@ -239,7 +244,7 @@ export async function sendRiderOtp(phone) {
     });
   }
 
-  // 8. Send SMS
+  // 6. Send SMS
   try {
     await msg91SendSms({
       templateId: process.env.MSG91_LOGIN_TEMPLATE,
@@ -269,6 +274,7 @@ export async function sendRiderOtp(phone) {
 export async function verifyRiderOtp(
   phone,
   otp,
+  purpose = "register",
   deviceInfo = {},
   requestMeta = {},
 ) {
@@ -337,7 +343,12 @@ export async function verifyRiderOtp(
 
   // Dev bypass
   if (otp === "000000" && process.env.NODE_ENV === "development") {
-    return await _handlePostOtpVerification(rider, deviceInfo, requestMeta);
+    return await _handlePostOtpVerification(
+      rider,
+      purpose,
+      deviceInfo,
+      requestMeta,
+    );
   }
 
   const isValid = await verifyOtp(otp, rider.login_otp_hash);
@@ -380,13 +391,40 @@ export async function verifyRiderOtp(
     throw err;
   }
 
-  return await _handlePostOtpVerification(rider, deviceInfo, requestMeta);
+  return await _handlePostOtpVerification(
+    rider,
+    purpose,
+    deviceInfo,
+    requestMeta,
+  );
 }
 
 // ── _handlePostOtpVerification ────────────────────────────────
 
-async function _handlePostOtpVerification(rider, deviceInfo, requestMeta) {
-  // New rider (no password set) → clear OTP state and return temp token
+async function _handlePostOtpVerification(
+  rider,
+  purpose,
+  deviceInfo,
+  requestMeta,
+) {
+  // ── Reset flow: return reset token only, no login ──
+  if (purpose === "reset") {
+    await prisma.rider.update({
+      where: { rider_id: rider.rider_id },
+      data: {
+        login_otp_hash: null,
+        login_otp_expires: null,
+        login_otp_attempts: 0,
+        otp_cycle_failures: 0,
+        otp_locked_until: null,
+      },
+    });
+
+    const resetToken = signRiderResetToken(rider.phone);
+    return { reset_token: resetToken };
+  }
+
+  // ── New rider (no password set) → temp token for registration ──
   if (!rider.password_hash) {
     await prisma.rider.update({
       where: { rider_id: rider.rider_id },
@@ -406,7 +444,7 @@ async function _handlePostOtpVerification(rider, deviceInfo, requestMeta) {
     };
   }
 
-  // Existing rider — complete verification directly (transaction clears OTP fields)
+  // ── Existing rider — complete login ──
   return await _completeRiderVerification(rider, deviceInfo, requestMeta);
 }
 
@@ -473,7 +511,6 @@ export async function setRiderPassword(
   deviceInfo = {},
   requestMeta = {},
 ) {
-  // 1. Verify temp token
   let payload;
   try {
     payload = verifyRiderTempToken(tempToken);
@@ -486,8 +523,6 @@ export async function setRiderPassword(
   }
 
   const phone = payload.phone;
-
-  // 2. Find rider
   const phoneVariants = getPhoneVariants(phone);
 
   const rider = await prisma.rider.findFirst({
@@ -525,7 +560,6 @@ export async function setRiderPassword(
     throw err;
   }
 
-  // 3. Hash and save password
   const hashed = await hashPassword(password);
 
   const updatedRider = await prisma.rider.update({
@@ -533,12 +567,74 @@ export async function setRiderPassword(
     data: { password_hash: hashed },
   });
 
-  // 4. Create session and return full tokens
   return await _completeRiderVerification(
     updatedRider,
     deviceInfo,
     requestMeta,
   );
+}
+
+// ── resetRiderPassword ────────────────────────────────────────
+
+export async function resetRiderPassword(resetToken, newPassword) {
+  // 1. Verify reset token
+  let payload;
+  try {
+    payload = verifyRiderResetToken(resetToken);
+  } catch {
+    const err = new Error(
+      "Invalid or expired reset token. Please request a new one.",
+    );
+    err.code = "INVALID_RESET_TOKEN";
+    throw err;
+  }
+
+  const phone = payload.phone;
+  const phoneVariants = getPhoneVariants(phone);
+
+  // 2. Find rider
+  const rider = await prisma.rider.findFirst({
+    where: {
+      phone: { in: phoneVariants },
+      deleted_at: null,
+    },
+  });
+
+  if (!rider) {
+    const err = new Error("Rider not found.");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  // 3. Status checks
+  if (rider.status === "BLOCKED") {
+    const err = new Error(
+      "Your account has been blocked. Please contact support.",
+    );
+    err.code = "ACCOUNT_BLOCKED";
+    throw err;
+  }
+
+  if (rider.status === "SUSPENDED") {
+    const err = new Error(
+      rider.suspension_reason || "Your account has been suspended.",
+    );
+    err.code = "ACCOUNT_SUSPENDED";
+    throw err;
+  }
+
+  // 4. Hash and update password
+  const hashed = await hashPassword(newPassword);
+
+  await prisma.rider.update({
+    where: { rider_id: rider.rider_id },
+    data: { password_hash: hashed },
+  });
+
+  // 5. Invalidate ALL existing sessions (security)
+  await logoutAllRider(rider.rider_id);
+
+  return { success: true };
 }
 
 // ── _completeRiderVerification ────────────────────────────────
@@ -560,8 +656,7 @@ async function _completeRiderVerification(rider, deviceInfo, requestMeta) {
         otp_locked_until: null,
         last_seen_at: now,
       },
-      // ADDED: Select all fields needed for the full profile response
-            select: {
+      select: {
         rider_id: true,
         phone: true,
         rider_type: true,
@@ -592,9 +687,9 @@ async function _completeRiderVerification(rider, deviceInfo, requestMeta) {
         referral_code: true,
         created_at: true,
         last_seen_at: true,
-        onboarding_step: true,         // ← NEW
-        submitted_for_review: true,    // ← NEW
-        is_resubmission: true,         // ← NEW
+        onboarding_step: true,
+        submitted_for_review: true,
+        is_resubmission: true,
         documents: {
           select: {
             document_id: true,
@@ -796,9 +891,9 @@ export async function getRiderMe(riderId) {
       referral_code: true,
       created_at: true,
       last_seen_at: true,
-      onboarding_step: true,         // ← NEW
-      submitted_for_review: true,    // ← NEW
-      is_resubmission: true,         // ← NEW
+      onboarding_step: true,
+      submitted_for_review: true,
+      is_resubmission: true,
       documents: {
         select: {
           document_id: true,

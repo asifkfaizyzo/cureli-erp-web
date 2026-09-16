@@ -100,3 +100,40 @@ export function verifyRiderTempToken(token) {
 
   return payload;
 }
+
+const RESET_TOKEN_EXPIRY = "15m";
+
+/**
+ * Sign a temporary reset token for forgot-password flow.
+ *
+ * @param {string} phone
+ * @returns {string} Signed reset JWT
+ */
+export function signRiderResetToken(phone) {
+  return jwt.sign(
+    {
+      phone,
+      type: "rider_reset",
+    },
+    ACCESS_TOKEN_SECRET,
+    { expiresIn: RESET_TOKEN_EXPIRY }
+  );
+}
+
+/**
+ * Verify a temporary reset token.
+ *
+ * @param {string} token
+ * @returns {{ phone: string, type: string, iat: number, exp: number }}
+ */
+export function verifyRiderResetToken(token) {
+  const payload = jwt.verify(token, ACCESS_TOKEN_SECRET);
+
+  if (payload.type !== "rider_reset") {
+    const err = new Error("Invalid reset token type");
+    err.code = "INVALID_TOKEN_TYPE";
+    throw err;
+  }
+
+  return payload;
+}

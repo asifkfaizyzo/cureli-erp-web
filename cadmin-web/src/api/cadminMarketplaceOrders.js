@@ -30,3 +30,20 @@ export function updateMarketplaceOrderStatus(orderId, status, reason = "") {
     reason,
   });
 }
+
+/**
+ * CAdmin override: update payment status.
+ * @param {string} orderId
+ * @param {string} paymentStatus - PENDING | PAID | FAILED | REFUNDED | PARTIALLY_REFUNDED
+ * @param {string} [reason] - required for REFUNDED / PARTIALLY_REFUNDED
+ */
+export function updateMarketplaceOrderPaymentStatus(
+  orderId,
+  paymentStatus,
+  reason = ""
+) {
+  return CAdminAPI.patch(`/marketplace-orders/${orderId}/payment-status`, {
+    payment_status: paymentStatus,
+    reason,
+  });
+}

@@ -4,14 +4,21 @@ import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";
 import { uploadFile } from "../../../services/fileStorage.service.js";
 
-// ── List riders ───────────────────────────────────────────────
+// ── List riders (Active fleet only by default) ────────────────
 
 export async function listRiders(query = {}) {
   const { status, rider_type, search, page = 1, limit = 20 } = query;
 
   const where = { deleted_at: null };
 
-  if (status) where.status = status;
+  // By default, only show verified/operational fleet on main RidersPage.
+  // Pending review & Rejected riders belong in RiderVerificationPage.
+  if (status) {
+    where.status = status;
+  } else {
+    where.status = { in: ["ACTIVE", "SUSPENDED", "BLOCKED"] };
+  }
+
   if (rider_type) where.rider_type = rider_type;
   if (search) {
     where.OR = [
@@ -37,15 +44,26 @@ export async function listRiders(query = {}) {
         status: true,
         is_online: true,
         rating: true,
+        total_ratings: true,
         total_deliveries: true,
         created_at: true,
+        updated_at: true,
         profile_photo_key: true,
         rider_type: true,
         vehicle_type: true,
         vehicle_number: true,
         current_city: true,
+        onboarding_step: true,
+        submitted_for_review: true,
+        is_resubmission: true,
         documents: {
-          select: { type: true, status: true },
+          select: {
+            document_id: true,
+            type: true,
+            status: true,
+            was_rejected_this_cycle: true,
+            resubmission_count: true,
+          },
         },
         _count: {
           select: { deliveries: true },
@@ -72,7 +90,9 @@ export async function getRiderDetail(riderId) {
   const rider = await prisma.rider.findUnique({
     where: { rider_id: riderId },
     include: {
-      documents: true,
+      documents: {
+        orderBy: { created_at: "asc" },
+      },
       appeals: {
         orderBy: { created_at: "desc" },
         take: 5,
@@ -141,7 +161,7 @@ export async function reviewDocument(
     data: {
       status: action,
       rejection_reason: action === "REJECTED" ? rejectionReason : null,
-      was_rejected_this_cycle: action === "REJECTED", // ← NEW
+      was_rejected_this_cycle: action === "REJECTED",
       reviewed_by: reviewedBy,
       reviewed_at: new Date(),
     },
@@ -164,6 +184,7 @@ export async function approveRider(riderId, reviewedBy) {
     throw err;
   }
 
+  // All documents must be approved
   const unapproved = rider.documents.filter((d) => d.status !== "APPROVED");
   if (unapproved.length > 0) {
     const err = new Error(
@@ -179,14 +200,13 @@ export async function approveRider(riderId, reviewedBy) {
       where: { rider_id: riderId },
       data: {
         status: "ACTIVE",
-        onboarding_step: "COMPLETED", // ← NEW
-        is_resubmission: false, // ← NEW
+        onboarding_step: "COMPLETED",
+        is_resubmission: false,
       },
     }),
-    // Clear all rejection cycle flags
     prisma.riderDocument.updateMany({
       where: { rider_id: riderId },
-      data: { was_rejected_this_cycle: false }, // ← NEW
+      data: { was_rejected_this_cycle: false },
     }),
   ]);
 
@@ -206,7 +226,6 @@ export async function rejectRider(riderId, reason, reviewedBy) {
     throw err;
   }
 
-  // Find which docs are rejected to compute the earliest step to send user back to
   const STEP_ORDER = [
     "RC_UPLOAD",
     "DL_UPLOAD",
@@ -232,8 +251,7 @@ export async function rejectRider(riderId, reason, reviewedBy) {
     },
   });
 
-  // Compute earliest rejected step
-  let earliestStep = "RC_UPLOAD"; // fallback
+  let earliestStep = "RC_UPLOAD";
   if (rider && rider.documents.length > 0) {
     const rejectedSteps = rider.documents
       .map((d) => DOC_TYPE_TO_STEP[d.type])
@@ -248,10 +266,10 @@ export async function rejectRider(riderId, reason, reviewedBy) {
     where: { rider_id: riderId },
     data: {
       status: "REJECTED",
-      submitted_for_review: false, // ← NEW
-      is_resubmission: true, // ← NEW
-      onboarding_step: earliestStep, // ← NEW: user resumes here
-      last_resubmitted_at: new Date(), // ← NEW
+      submitted_for_review: false,
+      is_resubmission: true,
+      onboarding_step: earliestStep,
+      last_resubmitted_at: new Date(),
     },
   });
 
@@ -282,7 +300,6 @@ export async function suspendRider(riderId, reason, suspendedBy) {
     },
   });
 
-  // Revoke all active sessions
   await prisma.riderSession.updateMany({
     where: { rider_id: riderId, is_active: true },
     data: {
@@ -292,7 +309,6 @@ export async function suspendRider(riderId, reason, suspendedBy) {
     },
   });
 
-  // Force SSE disconnect notification
   sseService.notifyRider(riderId, "ACCOUNT_SUSPENDED", { reason });
 
   return { suspended: true };
@@ -337,7 +353,7 @@ export async function reactivateRider(riderId) {
   return { reactivated: true };
 }
 
-// ── Create rider (CAdmin invite — Path B) ─────────────────────
+// ── Create rider (Team Rider - Pre-approved) ──────────────────
 
 export async function createRiderByAdmin(body, files, createdBy) {
   const {
@@ -384,11 +400,9 @@ export async function createRiderByAdmin(body, files, createdBy) {
     throw err;
   }
 
-  // 1. Password setup
   const { hashPassword } = await import("../../../utils/hash.js");
   const passwordHash = await hashPassword(initial_password);
 
-  // 2. Upload files to S3 & prepare document records
   const uploadDoc = async (fileField) => {
     const fileArray = files[fileField];
     if (!fileArray || fileArray.length === 0) return null;
@@ -405,13 +419,9 @@ export async function createRiderByAdmin(body, files, createdBy) {
     return s3Result.storage_key;
   };
 
-  // Upload Profile Photo
   const profilePhotoKey = await uploadDoc("profile_photo");
-
-  // Compile individual documents (pre-approved for team riders)
   const preparedDocs = [];
 
-  // Driving License Row (Combined front + back)
   const dlFront = await uploadDoc("driving_license_front");
   const dlBack = await uploadDoc("driving_license_back");
   if (dlFront) {
@@ -424,7 +434,6 @@ export async function createRiderByAdmin(body, files, createdBy) {
     });
   }
 
-  // Aadhaar Row (Combined front + back)
   const adFront = await uploadDoc("aadhaar_front");
   const adBack = await uploadDoc("aadhaar_back");
   if (adFront) {
@@ -437,7 +446,6 @@ export async function createRiderByAdmin(body, files, createdBy) {
     });
   }
 
-  // PAN Front Row
   const panFront = await uploadDoc("pan_front");
   if (panFront) {
     preparedDocs.push({
@@ -448,7 +456,6 @@ export async function createRiderByAdmin(body, files, createdBy) {
     });
   }
 
-  // Vehicle RC Row
   const rcDoc = await uploadDoc("vehicle_rc");
   if (rcDoc) {
     preparedDocs.push({
@@ -459,7 +466,6 @@ export async function createRiderByAdmin(body, files, createdBy) {
     });
   }
 
-  // Profile Photo Document Row (for document table parity)
   if (profilePhotoKey) {
     preparedDocs.push({
       type: "PROFILE_PHOTO",
@@ -469,13 +475,14 @@ export async function createRiderByAdmin(body, files, createdBy) {
     });
   }
 
-  // 3. Write Atomic Rider Record
   const rider = await prisma.rider.create({
     data: {
       phone,
       password_hash: passwordHash,
       rider_type: "TEAM",
-      status: "ACTIVE", // Team riders bypass onboarding review
+      status: "ACTIVE",
+      onboarding_step: "COMPLETED",
+      submitted_for_review: true,
       full_name: full_name?.trim() || null,
       email: email?.trim() || null,
       date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
@@ -494,7 +501,7 @@ export async function createRiderByAdmin(body, files, createdBy) {
       bank_holder_name: bank_holder_name?.trim() || null,
       bank_name: bank_name?.trim() || null,
       bank_verified: !!bank_account_number,
-      terms_accepted_at: new Date(), // Pre-agreed by terms of employment
+      terms_accepted_at: new Date(),
       documents: {
         create: preparedDocs,
       },
@@ -512,7 +519,7 @@ export async function createRiderByAdmin(body, files, createdBy) {
   return rider;
 }
 
-// ── Zone management (retained for future geofence use) ────────
+// ── Zone management ───────────────────────────────────────────
 
 export async function listZones(query = {}) {
   const { is_active } = query;
@@ -556,7 +563,7 @@ export async function updateZone(zoneId, data) {
   });
 }
 
-// ── Pending reviews (riders awaiting document verification) ───
+// ── Pending reviews (Verification Queue) ──────────────────────
 
 export async function getPendingReviews(query = {}) {
   const { search, page = 1, limit = 20 } = query;
@@ -595,11 +602,20 @@ export async function getPendingReviews(query = {}) {
         status: true,
         rider_type: true,
         current_city: true,
+        residential_address: true,
         vehicle_type: true,
         vehicle_number: true,
+        vehicle_make_model: true,
+        date_of_birth: true,
+        sex: true,
         created_at: true,
         updated_at: true,
         profile_photo_key: true,
+        onboarding_step: true,
+        submitted_for_review: true,
+        is_resubmission: true,
+        first_submitted_at: true,
+        last_resubmitted_at: true,
         documents: {
           select: {
             document_id: true,
@@ -610,6 +626,7 @@ export async function getPendingReviews(query = {}) {
             back_storage_key: true,
             uploaded_at: true,
             resubmission_count: true,
+            was_rejected_this_cycle: true,
           },
         },
       },

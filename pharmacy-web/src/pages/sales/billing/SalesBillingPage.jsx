@@ -703,25 +703,27 @@ const SalesBillingPage = () => {
 
   // ── Validation helpers ───────────────────────────────────────────────────────
   const validateCustomerData = useCallback(() => {
-    const errors = [];
-    if (!customer.customer_id && customer.phone) {
-      const phoneDigits = customer.phone.replace(/\D/g, "");
-      if (phoneDigits && !/^\d{10}$/.test(phoneDigits))
-        errors.push("Invalid phone number (must be 10 digits)");
+  const errors = [];
+  if (!customer.customer_id && customer.phone) {
+    const phoneDigits = customer.phone.replace(/\D/g, "");
+    // Accepts: 10 digits, 11 digits (starting with 0), or 12 digits (starting with 91)
+    if (phoneDigits && !/^(?:91|0)?\d{10}$/.test(phoneDigits)) {
+      errors.push("Invalid phone number (must be a valid 10-digit number)");
     }
-    if (
-      customer.gstNumber &&
-      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
-        customer.gstNumber,
-      )
-    ) {
-      errors.push("Invalid GSTIN format");
-    }
-    if (customer.paymentType === "CREDIT" && !customer.customer_id) {
-      errors.push("Credit sales require a registered customer");
-    }
-    return errors;
-  }, [customer]);
+  }
+  if (
+    customer.gstNumber &&
+    !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
+      customer.gstNumber,
+    )
+  ) {
+    errors.push("Invalid GSTIN format");
+  }
+  if (customer.paymentType === "CREDIT" && !customer.customer_id) {
+    errors.push("Credit sales require a registered customer");
+  }
+  return errors;
+}, [customer]);
 
   const validateNoDuplicateBatches = useCallback(() => {
     const inventoryUsage = new Map();
