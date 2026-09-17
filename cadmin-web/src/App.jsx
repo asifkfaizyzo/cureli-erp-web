@@ -43,12 +43,12 @@ import AppConfigPage from "./pages/AppConfig/AppConfigPage";
 import BannersPage from "./pages/AppConfig/banners/BannersPage";
 import HomeScreenPage from "./pages/AppConfig/home-screen/HomeScreenPage";
 
-// ── Fleet (Lowercased folder paths to match project style) ────────────────────
-import FleetDashboard from "./pages/fleet/Dashboard/FleetDashboard";
+// ── Fleet ────────────────────────────────────────────────────────────────────
+import FleetDashboard from "./pages/Fleet/Dashboard/FleetDashboard";
 import RidersPage from "./pages/Fleet/Riders/RidersPage";
 import RiderVerificationPage from "./pages/Fleet/Verification/RiderVerificationPage";
-import FleetCommunicationsPage from "./pages/fleet/Communications/FleetCommunicationsPage";
-import FleetPricingPage from "./pages/fleet/Pricing/FleetPricingPage";
+import FleetCommunicationsPage from "./pages/Fleet/Communications/FleetCommunicationsPage";
+import FleetPricingPage from "./pages/Fleet/Pricing/FleetPricingPage";
 
 import AppLayout from "./components/layout/AppLayout";
 import { AuthProvider } from "./context/AuthContext";
