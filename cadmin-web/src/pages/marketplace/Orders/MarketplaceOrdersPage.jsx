@@ -1,3 +1,4 @@
+//cadmin-web\src\pages\marketplace\Orders\MarketplaceOrdersPage.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, RefreshCw, Package, X, ChevronRight } from "lucide-react";
 import { getMarketplaceOrders } from "../../../api/cadminMarketplaceOrders";
@@ -230,6 +231,29 @@ const MarketplaceOrdersPage = () => {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // ── NEW: Listen for SSE Custom Events to trigger dynamic page updates ──
+  useEffect(() => {
+    let updateTimer = null;
+
+    const handleSseUpdate = () => {
+      if (updateTimer) clearTimeout(updateTimer);
+      // 1.5-second debounce to prevent spamming back-to-back requests
+      updateTimer = setTimeout(() => {
+        fetchOrders({ silent: true });
+      }, 1500);
+    };
+
+    window.addEventListener("sse-marketplace-new-order", handleSseUpdate);
+    window.addEventListener("sse-marketplace-order-status-changed", handleSseUpdate);
+
+    return () => {
+      if (updateTimer) clearTimeout(updateTimer);
+      window.removeEventListener("sse-marketplace-new-order", handleSseUpdate);
+      window.removeEventListener("sse-marketplace-order-status-changed", handleSseUpdate);
+    };
+  }, [fetchOrders]);
+  // ────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="h-full flex flex-col bg-gray-50/80">

@@ -179,6 +179,7 @@ app.use(maintenanceMiddleware);
 app.use("/api/maintenance", maintenanceRoutes);
 
 app.use("/api/notifications/stream", (req, res, next) => next());
+app.use("/cadmin/notifications/stream", (req, res, next) => next());
 app.use("/rider/sse/stream", (req, res, next) => next());
 
 app.use("/api/notifications/unread-count", relaxedLimiter);
@@ -271,6 +272,7 @@ app.use("/api/reports/marketplace", marketplaceReportRoutes);
 // CADMIN ROUTES
 // ============================================
 app.use("/cadmin", cadminAuthRoutes);
+app.use("/cadmin", cadminNotificationRoutes);
 app.use("/cadmin", cadminRolesRoutes);
 app.use("/cadmin", cadminDocsRoutes);
 app.use("/cadmin", cadminUserRoutes);
@@ -283,7 +285,7 @@ app.use("/cadmin", cadminEnquiriesRoutes);
 app.use("/cadmin", cadminSubscriptionsRoutes);
 app.use("/cadmin", cadminAuditRoutes);
 app.use("/cadmin", cadminBroadcastInAppRoutes);
-app.use("/cadmin", cadminNotificationRoutes);
+
 app.use("/cadmin", cadminEmailBroadcastRoutes);
 app.use("/cadmin", cadminDashboardRoutes);
 app.use("/cadmin", cadminMasterMedicinesRoutes);

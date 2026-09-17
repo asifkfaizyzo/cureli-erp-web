@@ -1,61 +1,93 @@
-// backend/src/modules/notifications/cadmin/cadminNotifications.routes.js
+//backend\src\modules\notifications\cadmin\cadminNotifications.routes.js
 
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import * as controller from "./cadminNotifications.controller.js";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";
 import { validate } from "../../../middleware/validate.js";
-import {
-  ADMIN_ACCESS_SECRET,
-  ADMIN_REFRESH_SECRET,
-} from "../../../config/cadmin_jwt.js";
 import prisma from "../../../config/prisma.js";
 import * as schema from "./cadminNotifications.schema.js";
+import { sseService } from "../../../services/sse.service.js";
+import { 
+  verifyCAdminAccessToken, 
+  verifyCAdminRefreshToken 
+} from "../../../utils/cadminTokens.js";
 
 const router = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SSE Stream Route
-// Uses the REFRESH token (7d) instead of access token (15m)
-// so the stream stays alive for the whole session
+// Supports query token, cookie refresh token, and Authorization header
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get("/notifications/stream", async (req, res) => {
-  const token = req.query.token;
-  if (!token) return res.status(401).end();
+  const queryToken = req.query.token;
+  const cookieToken = req.cookies?.cadmin_refresh_token;
+  const headerToken = req.headers.authorization?.startsWith("Bearer ")
+    ? req.headers.authorization.split(" ")[1]
+    : null;
 
+  const candidateToken = queryToken || cookieToken || headerToken;
+
+  if (!candidateToken) {
+    console.warn("[SSE Auth] No token provided in query, cookie, or header");
+    return res.status(401).json({ error: "Missing token" });
+  }
+
+  let payload = null;
+
+  // 1. Try verifying as Access Token (Query or Header)
   try {
-    // ── Try refresh token first (long-lived, preferred for SSE) ──
-    let payload;
-    let tokenValid = false;
-
+    payload = verifyCAdminAccessToken(candidateToken);
+  } catch (accessErr) {
+    // 2. Fallback: Try candidate as Refresh Token
     try {
-      payload = jwt.verify(token, ADMIN_REFRESH_SECRET); // 7d
-      tokenValid = true;
+      payload = verifyCAdminRefreshToken(candidateToken);
     } catch (refreshErr) {
-      // Fallback: try access token (handles existing connections mid-migration)
-      try {
-        payload = jwt.verify(token, ADMIN_ACCESS_SECRET); // 15m
-        tokenValid = true;
-      } catch (accessErr) {
-        // Both failed
-        tokenValid = false;
+      // 3. Fallback: Try Cookie if candidate was query token
+      if (cookieToken && cookieToken !== candidateToken) {
+        try {
+          payload = verifyCAdminRefreshToken(cookieToken);
+        } catch (cookieErr) {
+          console.error("[SSE Auth] All token verifications failed:", {
+            accessError: accessErr.message,
+            refreshError: refreshErr.message,
+            cookieError: cookieErr.message,
+          });
+          return res.status(401).json({ error: "Invalid token" });
+        }
+      } else {
+        console.error("[SSE Auth] Token verification failed:", {
+          accessError: accessErr.message,
+          refreshError: refreshErr.message,
+        });
+        return res.status(401).json({ error: "Invalid token" });
       }
     }
+  }
 
-    if (!tokenValid || !payload?.cadmin_id) {
-      return res.status(401).end();
-    }
+  if (!payload?.cadmin_id) {
+    console.error("[SSE Auth] Payload missing cadmin_id:", payload);
+    return res.status(401).json({ error: "Invalid payload" });
+  }
 
-    // Verify the CAdmin account is active
+  try {
+    // Verify admin exists and is active
     const admin = await prisma.cAdmin.findUnique({
       where: { cadmin_id: payload.cadmin_id },
-      select: { is_active: true },
+      select: { cadmin_id: true, is_active: true },
     });
 
-    if (!admin || !admin.is_active) return res.status(403).end();
+    if (!admin) {
+      console.warn(`[SSE Auth] Admin ${payload.cadmin_id} not found in database`);
+      return res.status(401).json({ error: "Admin not found" });
+    }
 
-    const cadminId = payload.cadmin_id;
+    if (!admin.is_active) {
+      console.warn(`[SSE Auth] Admin ${payload.cadmin_id} is deactivated`);
+      return res.status(403).json({ error: "Account disabled" });
+    }
+
+    const cadminId = admin.cadmin_id;
 
     // Set SSE headers
     res.writeHead(200, {
@@ -64,19 +96,20 @@ router.get("/notifications/stream", async (req, res) => {
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
       "Access-Control-Allow-Origin": req.headers.origin || "*",
+      "Access-Control-Allow-Credentials": "true",
     });
 
-    // Track this connection
-    const clients = sseClients;
-    if (!clients.has(cadminId)) clients.set(cadminId, new Set());
-    clients.get(cadminId).add(res);
+    // Register active connection
+    sseService.addCAdminClient(cadminId, res);
+    console.log(`[SSE] CAdmin ${cadminId} connected successfully`);
 
-    // Send initial connected event with unread count
+    // Send connected event with unread count
     const unreadCount = await prisma.notification.count({
       where: { cadmin_id: cadminId, is_read: false },
     });
+
     res.write(
-      `event: connected\ndata: ${JSON.stringify({ unread_count: unreadCount })}\n\n`,
+      `event: connected\ndata: ${JSON.stringify({ unread_count: unreadCount })}\n\n`
     );
 
     // Heartbeat every 30 seconds
@@ -91,20 +124,14 @@ router.get("/notifications/stream", async (req, res) => {
     // Cleanup on disconnect
     req.on("close", () => {
       clearInterval(heartbeat);
-      const set = clients.get(cadminId);
-      if (set) {
-        set.delete(res);
-        if (set.size === 0) clients.delete(cadminId);
-      }
+      sseService.removeCAdminClient(cadminId, res);
+      console.log(`[SSE] CAdmin ${cadminId} disconnected`);
     });
-  } catch (err) {
-    console.error("[SSE] Stream error:", err);
-    return res.status(401).end();
+  } catch (dbErr) {
+    console.error("[SSE] Database/Server error:", dbErr);
+    return res.status(500).end();
   }
 });
-
-// Simple in-memory client map (replaces the incomplete sse.service.js)
-const sseClients = new Map(); // Map<cadminId, Set<Response>>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Protected Routes

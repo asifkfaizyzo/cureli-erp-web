@@ -1,4 +1,3 @@
-//backend\src\modules\marketplace-orders\marketplace.orders.events.js
 import prisma from '../../config/prisma.js';
 import { sseService } from '../../services/sse.service.js';
 import { notifyAsync, NOTIFICATION_EVENTS } from '../notifications/notification.service.js';
@@ -42,28 +41,35 @@ export async function fireOrderPlacedEvents(order) {
     },
   });
 
+  const ssePayload = {
+    order_id,
+    order_number,
+    customer_name: customer_name_snapshot,
+    total_amount: Number(total_amount).toFixed(2),
+    item_count,
+    requires_prescription,
+    placed_at,
+  };
+
+  // 1. Notify Shop ERP active operators
   try {
     const userIds = await getActiveShopUserIds(shop_id);
-
-    const ssePayload = {
-      order_id,
-      order_number,
-      customer_name: customer_name_snapshot,
-      total_amount: Number(total_amount).toFixed(2),
-      item_count,
-      requires_prescription,
-      placed_at,
-    };
-
     for (const userId of userIds) {
       sseService.notifyUser(userId, 'marketplace_new_order', ssePayload);
     }
-
     console.log(
       `[OrderEvents] Fired marketplace_new_order SSE to ${userIds.length} users for shop ${shop_id}`,
     );
   } catch (err) {
     console.error('[OrderEvents] SSE dispatch failed (new order):', err.message);
+  }
+
+  // 2. Broadcast to all active connected CAdmins globally
+  try {
+    sseService.notifyAllCAdmins('marketplace_new_order', ssePayload);
+    console.log(`[OrderEvents] Broadcasted marketplace_new_order SSE to all connected CAdmins.`);
+  } catch (err) {
+    console.error('[OrderEvents] CAdmin SSE broadcast failed (new order):', err.message);
   }
 
   MobilePush.orderPlacedConfirmation(customer_id, order_id, order_number).catch(
@@ -86,13 +92,12 @@ export async function fireOrderStatusChangedEvents({
     customer_name,
   };
 
+  // 1. Notify Shop ERP active operators
   try {
     const userIds = await getActiveShopUserIds(shop_id);
-
     for (const userId of userIds) {
       sseService.notifyUser(userId, 'marketplace_order_status_changed', payload);
     }
-
     console.log(
       `[OrderEvents] Fired marketplace_order_status_changed (${new_status}) SSE to ${userIds.length} ERP users`,
     );
@@ -100,6 +105,15 @@ export async function fireOrderStatusChangedEvents({
     console.error('[OrderEvents] ERP SSE dispatch failed (status change):', err.message);
   }
 
+  // 2. Broadcast status change to all active connected CAdmins globally
+  try {
+    sseService.notifyAllCAdmins('marketplace_order_status_changed', payload);
+    console.log(`[OrderEvents] Broadcasted marketplace_order_status_changed to all connected CAdmins.`);
+  } catch (err) {
+    console.error('[OrderEvents] CAdmin SSE broadcast failed (status change):', err.message);
+  }
+
+  // 3. Notify Mobile App client
   try {
     if (customer_id) {
       sseService.notifyMobile(customer_id, 'order_status_changed', {
@@ -107,7 +121,6 @@ export async function fireOrderStatusChangedEvents({
         order_number,
         new_status,
       });
-
       console.log(
         `[OrderEvents] Fired order_status_changed (${new_status}) SSE to mobile customer ${customer_id}`,
       );

@@ -1,5 +1,3 @@
-// backend/src/services/sse.service.js
-
 /**
  * SSE Service Manager (Singleton)
  * Maintains active SSE connections for:
@@ -16,7 +14,7 @@ class SSEService {
     this.riderClients  = new Map(); // Map<riderId,     Set<Response>>
   }
 
-  // ── CAdmin ────────────────────────────────────────────────────────────────
+  // ── CAdmin Connection Handling ──────────────────────────────────────────
 
   addCAdminClient(cadminId, res) {
     if (!this.cadminClients.has(cadminId)) {
@@ -43,6 +41,27 @@ class SSEService {
       } catch {
         this.removeCAdminClient(cadminId, res);
       }
+    });
+  }
+
+  /**
+   * Broadcasts an event to all connected CAdmins globally.
+   * Automatically clears connections that have hung up.
+   * @param {string} eventName - Name of the SSE event
+   * @param {object} data - Payload data
+   */
+  notifyAllCAdmins(eventName, data) {
+    if (this.cadminClients.size === 0) return;
+    const message = this.formatSSEMessage(eventName, data);
+    
+    this.cadminClients.forEach((clientsSet, cadminId) => {
+      clientsSet.forEach((res) => {
+        try {
+          res.write(message);
+        } catch {
+          this.removeCAdminClient(cadminId, res);
+        }
+      });
     });
   }
 
