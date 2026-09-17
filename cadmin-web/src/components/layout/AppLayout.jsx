@@ -1,5 +1,4 @@
 // cadmin-web/src/components/layout/AppLayout.jsx
-
 import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Outlet, useLocation } from "react-router-dom";
@@ -11,6 +10,7 @@ import Breadcrumb from "../common/Breadcrumb";
 import { useMenuStore } from "../../store/useMenuStore";
 // ── NEW ───────────────────────────────────────────────────────
 import { useCommunicationBadgeStore } from "../../store/useCommunicationBadgeStore";
+import NewOrderBanner from "../common/NewOrderBanner";
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -75,6 +75,9 @@ const AppLayout = () => {
 
   return (
     <div className="h-screen w-full flex flex-col bg-gray-50">
+      {/* Real-time incoming order banner */}
+      <NewOrderBanner />
+
       {/* Header */}
       <header className="h-16 flex-shrink-0 z-50">
         <TopHeader />
