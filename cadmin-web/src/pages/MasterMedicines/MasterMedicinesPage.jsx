@@ -650,32 +650,48 @@ const MasterMedicinesPage = () => {
     [bringToFront, toast],
   );
 
-  const handleConfirmMatch = useCallback(
+    const handleConfirmMatch = useCallback(
     async (selection) => {
       const { item, source } = matchModal;
       try {
+        // Resilient ID extraction: use medicineIds if present (unmapped group), else fallback to [item.id]
         const medicineIds =
-          source === "unmapped" ? item.medicineIds || [] : [item.id];
+          Array.isArray(item.medicineIds) && item.medicineIds.length > 0
+            ? item.medicineIds
+            : item.id
+              ? [item.id]
+              : [];
+
+        if (medicineIds.length === 0) {
+          toast.error("Error", "No valid medicine ID found to link.");
+          return;
+        }
+
         const variantId = selection.variantId || selection.variant?.id;
         if (!variantId) {
           toast.error("Error", "No variant selected.");
           return;
         }
+
         await matchToVariant(medicineIds, variantId);
         setMatchModal({ open: false, item: null, source: null });
         toast.success("Medicine Linked", "Matched successfully!");
 
+        // Refresh all relevant tables
         if (source === "unmapped") {
           loadUnmapped();
-        } else {
+        } else if (source === "review") {
           loadReview();
         }
+        loadHistory();
+        loadCatalog();
         loadStats();
       } catch (e) {
-        toast.error("Failed", "Could not complete match");
+        console.error("Match error:", e);
+        toast.error("Failed", e.response?.data?.message || "Could not complete match");
       }
     },
-    [matchModal, toast, loadUnmapped, loadReview, loadStats],
+    [matchModal, toast, loadUnmapped, loadReview, loadHistory, loadCatalog, loadStats],
   );
 
   const handleConfirmCreate = useCallback(
@@ -890,7 +906,7 @@ const MasterMedicinesPage = () => {
         );
       } else {
         // ── MOUNT HISTORY TABLE HERE ──
-        return (
+         return (
           <HistoryTable
             data={historyData}
             meta={historyMeta}
@@ -899,8 +915,8 @@ const MasterMedicinesPage = () => {
               setHistoryFilters((prev) => ({ ...prev, ...f }))
             }
             onRelink={(item) => {
-              // Reuses variant match modal for instant direct catalog relinking
-              setMatchModal({ open: true, item, source: "unmapped" });
+              // Open match modal with history context
+              setMatchModal({ open: true, item, source: "history" });
               bringToFront("match");
             }}
             onUnlink={handleUnlinkHistoryAction}
