@@ -10,6 +10,7 @@ import {
   Image,
   AlertTriangle,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -29,6 +30,7 @@ import ImageUploadModal from "./comps/ImageUploadModal";
 import ReviewDetailModal from "./comps/ReviewDetailModal";
 import MasterCatalogGrid from "./comps/MasterCatalogGrid";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import HistoryTable from "./comps/HistoryTable";
 
 // API
 import {
@@ -46,6 +48,8 @@ import {
   unlinkMedicine as apiUnlinkMedicine,
   IMAGE_STATUS,
   createMasterMedicine,
+  getMappingHistory, 
+  unignoreMedicine,
 } from "../../api/cadminMasterMedicines";
 
 import { useToast } from "../../components/common/Toast";
@@ -60,6 +64,7 @@ const MAIN_SECTIONS = [
 const MAPPING_TABS = [
   { id: "unmapped", label: "Unmapped", icon: LinkIcon },
   { id: "review", label: "Needs Review", icon: HelpCircle },
+  { id: "history", label: "History", icon: Clock },
 ];
 
 const IMAGE_TABS = [
@@ -81,7 +86,30 @@ const MasterMedicinesPage = () => {
     catalog: false,
     unmapped: false,
     review: false,
+    history: false,
   });
+   // History paginated state
+  const [historyData, setHistoryData] = useState([]);
+  const [historyMeta, setHistoryMeta] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 0,
+  });
+  const [historyFilters, setHistoryFilters] = useState({
+    search: "",
+    status: "",
+    page: 1,
+    limit: 10,
+    sort: "actionDate",
+    order: "desc",
+    shopIds: "",
+    selectedShops: [],
+    dateFrom: "",
+    dateTo: "",
+  });
+
+  const [confirmUnlinkDetail, setConfirmUnlinkDetail] = useState(null); 
 
   const [stats, setStats] = useState({
     totalMasters: 0,
@@ -229,6 +257,27 @@ const MasterMedicinesPage = () => {
       setLoading((prev) => ({ ...prev, stats: false }));
     }
   }, []);
+
+
+    const loadHistory = useCallback(
+    async (filters = historyFilters) => {
+      try {
+        setLoading((prev) => ({ ...prev, history: true }));
+        const { selectedShops, ...queryParams } = filters;
+        const res = await getMappingHistory(queryParams);
+        const data = res.data?.data;
+        if (data) {
+          setHistoryData(data.history || []);
+          setHistoryMeta(data.meta || { total: 0, page: 1, limit: 10, totalPages: 0 });
+        }
+      } catch (error) {
+        console.error("History load error:", error);
+      } finally {
+        setLoading((prev) => ({ ...prev, history: false }));
+      }
+    },
+    [historyFilters],
+  );
 
   const loadCatalog = useCallback(
     async (filters = catalogFilters) => {
@@ -393,13 +442,15 @@ const MasterMedicinesPage = () => {
     loadCatalog();
   }, []);
 
-  // Reset states & trigger load when section / tab switches
+   // Reset states & trigger load when section / tab switches
   useEffect(() => {
     if (activeSection === "mapping") {
       if (activeMappingTab === "unmapped") {
         loadUnmapped();
-      } else {
+      } else if (activeMappingTab === "review") {
         loadReview();
+      } else {
+        loadHistory(); // <-- ADD THIS LINE HERE
       }
     } else if (activeSection === "images") {
       if (activeImageTab === "raw") {
@@ -423,6 +474,12 @@ const MasterMedicinesPage = () => {
       loadReview(reviewFilters);
     }
   }, [reviewFilters]);
+
+  useEffect(() => {
+    if (activeSection === "mapping" && activeMappingTab === "history") {
+      loadHistory(historyFilters);
+    }
+  }, [historyFilters, activeSection, activeMappingTab]);
 
   // ═══════════════════════════════════════════════════════════
   // HANDLERS
@@ -744,6 +801,7 @@ const MasterMedicinesPage = () => {
     loadCatalog,
     loadUnmapped,
     loadReview,
+    loadHistory,
     loadRawImages,
     loadNoImages,
   ]);
@@ -790,7 +848,7 @@ const MasterMedicinesPage = () => {
       );
     }
 
-    if (activeSection === "mapping") {
+        if (activeSection === "mapping") {
       if (activeMappingTab === "unmapped") {
         return (
           <UnmappedTable
@@ -810,7 +868,7 @@ const MasterMedicinesPage = () => {
             loading={loading.unmapped}
           />
         );
-      } else {
+      } else if (activeMappingTab === "review") {
         return (
           <ReviewTable
             data={reviewData}
@@ -828,6 +886,26 @@ const MasterMedicinesPage = () => {
             onBulkReject={handleBulkRejectReview}
             onViewDetail={handleViewReviewDetail}
             loading={loading.review}
+          />
+        );
+      } else {
+        // ── MOUNT HISTORY TABLE HERE ──
+        return (
+          <HistoryTable
+            data={historyData}
+            meta={historyMeta}
+            filters={historyFilters}
+            onFiltersChange={(f) =>
+              setHistoryFilters((prev) => ({ ...prev, ...f }))
+            }
+            onRelink={(item) => {
+              // Reuses variant match modal for instant direct catalog relinking
+              setMatchModal({ open: true, item, source: "unmapped" });
+              bringToFront("match");
+            }}
+            onUnlink={handleUnlinkHistoryAction}
+            onUnignore={handleUnignoreAction}
+            loading={loading.history}
           />
         );
       }
@@ -857,6 +935,36 @@ const MasterMedicinesPage = () => {
           />
         );
       }
+    }
+  };
+    const handleUnignoreAction = useCallback(
+    async (item) => {
+      try {
+        await unignoreMedicine(item.id);
+        toast.success("Medicine Unignored", `"${item.rawName}" moved back to Unmapped queue.`);
+        loadHistory();
+        loadStats();
+      } catch (e) {
+        toast.error("Failed", e.message || "Could not unignore medicine");
+      }
+    },
+    [toast, loadHistory, loadStats],
+  );
+
+  const handleUnlinkHistoryAction = useCallback((item) => {
+    setConfirmUnlinkDetail(item);
+  }, []);
+
+  const confirmUnlinkHistory = async () => {
+    if (!confirmUnlinkDetail) return;
+    try {
+      await apiUnlinkMedicine(confirmUnlinkDetail.id);
+      toast.success("Medicine Unlinked", "Unlinked successfully and moved back to unmapped list");
+      setConfirmUnlinkDetail(null);
+      loadHistory();
+      loadStats();
+    } catch (e) {
+      toast.error("Error", "Could not unlink medicine");
     }
   };
 
@@ -991,8 +1099,14 @@ const MasterMedicinesPage = () => {
             {MAPPING_TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeMappingTab === tab.id;
+              
+              // ── DYNAMICALLY MAP EACH TAB TO ITS RESPECTIVE METRIC ──
               const count =
-                tab.id === "unmapped" ? stats.unmapped : stats.needsReview;
+                tab.id === "unmapped"
+                  ? stats.unmapped
+                  : tab.id === "review"
+                    ? stats.needsReview
+                    : stats.totalLinked; // "History" maps to total linked medicines (18)
               return (
                 <button
                   key={tab.id}
@@ -1176,6 +1290,27 @@ const MasterMedicinesPage = () => {
         confirmText="Ignore"
         type="danger"
       />
+
+         {/* Unlink Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!confirmUnlinkDetail}
+        onClose={() => setConfirmUnlinkDetail(null)}
+        onConfirm={confirmUnlinkHistory}
+        title="Unlink Medicine from Catalog"
+        message={
+          confirmUnlinkDetail ? (
+            <p>
+              Are you sure you want to unlink{" "}
+              <strong>"{confirmUnlinkDetail.rawName}"</strong> from its current variant? This will return it to the unmapped list.
+            </p>
+          ) : (
+            ""
+          )
+        }
+        confirmText="Unlink"
+        type="danger"
+      />
+
     </div>
   );
 };
