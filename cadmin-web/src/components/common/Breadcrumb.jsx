@@ -1,64 +1,89 @@
 // cadmin-web/src/components/common/Breadcrumb.jsx
 
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import { useMenuStore } from "../../store/useMenuStore";
 
-const BREADCRUMB_PATHS = {
-  // ── Admin ─────────────────────────────────────────────────────────────────
+const ADMIN_PATHS = {
   Dashboard: "/dashboard",
   Users: "/users",
   Shops: "/shops",
+  Orders: "/orders",
   Verification: "/verification",
   Subscriptions: "/subscriptions",
   Plans: "/subscriptions/manage",
   Audits: "/audits",
   Admins: "/admins",
   Settings: "/settings",
+  Notifications: "/notifications",
 
-  // ── Communications ────────────────────────────────────────────────────────
+  // Admin Comms
   Communications: "/communications",
   Tickets: "/communications/tickets",
-  "Customer Tickets": "/communications/customer-tickets", // ◄ Added Customer Tickets mapping
+  "Shop Tickets": "/communications/tickets",
   Enquiries: "/communications/enquiries",
   Broadcast: "/communications/broadcast",
   "In-App": "/communications/broadcast/in-app",
   "In-App Broadcast": "/communications/broadcast/in-app",
   "Email Broadcast": "/communications/broadcast/email",
-  "Mobile Push": "/communications/broadcast/mobile",
+  "Master Medicines": "/master-medicines",
+};
 
-  // ── Notifications ─────────────────────────────────────────────────────────
-  Notifications: "/notifications",
-
-  // ── Marketplace ───────────────────────────────────────────────────────────
+const MARKETPLACE_PATHS = {
   Marketplace: "/marketplace/dashboard",
-  "Master Medicines": "/marketplace/master-medicines",
+  "MP Dashboard": "/marketplace/dashboard",
+  Users: "/marketplace/users",
+  Shops: "/marketplace/shops",
   Orders: "/marketplace/orders",
   Pricing: "/marketplace/pricing",
+  "Master Medicines": "/marketplace/master-medicines",
 
-  // ── App Config ────────────────────────────────────────────────────────────
+  // App Config
   "App Config": "/marketplace/app-config",
   Categories: "/marketplace/app-config/categories",
   Banners: "/marketplace/app-config/banners",
   "Home Layout": "/marketplace/app-config/home-screen",
-  loyalty: "/marketplace/app-config/loyalty",
-  coupons: "/marketplace/app-config/coupons",
+  "Loyalty Config": "/marketplace/app-config/loyalty",
+  Coupons: "/marketplace/app-config/coupons",
 
-    // ── Fleet ─────────────────────────────────────────────────────────────────
-  Fleet: "/fleet/riders",
-  "Riders": "/fleet/riders",
+  // Marketplace Comms
+  Communications: "/marketplace/communications",
+  "Customer Tickets": "/marketplace/communications/customer-tickets",
+  "Push Notifications": "/marketplace/communications/push",
+  "Email Broadcast": "/marketplace/communications/email",
+};
+
+const FLEET_PATHS = {
+  Fleet: "/fleet/dashboard",
+  Dashboard: "/fleet/dashboard",
+  Riders: "/fleet/riders",
+  Verification: "/fleet/verification",
   "Rider Verification": "/fleet/verification",
+  Communications: "/fleet/communications",
   "Fleet Communications": "/fleet/communications",
+  Pricing: "/fleet/pricing",
   "Fleet Pricing": "/fleet/pricing",
 };
 
-const getBreadcrumbPath = (crumb) => BREADCRUMB_PATHS[crumb] ?? null;
-
 const Breadcrumb = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const breadcrumbs = useMenuStore((s) => s.breadcrumbs);
   const setBreadcrumbs = useMenuStore((s) => s.setBreadcrumbs);
+
+  const isMarketplace = location.pathname.startsWith("/marketplace");
+  const isFleet       = location.pathname.startsWith("/fleet");
+
+  const activePathMap = isFleet
+    ? FLEET_PATHS
+    : isMarketplace
+      ? MARKETPLACE_PATHS
+      : ADMIN_PATHS;
+
+  const getBreadcrumbPath = (crumb) => {
+    return activePathMap[crumb] || ADMIN_PATHS[crumb] || null;
+  };
 
   const crumbs = useMemo(
     () => (breadcrumbs?.length > 0 ? breadcrumbs : ["Dashboard"]),

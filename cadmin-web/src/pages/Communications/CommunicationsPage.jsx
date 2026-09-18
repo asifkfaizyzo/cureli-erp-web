@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Loader2,
   RefreshCw,
-  Smartphone,
 } from "lucide-react";
 import { useNavigate }                from "react-router-dom";
 import { useMenuStore }               from "../../store/useMenuStore";
@@ -38,10 +37,6 @@ const BROADCAST_ANY_PERMISSIONS = [
   CADMIN_PERMISSIONS.BROADCAST_INAPP_UPLOAD,
   CADMIN_PERMISSIONS.BROADCAST_INAPP_MANAGE_SEGMENTS,
   CADMIN_PERMISSIONS.BROADCAST_INAPP_MANAGE_TEMPLATES,
-  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SEND,
-  CADMIN_PERMISSIONS.BROADCAST_MOBILE_VIEW_HISTORY,
-  CADMIN_PERMISSIONS.BROADCAST_MOBILE_MANAGE_DRAFTS,
-  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SCHEDULE,
 ];
 
 // ============================================
@@ -169,32 +164,23 @@ const CommunicationsPage = () => {
   // Communications totals states
   const [totalTickets,   setTotalTickets]   = useState(0);
   const [totalEnquiries, setTotalEnquiries] = useState(0);
-  
-  // New States: Customer Tickets (Mobile Users)
-  const [totalCustomerTickets, setTotalCustomerTickets] = useState(0);
-  const [pendingCustomerTickets, setPendingCustomerTickets] = useState(0);
-
   const [loadingTotals,  setLoadingTotals]  = useState(true);
 
   const fetchTotals = useCallback(async () => {
     try {
       setLoadingTotals(true);
 
-      // Dynamic imports - load endpoints in parallel
       const [
         { getAllTickets },
         { getEnquiryStats },
-        { getCustomerTicketStats },
       ] = await Promise.all([
         import("../../api/cadminTickets"),
         import("../../api/cadminEnquiries"),
-        import("../../api/cadminCustomerTickets"),
       ]);
 
-      const [ticketsRes, enquiriesRes, customerTicketsRes] = await Promise.allSettled([
+      const [ticketsRes, enquiriesRes] = await Promise.allSettled([
         getAllTickets({ page: 1, limit: 1 }),
         getEnquiryStats(),
-        getCustomerTicketStats(),
       ]);
 
       if (ticketsRes.status === "fulfilled") {
@@ -208,13 +194,6 @@ const CommunicationsPage = () => {
           enquiriesRes.value?.data ??
           {};
         setTotalEnquiries(d.total ?? d.totalEnquiries ?? 0);
-      }
-
-      if (customerTicketsRes.status === "fulfilled") {
-        const data = customerTicketsRes.value?.data?.data || {};
-        setTotalCustomerTickets(data.total ?? 0);
-        // "OPEN" and "IN_PROGRESS" both count as action-needed customer tickets
-        setPendingCustomerTickets((data.open ?? 0) + (data.in_progress ?? 0));
       }
     } catch (err) {
       console.error("Communications failed to load totals:", err);
@@ -234,31 +213,13 @@ const CommunicationsPage = () => {
   }, [toast, refreshBadge, fetchTotals]);
 
   const isLoading = isLoadingBadge || loadingTotals;
-  // Combine traditional pending with customer ticket pending
-  const totalPending = pendingTickets + pendingEnquiries + pendingCustomerTickets;
+  const totalPending = pendingTickets + pendingEnquiries;
 
   // ============================================
   // CHANNEL CARDS CONFIG
   // ============================================
   const channels = useMemo(() => {
     const all = [
-      {
-        id:          "customer-tickets",
-        title:       "Customer Tickets",
-        description: "Review and respond to post-order issues raised by mobile app customers",
-        icon:        Smartphone,
-        path:        "/communications/customer-tickets",
-        breadcrumbs: ["Communications", "Customer Tickets"],
-        iconBg:      "bg-amber-100",
-        iconColor:   "text-amber-600",
-        isLoading:   loadingTotals,
-        visible:     hasPermission(CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW),
-        hasBadge:    pendingCustomerTickets > 0,
-        stats: [
-          { icon: TrendingUp, label: "Total",   value: totalCustomerTickets,   color: "bg-amber-50 text-amber-600" },
-          { icon: Clock,      label: "Open/IP", value: pendingCustomerTickets, color: "bg-red-50 text-red-600" },
-        ],
-      },
       {
         id:          "tickets",
         title:       "Shop Tickets",
@@ -296,7 +257,7 @@ const CommunicationsPage = () => {
       {
         id:          "broadcast",
         title:       "Broadcast",
-        description: "Send announcements and notifications to users",
+        description: "Send announcements and notifications to ERP users and shops",
         icon:        Radio,
         path:        "/communications/broadcast",
         breadcrumbs: ["Communications", "Broadcast"],
@@ -313,9 +274,6 @@ const CommunicationsPage = () => {
     return all.filter((c) => c.visible);
   }, [
     isLoadingBadge,
-    loadingTotals,
-    pendingCustomerTickets,
-    totalCustomerTickets,
     pendingTickets,
     pendingEnquiries,
     totalTickets,
@@ -335,7 +293,7 @@ const CommunicationsPage = () => {
             </div>
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-gray-900 truncate">Communications</h1>
-              <p className="text-sm text-gray-500">Manage customer & pharmacy interactions</p>
+              <p className="text-sm text-gray-500">Manage pharmacy tickets & announcements</p>
             </div>
           </div>
 
@@ -362,21 +320,6 @@ const CommunicationsPage = () => {
             </div>
 
             <div className="flex items-center gap-6 flex-wrap">
-              {/* Customer Tickets */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">
-                    {loadingTotals ? "…" : totalCustomerTickets}
-                  </p>
-                  <p className="text-xs text-gray-500">Cust Tickets</p>
-                </div>
-              </div>
-
-              <div className="w-px h-10 bg-gray-200 hidden sm:block" />
-
               {/* Shop Tickets */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
