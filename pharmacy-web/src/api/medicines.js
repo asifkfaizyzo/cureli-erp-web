@@ -248,6 +248,32 @@ const medicinesAPI = {
     );
     return response.data;
   },
+
+  /**
+   * Get count of medicines eligible for resubmission
+   * @returns {Promise} { success: true, data: { count: number } }
+   */
+  getResubmitCount: async () => {
+    const response = await api.get("/medicine-linking/resubmit-count", {
+      headers: getBranchHeaders(),
+    });
+    return response.data;
+  },
+
+  /**
+   * Bulk resubmit medicines for catalog review
+   * @param {Array<string>} medicineIds 
+   * @returns {Promise}
+   */
+  resubmitForReview: async (medicineIds) => {
+    const response = await api.post(
+      "/medicine-linking/resubmit",
+      { medicineIds },
+      { headers: getBranchHeaders() }
+    );
+    return response.data;
+  },
+
 };
 
 export default medicinesAPI;

@@ -1,5 +1,8 @@
 import prisma from "../../config/prisma.js";
 import { createListingForMedicine, handleMedicineUnlinked } from "../marketplace-listings/listings.service.js";
+import * as audit from "../audit/index.js";
+import { notify } from "../notifications/index.js";
+import { NOTIFICATION_EVENTS } from "../notifications/notification.events.js";
 
 // ══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -1034,13 +1037,33 @@ export async function bulkAutoLinkMedicines(shopId, branchId = null) {
 
 export async function getUnlinkedMedicines(shopId, branchId = null, options = {}) {
   const { status = "PENDING", page = 1, limit = 20 } = options;
+  
   const where = {
     shop_id:            shopId,
     master_medicine_id: null,
-    link_rejected:      false,
+    is_active:          true,
   };
-  if (branchId) where.branch_id = branchId;
-  if (status && status !== "ALL") where.link_status = status;
+  
+  if (branchId) {
+    where.branch_id = branchId;
+  }
+
+  // ── DYNAMIC LINK REJECTED FILTER ──
+  if (status && status !== "ALL") {
+    where.link_status = status;
+    if (status === "UNLINKED") {
+      // If looking specifically for ignored/rejected medicines
+      where.link_rejected = true;
+    } else {
+      where.link_rejected = false;
+    }
+  } else if (status === "ALL") {
+    // For the resubmit modal: include both PENDING and rejected (UNLINKED) medicines
+    // We do not restrict by link_rejected here
+  } else {
+    // Default fallback
+    where.link_rejected = false;
+  }
 
   const skip = (page - 1) * limit;
   const [medicines, total] = await Promise.all([
@@ -1053,6 +1076,8 @@ export async function getUnlinkedMedicines(shopId, branchId = null, options = {}
         manufacturer:          true,
         link_status:           true,
         link_confidence_score: true,
+        resubmission_count:    true,
+        last_resubmitted_at:   true,
         created_at:            true,
       },
       orderBy: { created_at: "desc" },
@@ -1109,4 +1134,279 @@ export async function searchMasterCatalog(query, limit = 10) {
     variant_count:    m.variant_count,
     preview_variants: m.variants,
   }));
+}
+
+// ══════════════════════════════════════════════════════════════
+// RESUBMIT ELIGIBLE COUNT (for badge on button)
+// ══════════════════════════════════════════════════════════════
+
+export async function getResubmitEligibleCount(shopId, branchId) {
+  const where = {
+    shop_id: shopId,
+    is_active: true,
+    // Everything that is NOT successfully linked
+    OR: [
+      { master_medicine_id: null },
+      { link_status: { notIn: ["AUTO_LINKED", "MANUAL_LINKED"] } },
+    ],
+  };
+
+  if (branchId) {
+    where.branch_id = branchId;
+  }
+
+  const count = await prisma.medicine.count({ where });
+  return count;
+}
+
+// ══════════════════════════════════════════════════════════════
+// RESUBMIT MEDICINES FOR REVIEW
+// ══════════════════════════════════════════════════════════════
+
+export async function resubmitMedicinesForReview(
+  shopId,
+  branchId,
+  medicineIds,
+  userId,
+  userName,
+) {
+  if (!medicineIds || medicineIds.length === 0) {
+    throw new Error("No medicine IDs provided");
+  }
+
+  if (!branchId) {
+    throw new Error("Branch selection is required");
+  }
+
+
+
+  ///reset after-----24 hr
+  const COOLDOWN_MS = 0; 
+  // const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+  const now = new Date();
+  const cooldownCutoff = new Date(now.getTime() - COOLDOWN_MS);
+
+  // ── Fetch all requested medicines ──
+  const medicines = await prisma.medicine.findMany({
+    where: {
+      medicine_id: { in: medicineIds },
+      shop_id: shopId,
+      branch_id: branchId,
+      is_active: true,
+    },
+    select: {
+      medicine_id: true,
+      name: true,
+      generic_name: true,
+      manufacturer: true,
+      master_medicine_id: true,
+      link_status: true,
+      link_rejected: true,
+      resubmission_count: true,
+      last_resubmitted_at: true,
+    },
+  });
+
+  if (medicines.length === 0) {
+    return {
+      totalRequested: medicineIds.length,
+      processed: 0,
+      skippedLinked: 0,
+      skippedCooldown: 0,
+      notFound: medicineIds.length,
+      results: [],
+    };
+  }
+
+  const results = {
+    totalRequested: medicineIds.length,
+    processed: 0,
+    skippedLinked: 0,
+    skippedCooldown: 0,
+    notFound: medicineIds.length - medicines.length,
+    details: [],
+  };
+
+  const eligibleIds = [];
+
+  // ── Triage each medicine ──
+  for (const med of medicines) {
+    // Skip already linked
+    const isLinked =
+      med.master_medicine_id &&
+      ["AUTO_LINKED", "MANUAL_LINKED"].includes(med.link_status);
+
+    if (isLinked) {
+      results.skippedLinked++;
+      results.details.push({
+        medicine_id: med.medicine_id,
+        name: med.name,
+        action: "SKIPPED_LINKED",
+        reason: "Already linked to catalog",
+      });
+      continue;
+    }
+
+    // Skip cooldown
+    if (
+      med.last_resubmitted_at &&
+      new Date(med.last_resubmitted_at) > cooldownCutoff
+    ) {
+      results.skippedCooldown++;
+      const hoursAgo = Math.round(
+        (now - new Date(med.last_resubmitted_at)) / (1000 * 60 * 60),
+      );
+      results.details.push({
+        medicine_id: med.medicine_id,
+        name: med.name,
+        action: "SKIPPED_COOLDOWN",
+        reason: `Resubmitted ${hoursAgo}h ago (24h cooldown)`,
+      });
+      continue;
+    }
+
+    eligibleIds.push(med.medicine_id);
+  }
+
+  if (eligibleIds.length === 0) {
+    return results;
+  }
+
+  // ── Process eligible medicines in a transaction ──
+  await prisma.$transaction(async (tx) => {
+    for (const medId of eligibleIds) {
+      // 1. Reset flags and increment counter
+      await tx.medicine.update({
+        where: { medicine_id: medId },
+        data: {
+          link_rejected: false,
+          link_status: "PENDING",
+          suggested_master_id: null,
+          suggested_variant_id: null,
+          suggestion_reason: null,
+          link_confidence_score: null,
+          resubmission_count: { increment: 1 },
+          last_resubmitted_at: now,
+        },
+      });
+
+      // 2. Re-run auto-matcher for fresh catalog match
+      const med = medicines.find((m) => m.medicine_id === medId);
+      try {
+        const matchResult = await checkSingleMedicine({
+          name: med.name,
+          manufacturer: med.manufacturer,
+          generic_name: med.generic_name,
+        });
+
+        if (matchResult.status === "AUTO_LINKED") {
+          await tx.medicine.update({
+            where: { medicine_id: medId },
+            data: {
+              master_medicine_id: matchResult.master_medicine_id,
+              linked_variant_id:
+                matchResult.matched_variant?.variant_id ?? null,
+              linked_variant_sku:
+                matchResult.matched_variant?.sku_id ?? null,
+              link_status: "AUTO_LINKED",
+              link_confidence_score: matchResult.confidence,
+              linked_at: now,
+              linked_by_type: "SYSTEM",
+              suggestion_reason: matchResult.reason,
+            },
+          });
+
+          results.details.push({
+            medicine_id: medId,
+            name: med.name,
+            action: "AUTO_LINKED",
+            reason: `Re-matched: ${matchResult.reason}`,
+          });
+        } else if (matchResult.status === "PENDING") {
+          await tx.medicine.update({
+            where: { medicine_id: medId },
+            data: {
+              link_status: "SUGGESTED",
+              link_confidence_score: matchResult.confidence,
+              suggested_master_id: matchResult.suggested_master_id,
+              suggestion_reason: matchResult.reason,
+            },
+          });
+
+          results.details.push({
+            medicine_id: medId,
+            name: med.name,
+            action: "SUGGESTED",
+            reason: `Fresh match: ${matchResult.reason}`,
+          });
+        } else {
+          results.details.push({
+            medicine_id: medId,
+            name: med.name,
+            action: "PENDING",
+            reason: "No catalog match — awaiting CAdmin review",
+          });
+        }
+      } catch (matchError) {
+        // Matcher failed — medicine stays PENDING, which is fine
+        results.details.push({
+          medicine_id: medId,
+          name: med.name,
+          action: "PENDING",
+          reason: `Matcher error: ${matchError.message}`,
+        });
+      }
+
+      results.processed++;
+    }
+
+    // 3. Audit log — single entry for the batch
+    await audit.log({
+      action: audit.AuditAction.MEDICINE_RESUBMITTED_FOR_REVIEW,
+      entity_type: audit.EntityType.MEDICINE,
+      entity_id: null,
+      actor_type: audit.ActorType.ERP_USER,
+      actor_id: userId,
+      shop_id: shopId,
+      branch_id: branchId,
+      reason_code: "USER_REQUEST",
+      metadata: {
+        medicine_ids: eligibleIds,
+        medicine_names: eligibleIds.map(
+          (id) => medicines.find((m) => m.medicine_id === id)?.name,
+        ),
+        count: eligibleIds.length,
+        skipped_linked: results.skippedLinked,
+        skipped_cooldown: results.skippedCooldown,
+        resubmitted_by: userName || userId,
+      },
+    });
+  });
+
+    // 4. Notify CAdmin catalog team (defensive fire-and-forget wrapper)
+  if (results.processed > 0) {
+    try {
+      const dispatchPromise = notify({
+        type: NOTIFICATION_EVENTS.MEDICINE_RESUBMITTED,
+        context: {
+          shop_id: shopId,
+          branch_id: branchId,
+          count: results.processed,
+          resubmitted_by: userName || "Shop User",
+        },
+      });
+
+      // Safely catch only if a valid promise is returned
+      if (dispatchPromise && typeof dispatchPromise.catch === "function") {
+        dispatchPromise.catch((err) =>
+          console.error("[Notification] MEDICINE_RESUBMITTED failed asynchronously:", err)
+        );
+      }
+    } catch (dispatchError) {
+      // Prevents notification configuration issues from crashing the database write
+      console.warn("[Notification] MEDICINE_RESUBMITTED sync dispatch failed safely:", dispatchError.message);
+    }
+  }
+
+  return results;
 }

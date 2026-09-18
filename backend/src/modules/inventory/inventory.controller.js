@@ -21,7 +21,7 @@ function extractBranchContext(req) {
 }
 
 class InventoryController {
-  async getInventory(req, res) {
+    async getInventory(req, res) {
     try {
       const shopId = req.user.shop_id;
       const role = req.user.role;
@@ -37,6 +37,7 @@ class InventoryController {
         expiry: req.query.expiry || null,
         supplier: req.query.supplier || null,
         category: req.query.category || null,
+        catalogStatus: req.query.catalogStatus || null, // <-- ADD THIS LINE HERE
         branchId: req.query.branchId || null,
         limit: parseInt(req.query.limit) || 100,
         offset: parseInt(req.query.offset) || 0,
