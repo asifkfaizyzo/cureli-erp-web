@@ -10,6 +10,7 @@ import {
   resolveAssetUrl,
   resolveAssetUrls,
 } from "../../../services/assetUrl.service.js";
+import { checkSingleMedicine } from "../../medicines/linking.service.js";
 
 // ══════════════════════════════════════════════════════════════
 // HELPER: Compute Image Status
@@ -239,19 +240,30 @@ export async function getMasterMedicines({
   };
 }
 
+
 // ══════════════════════════════════════════════════════════════
 // GET SINGLE MASTER MEDICINE WITH ALL VARIANTS
 // ══════════════════════════════════════════════════════════════
 
 export async function getMasterMedicineById(id) {
-  let medicine = await prisma.masterMedicine.findUnique({
-    where: { master_medicine_id: id },
-    include: {
-      variants: { orderBy: [{ brand: "asc" }, { mrp: "asc" }] },
-      images: { orderBy: [{ type: "asc" }, { sequence: "asc" }] },
-    },
-  });
+  if (!id) return null;
 
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id).trim());
+
+  let medicine = null;
+
+  // Only query by master_medicine_id if id is a valid UUID
+  if (isUUID) {
+    medicine = await prisma.masterMedicine.findUnique({
+      where: { master_medicine_id: id },
+      include: {
+        variants: { orderBy: [{ brand: "asc" }, { mrp: "asc" }] },
+        images: { orderBy: [{ type: "asc" }, { sequence: "asc" }] },
+      },
+    });
+  }
+
+  // Otherwise or fallback: query by master_key (slug string)
   if (!medicine) {
     medicine = await prisma.masterMedicine.findUnique({
       where: { master_key: id },
@@ -739,7 +751,7 @@ export async function getUnmappedMedicinesAggregated({
 
   const rawMedicines = await prisma.medicine.findMany({
     where,
-    select: {
+        select: {
       medicine_id: true,
       name: true,
       normalized_name: true,
@@ -754,6 +766,8 @@ export async function getUnmappedMedicinesAggregated({
       branch_id: true,
       created_at: true,
       updated_at: true,
+      resubmission_count: true,
+      last_resubmitted_at: true,
       shop: {
         select: {
           shop_id: true,
@@ -786,6 +800,8 @@ export async function getUnmappedMedicinesAggregated({
         type: med.category === "OTC" ? "OTC" : "DRUG",
         firstSeenAt: med.created_at,
         lastSeenAt: med.updated_at,
+        resubmissionCount: 0,
+        lastResubmittedAt: null,
         manufacturers: new Set(),
         genericNames: new Set(),
         categories: new Set(),
@@ -826,8 +842,21 @@ export async function getUnmappedMedicinesAggregated({
       group.shopMap.get(shopKey).count++;
     }
 
-    if (med.created_at < group.firstSeenAt) group.firstSeenAt = med.created_at;
+   if (med.created_at < group.firstSeenAt) group.firstSeenAt = med.created_at;
     if (med.updated_at > group.lastSeenAt) group.lastSeenAt = med.updated_at;
+
+    // Track highest resubmission count across all shop entries
+    const medResubCount = med.resubmission_count || 0;
+    if (medResubCount > group.resubmissionCount) {
+      group.resubmissionCount = medResubCount;
+    }
+    if (
+      med.last_resubmitted_at &&
+      (!group.lastResubmittedAt ||
+        med.last_resubmitted_at > group.lastResubmittedAt)
+    ) {
+      group.lastResubmittedAt = med.last_resubmitted_at;
+    }
   }
 
   let results = Array.from(aggregationMap.values()).map((group) => ({
@@ -841,6 +870,8 @@ export async function getUnmappedMedicinesAggregated({
     hasImageSuggestion: false,
     firstSeenAt: group.firstSeenAt,
     lastSeenAt: group.lastSeenAt,
+    resubmissionCount: group.resubmissionCount,
+    lastResubmittedAt: group.lastResubmittedAt,
     shops: Array.from(group.shopMap.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, 10),
@@ -988,6 +1019,8 @@ export async function getNeedsReviewMedicines({
         shop_id: true,
         branch_id: true,
         created_at: true,
+        resubmission_count: true,
+        last_resubmitted_at: true,
         shop: {
           select: { shop_id: true, business_name: true },
         },
@@ -1060,6 +1093,8 @@ export async function getNeedsReviewMedicines({
       branchName: med.branch?.branch_name || null,
       occurrenceCount: 1,
       firstSeenAt: med.created_at,
+      resubmissionCount: med.resubmission_count || 0,
+      lastResubmittedAt: med.last_resubmitted_at,
     };
   });
 
@@ -1482,12 +1517,18 @@ export async function matchUnmappedToMaster(
 // IGNORE UNMAPPED MEDICINES
 // ══════════════════════════════════════════════════════════════
 
-export async function ignoreUnmappedMedicines(medicineIds, auditContext = {}) {
+export async function ignoreUnmappedMedicines(medicineIds, cadminId = null, auditContext = {}) {
+  const effectiveCadminId = cadminId || auditContext?.actor_id || null;
+  const now = new Date();
+
   const result = await prisma.medicine.updateMany({
     where: { medicine_id: { in: medicineIds } },
     data: {
       link_status: "UNLINKED",
       link_rejected: true,
+      linked_at: now,
+      linked_by_id: effectiveCadminId,
+      linked_by_type: "CADMIN",
     },
   });
 
@@ -1495,6 +1536,7 @@ export async function ignoreUnmappedMedicines(medicineIds, auditContext = {}) {
     action: audit.AuditAction.UNMAPPED_MEDICINES_IGNORED,
     entity_type: audit.EntityType.MEDICINE,
     entity_id: null,
+    actor_id: effectiveCadminId,
     ...auditContext,
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
@@ -1511,17 +1553,21 @@ export async function ignoreUnmappedMedicines(medicineIds, auditContext = {}) {
 // ══════════════════════════════════════════════════════════════
 
 export async function unlinkShopMedicine(medicineId, auditContext = {}) {
+  const now = new Date();
+  const effectiveCadminId = auditContext?.actor_id || null;
+
   const updated = await prisma.medicine.update({
     where: { medicine_id: medicineId },
     data: {
       master_medicine_id: null,
       linked_variant_id: null,
       linked_variant_sku: null,
-      link_status: "PENDING",
+      link_status: "UNLINKED",
+      link_rejected: true,
       link_confidence_score: null,
-      linked_at: null,
-      linked_by_id: null,
-      linked_by_type: null,
+      linked_at: now,
+      linked_by_id: effectiveCadminId,
+      linked_by_type: "CADMIN",
     },
   });
 
@@ -1529,6 +1575,7 @@ export async function unlinkShopMedicine(medicineId, auditContext = {}) {
     action: audit.AuditAction.MEDICINE_UNLINKED,
     entity_type: audit.EntityType.MEDICINE,
     entity_id: medicineId,
+    actor_id: effectiveCadminId,
     ...auditContext,
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
@@ -1861,4 +1908,362 @@ export async function createMasterMedicine(data, cadminId, auditContext = {}) {
       manufacturer: result.variant.manufacturer,
     },
   };
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// GET MAPPING HISTORY — WITH EXACT SCHEMA RESOLUTION
+// ══════════════════════════════════════════════════════════════
+
+export async function getMappingHistory({
+  search = "",
+  status = "",
+  page = 1,
+  limit = 20,
+  sort = "actionDate",
+  order = "desc",
+  shopIds = [],
+  dateFrom = "",
+  dateTo = "",
+}) {
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const where = {
+    is_active: true,
+    link_status: { in: ["AUTO_LINKED", "MANUAL_LINKED", "UNLINKED"] },
+  };
+
+  if (status === "linked") {
+    where.link_status = { in: ["AUTO_LINKED", "MANUAL_LINKED"] };
+  } else if (status === "unlinked" || status === "ignored") {
+    where.link_status = "UNLINKED";
+  }
+
+  if (search && search.trim()) {
+    const searchTerm = search.trim();
+    where.OR = [
+      { name: { contains: searchTerm, mode: "insensitive" } },
+      { normalized_name: { contains: searchTerm, mode: "insensitive" } },
+      { manufacturer: { contains: searchTerm, mode: "insensitive" } },
+    ];
+  }
+
+  const isValidUUID = (val) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return typeof val === "string" && uuidRegex.test(val.trim());
+  };
+
+  if (shopIds && shopIds.length > 0) {
+    const validShopIds = shopIds.filter(isValidUUID);
+    if (validShopIds.length > 0) {
+      where.shop_id = { in: validShopIds };
+    }
+  }
+
+  if ((dateFrom && String(dateFrom).trim() !== "") || (dateTo && String(dateTo).trim() !== "")) {
+    where.linked_at = {};
+    if (dateFrom && String(dateFrom).trim() !== "") {
+      const parsedDate = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
+      if (!isNaN(parsedDate.getTime())) {
+        where.linked_at.gte = parsedDate;
+      }
+    }
+    if (dateTo && String(dateTo).trim() !== "") {
+      const parsedDate = new Date(String(dateTo).trim() + "T23:59:59.999Z");
+      if (!isNaN(parsedDate.getTime())) {
+        where.linked_at.lte = parsedDate;
+      }
+    }
+    if (Object.keys(where.linked_at).length === 0) {
+      delete where.linked_at;
+    }
+  }
+
+  const validSortMap = {
+    rawName: "name",
+    actionDate: "linked_at",
+    status: "link_status",
+  };
+  const dbSortField = validSortMap[sort] || "linked_at";
+  const dbSortOrder = order === "asc" ? "asc" : "desc";
+
+  const [medicines, total] = await Promise.all([
+    prisma.medicine.findMany({
+      where,
+      select: {
+        medicine_id: true,
+        name: true,
+        normalized_name: true,
+        generic_name: true,
+        manufacturer: true,
+        link_status: true,
+        link_confidence_score: true,
+        linked_at: true,
+        linked_by_id: true,
+        linked_by_type: true,
+        linked_variant_id: true,
+        linked_variant_sku: true,
+        created_at: true,
+        updated_at: true,
+        shop_id: true,
+        branch_id: true,
+        shop: {
+          select: { shop_id: true, business_name: true },
+        },
+        linkedVariant: {
+          select: {
+            variant_id: true,
+            name: true,
+            sku_id: true,
+          },
+        },
+      },
+      orderBy: { [dbSortField]: dbSortOrder },
+      skip,
+      take: limitNum,
+    }),
+    prisma.medicine.count({ where }),
+  ]);
+
+  // ── Retroactive Audit Log Lookup for Ignored items with null linked_by_id ──
+  const unlinkedWithoutActor = medicines.filter(
+    (m) => m.link_status === "UNLINKED" && !m.linked_by_id
+  );
+
+  const fallbackAuditMap = new Map();
+
+  if (unlinkedWithoutActor.length > 0) {
+    try {
+      const recentIgnoreLogs = await prisma.auditLog.findMany({
+        where: {
+          action: { in: ["UNMAPPED_MEDICINES_IGNORED", "MEDICINE_UNLINKED", "MEDICINE_MATCH_REJECTED"] },
+        },
+        select: {
+          actor_id: true,
+          created_at: true,
+          metadata: true,
+          entity_id: true,
+        },
+        orderBy: { created_at: "desc" },
+        take: 100,
+      });
+
+      for (const med of unlinkedWithoutActor) {
+        for (const log of recentIgnoreLogs) {
+          const medIdsInLog = Array.isArray(log.metadata?.medicine_ids)
+            ? log.metadata.medicine_ids
+            : [log.entity_id].filter(Boolean);
+
+          if (medIdsInLog.includes(med.medicine_id)) {
+            fallbackAuditMap.set(med.medicine_id, {
+              actor_id: log.actor_id,
+              date: log.created_at,
+            });
+            break;
+          }
+        }
+      }
+    } catch (auditErr) {
+      console.warn("[getMappingHistory] Audit lookup fallback failed:", auditErr.message);
+    }
+  }
+
+  // ── Collect Actor IDs ──
+  const cadminIds = new Set();
+  const shopUserIds = new Set();
+
+  medicines.forEach((m) => {
+    const fallback = fallbackAuditMap.get(m.medicine_id);
+    const actorId = m.linked_by_id || fallback?.actor_id;
+
+    if (actorId) {
+      const type = String(m.linked_by_type || "CADMIN").toUpperCase().trim();
+      if (type === "CADMIN") {
+        cadminIds.add(actorId);
+      } else {
+        shopUserIds.add(actorId);
+      }
+    }
+  });
+
+  const validCadminIds = Array.from(cadminIds).filter(isValidUUID);
+  const validShopUserIds = Array.from(shopUserIds).filter(isValidUUID);
+
+  // ── Exact Schema Lookups ──
+  let cadmins = [];
+  if (validCadminIds.length > 0) {
+    try {
+      cadmins = await prisma.cAdmin.findMany({
+        where: { cadmin_id: { in: validCadminIds } },
+        select: {
+          cadmin_id: true,
+          name: true,
+          email: true,
+          username: true,
+        },
+      });
+    } catch (err) {
+      console.error("[getMappingHistory] CAdmin query failed:", err.message);
+    }
+  }
+
+  let shopUsers = [];
+  if (validShopUserIds.length > 0) {
+    try {
+      shopUsers = await prisma.user.findMany({
+        where: { user_id: { in: validShopUserIds } },
+        select: {
+          user_id: true,
+          full_name: true,
+          username: true,
+          email: true,
+        },
+      });
+    } catch (err) {
+      console.error("[getMappingHistory] User query failed:", err.message);
+    }
+  }
+
+  const actorMap = new Map();
+  cadmins.forEach((c) => {
+    const displayName = c.username || c.name || c.email || "cadmin";
+    actorMap.set(c.cadmin_id, displayName);
+  });
+  shopUsers.forEach((u) => {
+    const displayName = u.username || u.full_name || u.email || "Shop User";
+    actorMap.set(u.user_id, displayName);
+  });
+
+  const historyItems = medicines.map((med) => {
+    const fallback = fallbackAuditMap.get(med.medicine_id);
+    const effectiveActorId = med.linked_by_id || fallback?.actor_id;
+    const effectiveDate = med.linked_at || fallback?.date || med.updated_at || med.created_at;
+
+    let actorName = "—";
+    if (med.link_status === "AUTO_LINKED") {
+      actorName = "System";
+    } else if (effectiveActorId && actorMap.has(effectiveActorId)) {
+      actorName = actorMap.get(effectiveActorId);
+    } else if (med.link_status === "UNLINKED" || med.linked_by_type === "CADMIN") {
+      actorName = "CAdmin";
+    } else if (med.linked_by_type === "USER") {
+      actorName = "Shop User";
+    }
+
+    return {
+      id: med.medicine_id,
+      rawName: med.name,
+      normalizedRaw: med.normalized_name || med.name.toLowerCase(),
+      manufacturer: med.manufacturer,
+      status: med.link_status,
+      linkedVariant: med.linkedVariant
+        ? {
+            id: med.linkedVariant.variant_id,
+            name: med.linkedVariant.name,
+            skuId: med.linkedVariant.sku_id,
+          }
+        : null,
+      confidenceScore: med.link_confidence_score,
+      actionBy: actorName,
+      actionDate: effectiveDate,
+      shopId: med.shop?.shop_id,
+      shopName: med.shop?.business_name || "Unknown Shop",
+    };
+  });
+
+  return {
+    history: historyItems,
+    meta: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    },
+  };
+}
+// ══════════════════════════════════════════════════════════════
+// UNIGNORE MEDICINE
+// ══════════════════════════════════════════════════════════════
+
+export async function unignoreShopMedicine(medicineId, auditContext = {}) {
+  const medicine = await prisma.medicine.findUnique({
+    where: { medicine_id: medicineId },
+  });
+
+  if (!medicine) throw new Error("Medicine not found");
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Reset ignoration / unlinked flags
+    const updated = await tx.medicine.update({
+      where: { medicine_id: medicineId },
+      data: {
+        link_rejected: false,
+        link_status: "PENDING",
+        suggested_master_id: null,
+        suggested_variant_id: null,
+        suggestion_reason: null,
+        link_confidence_score: null,
+      },
+    });
+
+    // 2. Re-run auto-matcher
+    try {
+      const matchResult = await checkSingleMedicine({
+        name: updated.name,
+        manufacturer: updated.manufacturer,
+        generic_name: updated.generic_name,
+      });
+
+      if (matchResult.status === "AUTO_LINKED") {
+        await tx.medicine.update({
+          where: { medicine_id: medicineId },
+          data: {
+            master_medicine_id: matchResult.master_medicine_id,
+            linked_variant_id: matchResult.matched_variant?.variant_id ?? null,
+            linked_variant_sku: matchResult.matched_variant?.sku_id ?? null,
+            link_status: "AUTO_LINKED",
+            link_confidence_score: matchResult.confidence,
+            linked_at: new Date(),
+            linked_by_type: "SYSTEM",
+            suggestion_reason: matchResult.reason,
+          },
+        });
+      } else if (matchResult.status === "PENDING") {
+        await tx.medicine.update({
+          where: { medicine_id: medicineId },
+          data: {
+            link_status: "SUGGESTED",
+            link_confidence_score: matchResult.confidence,
+            suggested_master_id: matchResult.suggested_master_id,
+            suggestion_reason: matchResult.reason,
+          },
+        });
+      }
+    } catch (matchError) {
+      console.warn(`Auto-match failed for unignored medicine ${medicineId}:`, matchError.message);
+    }
+
+    // 3. Log Audit Trail
+    await audit.log(
+      {
+        action: audit.AuditAction.MEDICINE_UNIGNORED,
+        entity_type: audit.EntityType.MEDICINE,
+        entity_id: medicineId,
+        ...auditContext,
+        reason_code: audit.AuditReasonCode.ADMIN_ACTION,
+        metadata: {
+          medicine_id: medicineId,
+          medicine_name: medicine.name,
+          manufacturer: medicine.manufacturer,
+        },
+      },
+      { tx },
+    );
+
+    return updated;
+  });
+
+  return result;
 }

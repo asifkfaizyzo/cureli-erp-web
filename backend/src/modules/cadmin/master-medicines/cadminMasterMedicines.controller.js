@@ -28,6 +28,8 @@ import {
   uploadMasterImage,
   deleteMasterImage,
   createMasterMedicine,
+  getMappingHistory,
+  unignoreShopMedicine,
 } from "./cadminMasterMedicines.service.js";
 
 import { extractRequestContext } from "../../audit/audit.utils.js";
@@ -498,7 +500,11 @@ export async function ignoreUnmapped(req, res) {
       });
     }
 
-    const result = await ignoreUnmappedMedicines(medicineIds, auditContext);
+    const result = await ignoreUnmappedMedicines(
+      medicineIds,
+      auditContext.actor_id, // <-- Pass cadmin actor_id
+      auditContext,
+    );
     return res.status(200).json({ success: true, data: result });
   } catch (error) {
     console.error("Error ignoring unmapped:", error);
@@ -594,5 +600,59 @@ export async function createMasterMed(req, res) {
       success: false,
       message: error.message,
     });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAPPING HISTORY
+// ══════════════════════════════════════════════════════════════
+
+export async function listMappingHistory(req, res) {
+  try {
+    const { search, status, page, limit, sort, order, shopIds, dateFrom, dateTo } = req.query;
+    
+    // Defensive split
+    const parsedShopIds = shopIds && String(shopIds).trim() !== ""
+      ? String(shopIds).split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const result = await getMappingHistory({
+      search,
+      status,
+      page,
+      limit,
+      sort: sort || "actionDate",
+      order: order || "desc",
+      shopIds: parsedShopIds,
+      dateFrom: dateFrom || "",
+      dateTo: dateTo || "",
+    });
+
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("CRITICAL: listMappingHistory failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch mapping history",
+      error: error.message,      // <-- Expose error message to frontend
+      stack: error.stack,        // <-- Expose stack trace for quick debugging
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// UNIGNORE SHOP MEDICINE
+// ══════════════════════════════════════════════════════════════
+
+export async function unignoreMedicine(req, res) {
+  try {
+    const { medicineId } = req.params;
+    const auditContext = buildAuditCtx(req);
+    const result = await unignoreShopMedicine(medicineId, auditContext);
+    
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Error un-ignoring medicine:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 }

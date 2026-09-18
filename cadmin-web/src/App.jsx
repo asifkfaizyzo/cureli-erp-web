@@ -1,3 +1,5 @@
+// cadmin-web/src/App.jsx
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -20,12 +22,10 @@ import RiskMonitorPage from "./pages/Subscription-management/RiskMonitorPage";
 import SubscriptionPage from "./pages/Subscription-management/SubscriptionPage";
 import CommunicationsPage from "./pages/Communications/CommunicationsPage";
 import TicketsPage from "./pages/Communications/pages/Tickets/TicketsPage";
-import CustomerTicketsPage from "./pages/Communications/pages/CustomerTickets/CustomerTicketsPage";
 import EnquiriesPage from "./pages/Communications/pages/Enquiries/EnquiriesPage";
 import BroadcastPage from "./pages/Communications/pages/Broadcast/BroadcastPage";
 import InAppBroadcastPage from "./pages/Communications/pages/Broadcast/InApp/InAppBroadcastPage";
 import EmailBroadcastPage from "./pages/Communications/pages/Broadcast/Email/EmailBroadcastPage";
-import MobileBroadcastPage from "./pages/Communications/pages/Broadcast/Mobile/MobileBroadcastPage";
 import NotificationsPage from "./pages/Notifications/NotificationsPage";
 import AuditPage from "./pages/Audit/AuditPage";
 import SettingsPage from "./pages/Settings/SettingsPage";
@@ -42,6 +42,12 @@ import MarketplacePricingPage from "./pages/marketplace/Pricing/MarketplacePrici
 import AppConfigPage from "./pages/AppConfig/AppConfigPage";
 import BannersPage from "./pages/AppConfig/banners/BannersPage";
 import HomeScreenPage from "./pages/AppConfig/home-screen/HomeScreenPage";
+
+// ── Marketplace Communications ──────────────────────────────────────────────
+import MarketplaceCommunicationsPage from "./pages/marketplace/Communications/MarketplaceCommunicationsPage";
+import CustomerTicketsPage from "./pages/Communications/pages/CustomerTickets/CustomerTicketsPage";
+import MobileBroadcastPage from "./pages/Communications/pages/Broadcast/Mobile/MobileBroadcastPage";
+import MobileEmailBroadcastPage from "./pages/marketplace/Communications/pages/Email/MobileEmailBroadcastPage";
 
 // ── Fleet ────────────────────────────────────────────────────────────────────
 import FleetDashboard from "./pages/Fleet/Dashboard/FleetDashboard";
@@ -205,14 +211,13 @@ function App() {
           {/* Notifications */}
           <Route path="/notifications" element={<NotificationsPage />} />
 
-          {/* ── Communications ──────────────────────────────────────────── */}
+          {/* ── Admin Communications ─────────────────────────────────────── */}
           <Route
             path="/communications"
             element={
               <PermissionGuard
                 permissions={[
                   CADMIN_PERMISSIONS.TICKETS_VIEW,
-                  CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW,
                   CADMIN_PERMISSIONS.ENQUIRIES_VIEW,
                   CADMIN_PERMISSIONS.BROADCAST_EMAIL_SEND,
                   CADMIN_PERMISSIONS.BROADCAST_EMAIL_VIEW_HISTORY,
@@ -226,18 +231,6 @@ function App() {
                 requireAll={false}
               >
                 <CommunicationsPage />
-              </PermissionGuard>
-            }
-          />
-
-          {/* ── Customer Tickets Route ── */}
-          <Route
-            path="/communications/customer-tickets"
-            element={
-              <PermissionGuard
-                permission={CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW}
-              >
-                <CustomerTicketsPage />
               </PermissionGuard>
             }
           />
@@ -310,22 +303,6 @@ function App() {
               </PermissionGuard>
             }
           />
-          <Route
-            path="/communications/broadcast/mobile"
-            element={
-              <PermissionGuard
-                permissions={[
-                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SEND,
-                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_VIEW_HISTORY,
-                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_MANAGE_DRAFTS,
-                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SCHEDULE,
-                ]}
-                requireAll={false}
-              >
-                <MobileBroadcastPage />
-              </PermissionGuard>
-            }
-          />
 
           {/* Settings */}
           <Route
@@ -352,6 +329,67 @@ function App() {
             element={<MarketplacePricingPage />}
           />
           <Route path="/marketplace/shops" element={<MarketplaceShopsPage />} />
+
+          {/* ── Marketplace Communications ──────────────────────────────── */}
+          <Route
+            path="/marketplace/communications"
+            element={
+              <PermissionGuard
+                permissions={[
+                  CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SEND,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_VIEW_HISTORY,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_MANAGE_DRAFTS,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SCHEDULE,
+                ]}
+                requireAll={false}
+              >
+                <MarketplaceCommunicationsPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/communications/customer-tickets"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW}
+              >
+                <CustomerTicketsPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/communications/email"
+            element={
+              <PermissionGuard
+                permissions={[
+                  CADMIN_PERMISSIONS.BROADCAST_EMAIL_SEND,
+                  CADMIN_PERMISSIONS.BROADCAST_EMAIL_VIEW_HISTORY,
+                  CADMIN_PERMISSIONS.BROADCAST_EMAIL_MANAGE_DRAFTS,
+                  CADMIN_PERMISSIONS.BROADCAST_EMAIL_SCHEDULE,
+                ]}
+                requireAll={false}
+              >
+                <MobileEmailBroadcastPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/communications/push"
+            element={
+              <PermissionGuard
+                permissions={[
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SEND,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_VIEW_HISTORY,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_MANAGE_DRAFTS,
+                  CADMIN_PERMISSIONS.BROADCAST_MOBILE_SCHEDULE,
+                ]}
+                requireAll={false}
+              >
+                <MobileBroadcastPage />
+              </PermissionGuard>
+            }
+          />
 
           {/* ── App Config ──────────────────────────────────────────────── */}
           <Route
@@ -405,7 +443,7 @@ function App() {
             }
           />
 
-          {/* ── Fleet (Correctly nested under ProtectedLayout) ─────────── */}
+          {/* ── Fleet ──────────────────────────────────────────────────── */}
           <Route path="/fleet/dashboard" element={<FleetDashboard />} />
           <Route
             path="/fleet/riders"

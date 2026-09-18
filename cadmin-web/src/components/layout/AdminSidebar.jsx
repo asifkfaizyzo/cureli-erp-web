@@ -1,3 +1,5 @@
+// cadmin-web/src/components/layout/AdminSidebar.jsx
+
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -16,8 +18,6 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   BadgeIndianRupee,
-  Truck,
-  Bike,
 } from "lucide-react";
 
 import { useMenuStore } from "../../store/useMenuStore";
@@ -197,6 +197,13 @@ const MARKETPLACE_MENU_ITEMS = [
     breadcrumbs: ["Marketplace", "App Config"],
     permissionKey: "appConfig",
   },
+  {
+    id: "mp-communications",
+    label: "Communications",
+    icon: MessageSquare,
+    path: "/marketplace/communications",
+    breadcrumbs: ["Marketplace", "Communications"],
+  },
 ];
 
 const FLEET_MENU_ITEMS = [
@@ -261,9 +268,9 @@ const ADMIN_CHILD_ROUTES = {
     parentId: "communications",
     breadcrumbs: ["Communications", "Broadcast", "In-App"],
   },
-  "/communications/broadcast/mobile": {
+  "/communications/broadcast/email": {
     parentId: "communications",
-    breadcrumbs: ["Communications", "Broadcast", "Mobile Push"],
+    breadcrumbs: ["Communications", "Broadcast", "Email"],
   },
   "/subscriptions/manage": {
     parentId: "subscriptions",
@@ -272,6 +279,18 @@ const ADMIN_CHILD_ROUTES = {
 };
 
 const MARKETPLACE_CHILD_ROUTES = {
+  "/marketplace/communications/customer-tickets": {
+    parentId: "mp-communications",
+    breadcrumbs: ["Marketplace", "Communications", "Customer Tickets"],
+  },
+  "/marketplace/communications/push": {
+    parentId: "mp-communications",
+    breadcrumbs: ["Marketplace", "Communications", "Push Notifications"],
+  },
+  "/marketplace/communications/email": {
+    parentId: "mp-communications",
+    breadcrumbs: ["Marketplace", "Communications", "Email Broadcast"],
+  },
   "/marketplace/orders/sessions": {
     parentId: "mp-orders",
     breadcrumbs: ["Orders", "Sessions"],
@@ -368,15 +387,15 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
 
   const permissions = useCAdminMenuPermissions();
   const { isSuperCAdmin } = useCAdminPermission();
-  
-  // ── FIX: Destructure isFleet from useAdminMode() ──
   const { isMarketplace, isAdmin, isFleet } = useAdminMode();
 
-  const pendingTickets = useCommunicationBadgeStore((s) => s.pendingTickets);
-  const pendingEnquiries = useCommunicationBadgeStore(
-    (s) => s.pendingEnquiries,
-  );
-  const hasPendingComms = pendingTickets > 0 || pendingEnquiries > 0;
+  // Badges
+  const pendingTickets         = useCommunicationBadgeStore((s) => s.pendingTickets);
+  const pendingEnquiries       = useCommunicationBadgeStore((s) => s.pendingEnquiries);
+  const pendingCustomerTickets = useCommunicationBadgeStore((s) => s.pendingCustomerTickets);
+
+  const hasAdminPendingComms       = pendingTickets > 0 || pendingEnquiries > 0;
+  const hasMarketplacePendingComms = pendingCustomerTickets > 0;
 
   const [expandedWidth, setExpandedWidth] = useState(getExpandedWidth);
 
@@ -480,7 +499,6 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
     const currentPath = location.pathname;
     if (currentPath === defaultPath) return;
 
-    // Direct routing filters based on mode context
     if (isFleet && !currentPath.startsWith("/fleet") && currentPath !== "/settings" && currentPath !== "/notifications") return;
     if (isMarketplace && !currentPath.startsWith("/marketplace") && currentPath !== "/settings" && currentPath !== "/notifications") return;
     if (isAdmin && (currentPath.startsWith("/marketplace") || currentPath.startsWith("/fleet"))) return;
@@ -563,7 +581,10 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
               activeMenu={activeMenu}
               isExpanded={expanded}
               onNavigate={handleNavigation}
-              showBadge={item.id === "communications" && hasPendingComms}
+              showBadge={
+                (item.id === "communications" && hasAdminPendingComms) ||
+                (item.id === "mp-communications" && hasMarketplacePendingComms)
+              }
             />
           ))}
         </div>

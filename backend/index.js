@@ -91,7 +91,7 @@ import cadminAppConfigRoutes from "./src/modules/cadmin/app-config/cadmin.appCon
 import cadminRiderRoutes from "./src/modules/cadmin/delivery/cadminRiders.routes.js";
 import cadminCouponRoutes from "./src/modules/cadmin/coupons/cadminCoupon.routes.js";
 import cadminCustomerSupportRoutes from "./src/modules/cadmin/customer-support/cadmin.customerSupport.routes.js";
-
+import cadminMobileEmailBroadcastRoutes from "./src/modules/cadmin/broadcast/mobile-email/cadminMobileEmailBroadcast.routes.js";
 // ============================================
 // MOBILE ROUTES
 // ============================================
@@ -298,6 +298,7 @@ app.use("/cadmin", cadminAppConfigRoutes);
 app.use("/cadmin", cadminRiderRoutes);
 app.use("/cadmin/coupons", cadminCouponRoutes);
 app.use("/cadmin", cadminCustomerSupportRoutes);
+app.use("/cadmin", cadminMobileEmailBroadcastRoutes);
 
 // ============================================
 // MOBILE ROUTES

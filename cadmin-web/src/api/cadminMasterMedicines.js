@@ -209,3 +209,13 @@ export function getConfidenceColorClasses(score) {
     badge: "bg-red-100 text-red-800",
   };
 }
+
+
+
+export function getMappingHistory(params = {}) {
+  return CAdminAPI.get("/master-medicines/history", { params });
+}
+
+export function unignoreMedicine(medicineId) {
+  return CAdminAPI.post(`/master-medicines/unignore/${medicineId}`);
+}
