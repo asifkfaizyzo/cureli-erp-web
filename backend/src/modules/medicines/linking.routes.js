@@ -14,6 +14,8 @@ import {
   getUnlinkedMedicines,
   searchMasterCatalog,
   bulkCheckImportRows,
+  resubmitMedicinesForReview,
+  getResubmitEligibleCount,
 } from "./linking.service.js";
 import { success, fail } from "../../utils/response.js";
 
@@ -176,6 +178,85 @@ router.post("/:medicineId/unlink", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════
+// RESUBMIT ELIGIBLE COUNT (badge number for button)
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/medicines/linking/resubmit-count
+ * Returns how many medicines are eligible for resubmission
+ */
+router.get("/resubmit-count", async (req, res) => {
+  try {
+    const shopId = req.user.shop_id;
+    const branchId = req.headers["x-branch-id"] || null;
+
+    if (!shopId) {
+      return fail(res, "No shop associated with your account", 400);
+    }
+
+    const count = await getResubmitEligibleCount(shopId, branchId);
+    return success(res, { count }, "Resubmit count retrieved");
+  } catch (error) {
+    console.error("linking.resubmitCount ERROR:", error);
+    return fail(res, error.message, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// RESUBMIT MEDICINES FOR CATALOG REVIEW
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/medicines/linking/resubmit
+ * Body: { medicineIds: string[] }
+ * Resets non-linked medicines to PENDING, re-runs auto-matcher,
+ * increments resubmission_count, logs audit with actor info.
+ */
+router.post("/resubmit", async (req, res) => {
+  try {
+    const shopId = req.user.shop_id;
+    const userId = req.user.user_id;
+    const userName = req.user.full_name || req.user.username || null;
+    const branchId = req.headers["x-branch-id"] || null;
+    const { medicineIds } = req.body;
+
+    if (!shopId) {
+      return fail(res, "No shop associated with your account", 400);
+    }
+
+    if (!branchId) {
+      return fail(
+        res,
+        "Please select a specific branch to resubmit medicines",
+        400,
+        { code: "BRANCH_REQUIRED" },
+      );
+    }
+
+    if (!medicineIds || !Array.isArray(medicineIds) || medicineIds.length === 0) {
+      return fail(res, "medicineIds array is required", 400);
+    }
+
+    if (medicineIds.length > 500) {
+      return fail(res, "Maximum 500 medicines per resubmission", 400);
+    }
+
+    const result = await resubmitMedicinesForReview(
+      shopId,
+      branchId,
+      medicineIds,
+      userId,
+      userName,
+    );
+
+    return success(res, result, "Resubmission complete");
+  } catch (error) {
+    console.error("linking.resubmit ERROR:", error);
+    return fail(res, error.message, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
 // BULK AUTO-LINK
 // ══════════════════════════════════════════════════════════════
 
@@ -199,5 +280,8 @@ router.post("/bulk-auto-link", async (req, res) => {
     return fail(res, error.message, 500);
   }
 });
+
+
+
 
 export default router;

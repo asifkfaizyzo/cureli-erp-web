@@ -136,6 +136,8 @@ model Medicine {
   suggested_variant_id   String?   @db.Uuid
   suggestion_reason      String?   @db.VarChar(200)
   normalized_name        String?   @db.VarChar(200)
+  resubmission_count     Int       @default(0)
+  last_resubmitted_at    DateTime? @db.Timestamptz(6)
 
   masterMedicine          MasterMedicine?        @relation("MedicineMasterLink", fields: [master_medicine_id], references: [master_medicine_id])
   inventory               Inventory[]            @relation("MedicineInventory")
@@ -160,5 +162,6 @@ model Medicine {
   @@index([hsn_code])
   @@index([manufacturer])
   @@index([master_medicine_id, link_status])
+  @@index([shop_id, link_status, resubmission_count])
   @@map("medicines")
 }

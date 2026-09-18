@@ -74,6 +74,7 @@ export const NOTIFICATION_EVENTS = {
   // ─────────────────────────────────────────
   MEDICINE_LINKED: "MEDICINE_LINKED",
   MEDICINE_UNLINKED: "MEDICINE_UNLINKED",
+  MEDICINE_RESUBMITTED: "MEDICINE_RESUBMITTED",
 
   // ─────────────────────────────────────────
   // TICKETS
@@ -373,6 +374,12 @@ export const EVENT_CONFIG = {
     audienceType: "shop_admins",
     priority: "normal",
     dedupEntity: "medicine",
+  },
+  [NOTIFICATION_EVENTS.MEDICINE_RESUBMITTED]: {
+    description: "Shop resubmitted medicines for catalog review",
+    defaultChannels: ["inapp"],
+    audienceType: "direct_cadmin",
+    priority: "normal",
   },
   [NOTIFICATION_EVENTS.MEDICINE_UNLINKED]: {
     description: "Shop medicine unlinked from master catalog",

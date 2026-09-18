@@ -340,6 +340,7 @@ class InventoryService {
       expiry = null,
       supplier = null,
       category = null,
+      catalogStatus = null,
       branchId: filterBranchId = null,
       limit = 100,
       offset = 0,
@@ -382,6 +383,8 @@ class InventoryService {
             reorder_point: true,
             master_medicine_id: true,
             link_status: true,
+            resubmission_count: true,   
+            last_resubmitted_at: true,   
             masterMedicine: {
               select: {
                 primary_category: true,
@@ -436,7 +439,7 @@ class InventoryService {
       purchaseInvoices.map((inv) => [inv.invoice_id, inv.supplier?.name]),
     );
 
-    let inventories = rawInventories.map((inv) => {
+        let inventories = rawInventories.map((inv) => {
       const firstMovementId = inv.stockMovements?.[0]?.reference_id;
       const supplierName = firstMovementId
         ? supplierMap.get(firstMovementId)
@@ -463,6 +466,7 @@ class InventoryService {
 
       return {
         ...rest,
+        medicine: inv.medicine, // ── EXPLICITLY PRESERVE THE RELATION PROPERTY ──
         supplier_name: supplierName || null,
         status: computedStatus,
         medicine_name: rest.medicine?.name,
@@ -476,6 +480,8 @@ class InventoryService {
         medicine_min_stock: rest.medicine?.min_stock_level,
         medicine_max_stock: rest.medicine?.max_stock_level,
         medicine_reorder_point: rest.medicine?.reorder_point,
+        resubmission_count: rest.medicine?.resubmission_count || 0, 
+        last_resubmitted_at: rest.medicine?.last_resubmitted_at || null, 
       };
     });
 
@@ -550,6 +556,19 @@ class InventoryService {
       inventories = inventories.filter(
         (inv) => inv.supplier_name?.toLowerCase() === supplier.toLowerCase(),
       );
+    }
+
+    // ── ADD THIS NEW BLOCK FOR CATALOG STATUS FILTERING ──
+    if (catalogStatus) {
+      const targetStatus = catalogStatus.toLowerCase(); // "linked", "pending", "not_linked"
+      inventories = inventories.filter((inv) => {
+        const itemStatus = inv.medicine?.master_medicine_id
+          ? "linked"
+          : (inv.medicine?.link_status === "PENDING" || inv.medicine?.link_status === "SUGGESTED" || inv.medicine?.link_status === "SUGGESTED_MATCH")
+            ? "pending"
+            : "not_linked";
+        return itemStatus === targetStatus;
+      });
     }
 
     if (filterBranchId) {
@@ -1327,6 +1346,7 @@ class InventoryService {
               max_stock_level: true,
               reorder_point: true,
               rack_no: true,
+               resubmission_count: true,
             },
           },
           branch: {
@@ -1376,6 +1396,7 @@ class InventoryService {
         medicine_max_stock: finalInventory.medicine?.max_stock_level,
         medicine_reorder_point: finalInventory.medicine?.reorder_point,
         medicine_rack_no: finalInventory.medicine?.rack_no,
+        resubmission_count: finalInventory.medicine?.resubmission_count || 0,
         branch: finalInventory.branch,
         branch_name: finalInventory.branch?.branch_name,
         updated_at: finalInventory.updated_at,

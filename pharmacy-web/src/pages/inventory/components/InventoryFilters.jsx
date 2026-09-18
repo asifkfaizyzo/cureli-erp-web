@@ -30,6 +30,7 @@ import {
   Trash2,
   History,
   MoreVertical,
+  Link2,
 } from "lucide-react";
 import StyledSelect from "../../../components/common/StyledSelect";
 
@@ -306,6 +307,8 @@ const ToolsDialog = ({
   onImportLogs,
   onExport,
   onReset,
+  onResubmit,          
+  resubmitEligibleCount,
   isExporting,
   canReset,
   canExport,
@@ -431,6 +434,38 @@ const ToolsDialog = ({
                 </div>
               )}
 
+                            {/* ── Catalog Resubmission Group ── */}
+              {onResubmit && (
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">
+                    Catalog Integrity
+                  </p>
+                  <button
+                    onClick={() => handleAction(onResubmit)}
+                    disabled={totalItems === 0}
+                    className="w-full p-2 flex items-center gap-3 text-left rounded-xl hover:bg-amber-50/70 transition-colors group disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-100 transition-colors relative">
+                      <RefreshCw size={15} />
+                      {resubmitEligibleCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 px-1 py-0.5 min-w-[16px] h-4 flex items-center justify-center bg-amber-600 text-white text-[8px] font-extrabold rounded-full border border-white">
+                          {resubmitEligibleCount}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700">
+                        Resubmit for Review
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        Request manual CAdmin mapping review
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+
               {/* ── Backup & Danger Group ── */}
               {(onExport || onReset) && (
                 <div className="space-y-2 border-t border-slate-100 pt-3">
@@ -515,6 +550,8 @@ const InventoryFilters = ({
   onImportLogs,
   onExport,
   onReset,
+  onResubmit,           
+  resubmitEligibleCount, 
   isExporting = false,
   canReset = false,
   canExport = false,
@@ -545,6 +582,16 @@ const InventoryFilters = ({
     [],
   );
 
+   const catalogStatusOptions = useMemo(
+    () => [
+      { value: "", label: "All Catalog Status" },
+      { value: "linked", label: "Linked" },
+      { value: "not_linked", label: "Not Linked" },
+      { value: "pending", label: "Pending Review" },
+    ],
+    [],
+  );
+
   const supplierOptions = useMemo(
     () => [
       { value: "", label: `All Suppliers (${suppliers.length})` },
@@ -569,7 +616,7 @@ const InventoryFilters = ({
     [branches],
   );
 
-  const activeFilters = useMemo(() => {
+    const activeFilters = useMemo(() => {
     const active = [];
     if (filters.search)
       active.push({ key: "search", label: `"${filters.search}"`, value: filters.search });
@@ -584,6 +631,19 @@ const InventoryFilters = ({
       active.push({ key: "supplier", label: filters.supplier, value: filters.supplier });
     if (filters.category)
       active.push({ key: "category", label: filters.category, value: filters.category });
+    
+    if (filters.catalogStatus) {
+      const labelMap = {
+        linked: "Linked",
+        not_linked: "Not Linked",
+        pending: "Pending Review",
+      };
+      active.push({
+        key: "catalogStatus",
+        label: `Catalog: ${labelMap[filters.catalogStatus] || filters.catalogStatus}`,
+        value: filters.catalogStatus,
+      });
+    }
     if (filters.branchId) {
       const branchName =
         branches.find((b) => b.branch_id === filters.branchId)?.branch_name ||
@@ -609,6 +669,7 @@ const InventoryFilters = ({
     onChange("supplier", "");
     onChange("category", "");
     onChange("branchId", "");
+    onChange("catalogStatus", "");
     onChange("lowStock", false);
     onChange("includeExpired", false);
     onChange("expiredOnly", false);
@@ -734,14 +795,16 @@ const InventoryFilters = ({
             </button>
           )}
 
-          {/* Tools Menu overlay — Import / History / Logs / Export / Reset */}
-          {(onImport || onImportHistory || onImportLogs || onExport || onReset) && (
+          {/* Tools Menu overlay */}
+          {(onImport || onImportHistory || onImportLogs || onExport || onReset || onResubmit) && (
             <ToolsDialog
               onImport={onImport}
               onImportHistory={onImportHistory}
               onImportLogs={onImportLogs}
               onExport={onExport}
               onReset={onReset}
+              onResubmit={onResubmit}
+              resubmitEligibleCount={resubmitEligibleCount}
               isExporting={isExporting}
               canReset={canReset}
               canExport={canExport}
@@ -800,6 +863,20 @@ const InventoryFilters = ({
                 }}
                 options={expiryOptions}
                 placeholder="All Expiry"
+              />
+            </div>
+
+            {/* ── ADD THIS: Catalog Status Filter ── */}
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
+                <Link2 size={11} />
+                Catalog Sync
+              </label>
+              <StyledSelect
+                value={filters.catalogStatus}
+                onChange={(val) => onChange("catalogStatus", val)}
+                options={catalogStatusOptions}
+                placeholder="All Catalog Status"
               />
             </div>
 

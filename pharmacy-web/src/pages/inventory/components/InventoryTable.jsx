@@ -104,6 +104,7 @@ const COLUMNS = {
   name:          { key: "name",          label: "Item Name",    sortable: true,  align: "left"   },
   category:      { key: "category",      label: "Category",     sortable: true,  align: "center" },
   catalogStatus: { key: "catalogStatus", label: "Catalog",      sortable: false, align: "center", icon: Link2 },
+  resubs:        { key: "resubs",        label: "Resub",        sortable: true,  align: "center" },
   manufacturer:  { key: "manufacturer",  label: "Manufacturer", sortable: true,  align: "center" },
   batch:         { key: "batch",         label: "Batch",        sortable: true,  align: "center" },
   expiry:        { key: "expiry",        label: "Expiry",       sortable: true,  align: "center" },
@@ -143,10 +144,17 @@ const SkeletonRow = ({ rowHeight, isEven, index, showBranchColumn }) => (
       <div className="h-3 bg-gray-200 rounded animate-pulse w-[70%]"
         style={{ animationDelay: `${index * 30 + 100}ms` }} />
     </td>
-    <td className="border-b border-r border-gray-100 p-1">
+        <td className="border-b border-r border-gray-100 p-1">
       <div className="flex justify-center">
         <div className="h-5 bg-gray-200 rounded-full animate-pulse w-16"
           style={{ animationDelay: `${index * 30 + 110}ms` }} />
+      </div>
+    </td>
+    {/* ADD THIS EMPTY OR PULSING TD FOR SKELETON ROW */}
+    <td className="border-b border-r border-gray-100 p-1">
+      <div className="flex justify-center">
+        <div className="h-4 bg-gray-100 rounded animate-pulse w-8"
+          style={{ animationDelay: `${index * 30 + 115}ms` }} />
       </div>
     </td>
     <td className="border-b border-r border-gray-100 p-1">
@@ -249,15 +257,15 @@ const InventoryTable = ({
   const getDefaultWidths = useCallback(() => {
     if (showBranchColumn) {
       return {
-        rowNum: 32, itemName: 160, category: 100, catalogStatus: 95,
-        manufacturer: 100, batch: 88, expiry: 100, branch: 88,
-        supplier: 100, qty: 62, mrp: 75, rack: 62, status: 88, actions: 88,
+        rowNum: 32, itemName: 150, category: 90, catalogStatus: 90, resubs: 55,
+        manufacturer: 95, batch: 80, expiry: 90, branch: 80,
+        supplier: 95, qty: 55, mrp: 70, rack: 55, status: 80, actions: 80,
       };
     }
     return {
-      rowNum: 32, itemName: 190, category: 100, catalogStatus: 100,
-      manufacturer: 110, batch: 88, expiry: 100, supplier: 120,
-      qty: 68, mrp: 88, rack: 62, status: 88, actions: 68,
+      rowNum: 32, itemName: 175, category: 90, catalogStatus: 90, resubs: 55,
+      manufacturer: 100, batch: 80, expiry: 90, supplier: 110,
+      qty: 60, mrp: 80, rack: 55, status: 80, actions: 60,
     };
   }, [showBranchColumn]);
 
@@ -301,13 +309,14 @@ const InventoryTable = ({
   }, [items.length]);
 
   const columnKeys = showBranchColumn
-    ? ["rowNum","itemName","category","catalogStatus","manufacturer","batch","expiry","branch","supplier","qty","mrp","rack","status","actions"]
-    : ["rowNum","itemName","category","catalogStatus","manufacturer","batch","expiry","supplier","qty","mrp","rack","status","actions"];
+    ? ["rowNum","itemName","category","catalogStatus","resubs","manufacturer","batch","expiry","branch","supplier","qty","mrp","rack","status","actions"]
+    : ["rowNum","itemName","category","catalogStatus","resubs","manufacturer","batch","expiry","supplier","qty","mrp","rack","status","actions"];
 
   const colToSortKey = {
     itemName: "name", category: "category", manufacturer: "manufacturer",
     batch: "batch", expiry: "expiry", branch: "branch", supplier: "supplier",
     qty: "qty", mrp: "mrp", rack: "rack", status: "status",
+    resubs: "resubmission_count", // <-- ADD THIS
   };
 
   const SortableHeader = ({ colKey }) => {
@@ -421,6 +430,7 @@ const InventoryTable = ({
                         catalogLinkStatus[item.medicine_id]?.confidence || 0
                       }
                       catalogStatusLoading={catalogStatusLoading}
+                      resubmissionCount={item.resubmission_count || 0}
                     />
                   ))
               }

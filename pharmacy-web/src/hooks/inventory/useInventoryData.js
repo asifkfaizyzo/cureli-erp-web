@@ -10,6 +10,7 @@ export const useInventoryData = () => {
   const [loading, setLoading]                   = useState(false);
   const [catalogLinkStatus, setCatalogLinkStatus]       = useState({});
   const [catalogStatusLoading, setCatalogStatusLoading] = useState(false);
+  const [resubmitEligibleCount, setResubmitEligibleCount] = useState(0);
 
   // Stats come from the summary endpoint — correct totals across ALL records
   const [stats, setStats] = useState({
@@ -168,6 +169,18 @@ export const useInventoryData = () => {
     }
   }, [fetchStats]);
 
+  const fetchResubmitCount = useCallback(async () => {
+    try {
+      const response = await medicinesAPI.getResubmitCount();
+      if (response?.success && typeof response.data?.count === "number") {
+        setResubmitEligibleCount(response.data.count);
+      }
+    } catch (error) {
+      console.warn("Failed to fetch resubmission counts:", error.message);
+    }
+  }, []);
+
+
   return {
     medicines,
     total,
@@ -180,5 +193,7 @@ export const useInventoryData = () => {
     refreshCatalogStatus,
     stats,
     statsLoading,
+    resubmitEligibleCount,
+    fetchResubmitCount, 
   };
 };

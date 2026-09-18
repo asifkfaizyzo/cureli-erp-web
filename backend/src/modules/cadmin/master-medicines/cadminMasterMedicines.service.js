@@ -739,7 +739,7 @@ export async function getUnmappedMedicinesAggregated({
 
   const rawMedicines = await prisma.medicine.findMany({
     where,
-    select: {
+        select: {
       medicine_id: true,
       name: true,
       normalized_name: true,
@@ -754,6 +754,8 @@ export async function getUnmappedMedicinesAggregated({
       branch_id: true,
       created_at: true,
       updated_at: true,
+      resubmission_count: true,
+      last_resubmitted_at: true,
       shop: {
         select: {
           shop_id: true,
@@ -786,6 +788,8 @@ export async function getUnmappedMedicinesAggregated({
         type: med.category === "OTC" ? "OTC" : "DRUG",
         firstSeenAt: med.created_at,
         lastSeenAt: med.updated_at,
+        resubmissionCount: 0,
+        lastResubmittedAt: null,
         manufacturers: new Set(),
         genericNames: new Set(),
         categories: new Set(),
@@ -826,8 +830,21 @@ export async function getUnmappedMedicinesAggregated({
       group.shopMap.get(shopKey).count++;
     }
 
-    if (med.created_at < group.firstSeenAt) group.firstSeenAt = med.created_at;
+   if (med.created_at < group.firstSeenAt) group.firstSeenAt = med.created_at;
     if (med.updated_at > group.lastSeenAt) group.lastSeenAt = med.updated_at;
+
+    // Track highest resubmission count across all shop entries
+    const medResubCount = med.resubmission_count || 0;
+    if (medResubCount > group.resubmissionCount) {
+      group.resubmissionCount = medResubCount;
+    }
+    if (
+      med.last_resubmitted_at &&
+      (!group.lastResubmittedAt ||
+        med.last_resubmitted_at > group.lastResubmittedAt)
+    ) {
+      group.lastResubmittedAt = med.last_resubmitted_at;
+    }
   }
 
   let results = Array.from(aggregationMap.values()).map((group) => ({
@@ -841,6 +858,8 @@ export async function getUnmappedMedicinesAggregated({
     hasImageSuggestion: false,
     firstSeenAt: group.firstSeenAt,
     lastSeenAt: group.lastSeenAt,
+    resubmissionCount: group.resubmissionCount,
+    lastResubmittedAt: group.lastResubmittedAt,
     shops: Array.from(group.shopMap.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, 10),
@@ -988,6 +1007,8 @@ export async function getNeedsReviewMedicines({
         shop_id: true,
         branch_id: true,
         created_at: true,
+        resubmission_count: true,
+        last_resubmitted_at: true,
         shop: {
           select: { shop_id: true, business_name: true },
         },
@@ -1060,6 +1081,8 @@ export async function getNeedsReviewMedicines({
       branchName: med.branch?.branch_name || null,
       occurrenceCount: 1,
       firstSeenAt: med.created_at,
+      resubmissionCount: med.resubmission_count || 0,
+      lastResubmittedAt: med.last_resubmitted_at,
     };
   });
 

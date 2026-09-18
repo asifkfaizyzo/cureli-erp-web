@@ -187,6 +187,7 @@ const InventoryRowFixed = memo(
         catalogStatus = "NOT_LINKED",
         catalogConfidence = 0,
         catalogStatusLoading = false,
+        resubmissionCount = 0,
       },
       ref
     ) => {
@@ -317,6 +318,20 @@ const InventoryRowFixed = memo(
                 confidence={catalogConfidence}
                 loading={catalogStatusLoading}
               />
+            </div>
+          </td>
+
+
+                    {/* 4.5 Resubmissions — center */}
+          <td className={`${cellBase} text-center`}>
+            <div className="px-1 py-1 h-full flex items-center justify-center">
+              {resubmissionCount > 0 ? (
+                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-bold font-mono">
+                  {resubmissionCount}×
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-300 font-mono">—</span>
+              )}
             </div>
           </td>
 

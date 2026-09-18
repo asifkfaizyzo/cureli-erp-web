@@ -22,6 +22,7 @@ import ViewInventoryModal    from "./components/ViewInventoryModal";
 import StockAdjustmentModal  from "./components/StockAdjustmentModal";
 import ConfirmDialog         from "../../components/common/ConfirmDialog";
 import AddInventoryModal     from "./components/AddInventoryModal";
+import ResubmitForReviewModal from "./components/ResubmitForReviewModal";
 import inventoryAPI          from "../../api/inventory";
 import suppliersAPI          from "../../api/suppliers";
 import useDynamicRowCount    from "../../hooks/useDynamicRowCount";
@@ -171,7 +172,11 @@ const InventoryPage = () => {
     refreshCatalogStatus,
     stats,
     statsLoading,
+    resubmitEligibleCount, 
+    fetchResubmitCount, 
   } = useInventoryData();
+  
+  const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
 
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const hasLoadedOnce = useRef(false);
@@ -185,6 +190,7 @@ const InventoryPage = () => {
     supplier:       "",
     category:       "",
     branchId:       "",
+    catalogStatus:  "", 
     includeExpired: false,
     lowStock:       false,
     expiredOnly:    false,
@@ -248,6 +254,7 @@ const InventoryPage = () => {
   useEffect(() => {
     loadFacets();
     loadSuppliersList();
+    fetchResubmitCount();
   }, [loadFacets, loadSuppliersList, branchContext.branch_id, branchContext.mode]);
 
   // ── Build API filters ─────────────────────────────────────────────────────
@@ -267,6 +274,7 @@ const InventoryPage = () => {
     if (filters.expiry)         apiFilters.expiry         = filters.expiry;
     if (filters.supplier)       apiFilters.supplier       = filters.supplier;
     if (filters.category)       apiFilters.category       = filters.category;
+    if (filters.catalogStatus)  apiFilters.catalogStatus  = filters.catalogStatus;
 
     if (!isGlobalMode && branchContext.branch_id) {
       apiFilters.branchId = branchContext.branch_id;
@@ -286,6 +294,7 @@ const InventoryPage = () => {
     filters.expiry,
     filters.supplier,
     filters.category,
+    filters.catalogStatus,
     filters.includeExpired,
     filters.lowStock,
     filters.expiredOnly,
@@ -429,6 +438,7 @@ const InventoryPage = () => {
         refreshCatalogStatus(),
         loadFacets(),
         loadSuppliersList(),
+        fetchResubmitCount(),
       ]);
       toast.success("Refreshed", "Inventory data updated");
     } catch (error) {
@@ -437,6 +447,14 @@ const InventoryPage = () => {
       setRefreshing(false);
     }
   };
+
+  const handleResubmitTrigger = useCallback(() => {
+    if (isGlobalMode) {
+      toast.warning("Branch Required", "Please select a specific branch to resubmit items");
+      return;
+    }
+    setResubmitModalOpen(true);
+  }, [isGlobalMode, toast]);
 
   const handleView = (row) => {
     setSelectedItem(row);
@@ -575,6 +593,7 @@ const InventoryPage = () => {
     filters.expiry,
     filters.supplier,
     filters.category,
+    filters.catalogStatus,
     filters.branchId,
     filters.includeExpired,
     filters.lowStock,
@@ -637,7 +656,7 @@ const InventoryPage = () => {
         </div>
       </div>
 
-      {/* Filters (Wrapper styled with high stacking order to fix dropdown cropping) */}
+      {/* Filters (Wrapper styled with high stacking order) */}
       <div className="shrink-0 px-4 pb-3 relative z-30">
         <InventoryFilters
           filters={filters}
@@ -655,11 +674,25 @@ const InventoryPage = () => {
           onImportLogs={() => setLogsPanelOpen(true)}
           onExport={handleExportInventory}
           onReset={() => setResetModalOpen(true)}
+          onResubmit={handleResubmitTrigger} 
+          resubmitEligibleCount={resubmitEligibleCount} 
           isExporting={isExporting}
           canReset={canAdjustStock}
           canExport={canAdjustStock}
         />
       </div>
+            {/* Resubmit Catalog Review Modal */}
+      <ResubmitForReviewModal
+        open={resubmitModalOpen}
+        onClose={() => setResubmitModalOpen(false)}
+        branchId={branchContext.branch_id}
+        onComplete={async () => {
+          await Promise.all([
+            fetchInventory(buildApiFilters(currentPage)),
+            fetchResubmitCount()
+          ]);
+        }}
+      />
 
       {/* Table */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 pb-4">
