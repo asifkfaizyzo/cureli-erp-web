@@ -535,8 +535,8 @@ const BranchConfigCard = ({
                     onChange={(e) =>
                       update({ contact_override: e.target.value || null })
                     }
-                    placeholder="e.g. +91 98765 43210"
-                    maxLength={15}
+                    placeholder="e.g. 98765 43210"
+                    maxLength={10}
                     className={`
                       w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border text-white
                       placeholder-white/15 text-sm focus:outline-none focus:ring-2

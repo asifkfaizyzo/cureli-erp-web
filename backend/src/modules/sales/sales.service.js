@@ -1094,16 +1094,17 @@ class SalesService {
           }
         }
 
-        // ── 3. Atomic order transition + invoice linking ────────────
+         // ── 3. Atomic order transition + invoice linking ────────────
         const now = new Date();
         const fromStatus = mktOrder.status;
 
         await prisma.$transaction(async (tx2) => {
-          // Step A: If PLACED → ACCEPTED first
+          // If the order is PLACED, we move it to ACCEPTED and link the invoice
           if (fromStatus === "PLACED") {
             await tx2.marketplaceOrder.update({
               where: { order_id: marketplace_order_id },
               data: {
+                sales_invoice_id: result.invoice_id,
                 status: "ACCEPTED",
                 accepted_at: now,
               },
@@ -1119,35 +1120,22 @@ class SalesService {
                 reason: `Invoice ${result.invoice_number} confirmed`,
               },
             });
+          } else if (fromStatus === "ACCEPTED") {
+            // Backward compatibility: if already ACCEPTED, just link the invoice
+            await tx2.marketplaceOrder.update({
+              where: { order_id: marketplace_order_id },
+              data: {
+                sales_invoice_id: result.invoice_id,
+              },
+            });
           }
-
-          // Step B: ACCEPTED → READY_FOR_PICKUP + link invoice
-          await tx2.marketplaceOrder.update({
-            where: { order_id: marketplace_order_id },
-            data: {
-              sales_invoice_id: result.invoice_id,
-              status: "READY_FOR_PICKUP",
-              ready_at: now,
-            },
-          });
-
-          await tx2.marketplaceOrderStatusHistory.create({
-            data: {
-              order_id: marketplace_order_id,
-              from_status: "ACCEPTED",
-              to_status: "READY_FOR_PICKUP",
-              changed_by_type: "pharmacy",
-              changed_by_id: userId,
-              reason: `Invoice ${result.invoice_number} confirmed`,
-            },
-          });
         });
 
         // ── 4. Fire notification events ─────────────────────────────
         const { fireOrderStatusChangedEvents } =
           await import("../marketplace-orders/marketplace.orders.events.js");
 
-        // Fire ACCEPTED event if we just transitioned from PLACED
+        // ONLY fire ACCEPTED event if we just transitioned from PLACED
         if (fromStatus === "PLACED") {
           await fireOrderStatusChangedEvents({
             order_id: marketplace_order_id,
@@ -1158,16 +1146,6 @@ class SalesService {
             customer_name: mktOrder.customer_name_snapshot,
           });
         }
-
-        // Fire READY_FOR_PICKUP event
-        await fireOrderStatusChangedEvents({
-          order_id: marketplace_order_id,
-          order_number: mktOrder.order_number,
-          shop_id: shopId,
-          customer_id: mktOrder.customer_id,
-          new_status: "READY_FOR_PICKUP",
-          customer_name: mktOrder.customer_name_snapshot,
-        });
 
         // ── 5. Generate PDF in background with retry ────────────────
         generateInvoiceWithRetry(marketplace_order_id, result.invoice_id, 3)
