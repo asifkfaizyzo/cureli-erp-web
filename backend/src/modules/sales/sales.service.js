@@ -20,6 +20,70 @@ import {
 import customerService from "../customers/customer.service.js";
 
 // ============================================
+// PHONE NORMALIZATION HELPER
+// ============================================
+
+/**
+ * Normalize Indian phone numbers to 10 digits.
+ * Strips +91, 91, 0 prefixes. Returns null if invalid.
+ *
+ * @param {string|null} phone
+ * @returns {string|null} 10-digit string or null
+ */
+function normalizePhone(phone) {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  return digits.length === 10 ? digits : null;
+}
+
+// ============================================
+// INVOICE PDF GENERATION WITH RETRY
+// ============================================
+
+/**
+ * Generate marketplace invoice PDF with exponential backoff retry.
+ * Non-fatal — if all retries fail, the order is still valid.
+ * The user can manually retry via the regenerate endpoint.
+ *
+ * @param {string} marketplace_order_id
+ * @param {string} sales_invoice_id
+ * @param {number} maxRetries
+ */
+async function generateInvoiceWithRetry(
+  marketplace_order_id,
+  sales_invoice_id,
+  maxRetries = 3,
+) {
+  const delays = [2000, 10000, 30000]; // 2s, 10s, 30s
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const { generateMarketplaceInvoice } = await import(
+        "../mobile/invoice/invoice.service.js"
+      );
+      await generateMarketplaceInvoice(marketplace_order_id, sales_invoice_id);
+      return; // Success — exit
+    } catch (err) {
+      console.error(
+        `[Invoice] PDF generation attempt ${attempt + 1}/${maxRetries} failed:`,
+        err.message,
+      );
+      if (attempt < maxRetries - 1) {
+        const delay = delays[attempt] || 30000;
+        console.log(`[Invoice] Retrying in ${delay / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw new Error(
+    `PDF generation failed after ${maxRetries} attempts for order ${marketplace_order_id}`,
+  );
+}
+
+// ============================================
 // CUSTOM ERROR
 // ============================================
 
@@ -958,15 +1022,18 @@ class SalesService {
 
     if (marketplace_order_id) {
       try {
+        // ── 1. Fetch marketplace order with phone snapshot ──────────
         const mktOrder = await prisma.marketplaceOrder.findUnique({
           where: { order_id: marketplace_order_id },
           select: {
             order_id: true,
             status: true,
             shop_id: true,
+            branch_id: true,
             customer_id: true,
             order_number: true,
             customer_name_snapshot: true,
+            customer_phone_snapshot: true,
             sales_invoice_id: true,
           },
         });
@@ -976,55 +1043,123 @@ class SalesService {
           throw new Error("Marketplace order does not belong to this shop");
         if (mktOrder.sales_invoice_id)
           throw new Error("Marketplace order already billed");
-        if (mktOrder.status !== "ACCEPTED")
-          throw new Error("Marketplace order must be ACCEPTED before billing");
+        if (!["PLACED", "ACCEPTED"].includes(mktOrder.status))
+          throw new Error(
+            `Marketplace order must be PLACED or ACCEPTED before billing (current: ${mktOrder.status})`,
+          );
 
+        // ── 2. Auto-create CRM Customer if phone is new ─────────────
+        let crmCustomerId = null;
+        const normalizedPhone = normalizePhone(
+          mktOrder.customer_phone_snapshot,
+        );
+
+        if (normalizedPhone) {
+          const existingCustomer = await prisma.customer.findFirst({
+            where: {
+              shop_id: shopId,
+              phone: normalizedPhone,
+            },
+            select: { customer_id: true },
+          });
+
+          if (existingCustomer) {
+            crmCustomerId = existingCustomer.customer_id;
+          } else {
+            const newCustomer = await prisma.customer.create({
+              data: {
+                name:
+                  mktOrder.customer_name_snapshot ||
+                  `Customer ${normalizedPhone}`,
+                phone: normalizedPhone,
+                shop_id: shopId,
+                branch_id: mktOrder.branch_id,
+                created_by: userId,
+                is_active: true,
+              },
+              select: { customer_id: true },
+            });
+            crmCustomerId = newCustomer.customer_id;
+            console.log(
+              `[Sales] Auto-created CRM customer ${crmCustomerId} for phone ${normalizedPhone}`,
+            );
+          }
+
+          // Link CRM customer to the sales invoice
+          if (crmCustomerId) {
+            await prisma.salesInvoice.update({
+              where: { invoice_id: result.invoice_id },
+              data: { customer_id: crmCustomerId },
+            });
+          }
+        }
+
+         // ── 3. Atomic order transition + invoice linking ────────────
         const now = new Date();
+        const fromStatus = mktOrder.status;
 
         await prisma.$transaction(async (tx2) => {
-          await tx2.marketplaceOrder.update({
-            where: { order_id: marketplace_order_id },
-            data: {
-              sales_invoice_id: result.invoice_id,
-              status: "READY_FOR_PICKUP",
-              ready_at: now,
-            },
-          });
+          // If the order is PLACED, we move it to ACCEPTED and link the invoice
+          if (fromStatus === "PLACED") {
+            await tx2.marketplaceOrder.update({
+              where: { order_id: marketplace_order_id },
+              data: {
+                sales_invoice_id: result.invoice_id,
+                status: "ACCEPTED",
+                accepted_at: now,
+              },
+            });
 
-          await tx2.marketplaceOrderStatusHistory.create({
-            data: {
-              order_id: marketplace_order_id,
-              from_status: "ACCEPTED",
-              to_status: "READY_FOR_PICKUP",
-              changed_by_type: "pharmacy",
-              changed_by_id: userId,
-              reason: `Invoice ${result.invoice_number} confirmed`,
-            },
-          });
+            await tx2.marketplaceOrderStatusHistory.create({
+              data: {
+                order_id: marketplace_order_id,
+                from_status: "PLACED",
+                to_status: "ACCEPTED",
+                changed_by_type: "pharmacy",
+                changed_by_id: userId,
+                reason: `Invoice ${result.invoice_number} confirmed`,
+              },
+            });
+          } else if (fromStatus === "ACCEPTED") {
+            // Backward compatibility: if already ACCEPTED, just link the invoice
+            await tx2.marketplaceOrder.update({
+              where: { order_id: marketplace_order_id },
+              data: {
+                sales_invoice_id: result.invoice_id,
+              },
+            });
+          }
         });
 
+        // ── 4. Fire notification events ─────────────────────────────
         const { fireOrderStatusChangedEvents } =
           await import("../marketplace-orders/marketplace.orders.events.js");
 
-        await fireOrderStatusChangedEvents({
-          order_id: marketplace_order_id,
-          order_number: mktOrder.order_number,
-          shop_id: shopId,
-          customer_id: mktOrder.customer_id,
-          new_status: "READY_FOR_PICKUP",
-          customer_name: mktOrder.customer_name_snapshot,
-        });
+        // ONLY fire ACCEPTED event if we just transitioned from PLACED
+        if (fromStatus === "PLACED") {
+          await fireOrderStatusChangedEvents({
+            order_id: marketplace_order_id,
+            order_number: mktOrder.order_number,
+            shop_id: shopId,
+            customer_id: mktOrder.customer_id,
+            new_status: "ACCEPTED",
+            customer_name: mktOrder.customer_name_snapshot,
+          });
+        }
 
-        import("../mobile/invoice/invoice.service.js").then(
-          ({ generateMarketplaceInvoice }) => {
-            generateMarketplaceInvoice(
-              marketplace_order_id,
-              result.invoice_id,
-            ).catch((err) =>
-              console.error("[Invoice] PDF generation failed:", err.message),
-            );
-          },
-        );
+        // ── 5. Generate PDF in background with retry ────────────────
+        generateInvoiceWithRetry(marketplace_order_id, result.invoice_id, 3)
+          .then(() =>
+            console.log(
+              `[Sales] Invoice PDF generated for ${mktOrder.order_number}`,
+            ),
+          )
+          .catch((err) =>
+            console.error(
+              `[Sales] Invoice PDF generation failed after all retries:`,
+              err.message,
+            ),
+          );
 
         console.log(
           `[Sales] Marketplace order ${mktOrder.order_number} linked to ${result.invoice_number}`,

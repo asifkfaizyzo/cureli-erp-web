@@ -150,6 +150,12 @@ export const getOrderDetail = async (order_id) => {
           city: true,
           state: true,
           contact_number: true,
+          marketplaceSettings: {
+            select: {
+              latitude: true,
+              longitude: true,
+            },
+          },
         },
       },
       customer: {
@@ -395,6 +401,12 @@ function formatOrderDetail(order) {
           city: order.branch.city,
           state: order.branch.state,
           contact_number: order.branch.contact_number,
+          latitude: order.branch.marketplaceSettings?.latitude
+            ? Number(order.branch.marketplaceSettings.latitude)
+            : null,
+          longitude: order.branch.marketplaceSettings?.longitude
+            ? Number(order.branch.marketplaceSettings.longitude)
+            : null,
         }
       : null,
     customer: order.customer

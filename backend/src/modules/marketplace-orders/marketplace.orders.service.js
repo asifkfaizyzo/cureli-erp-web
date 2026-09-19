@@ -1,6 +1,4 @@
 // backend/src/modules/marketplace-orders/marketplace.orders.service.js
-// Full file — replaces existing
-
 import prisma from "../../config/prisma.js";
 import {
   fireOrderPlacedEvents,
@@ -932,9 +930,9 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
   });
 
   if (!order || order.shop_id !== shop_id) throw new Error("Order not found");
-  if (order.sales_invoice_id) throw new Error("Order has already been billed");
-  if (order.status !== "ACCEPTED")
-    throw new Error("Only ACCEPTED orders can be billed");
+   if (order.sales_invoice_id) throw new Error("Order has already been billed");
+  if (!["PLACED", "ACCEPTED"].includes(order.status))
+    throw new Error("Only PLACED or ACCEPTED orders can be billed");
 
   // Fetch available batches for each medicine
   const itemsWithBatches = await Promise.all(
@@ -1017,7 +1015,56 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
     items: itemsWithBatches,
   };
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// REGENERATE INVOICE PDF (Manual retry for failed background generation)
+// ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Manually trigger invoice PDF generation for a marketplace order.
+ * Used when the background generation failed after all retries.
+ *
+ * @param {string} order_id
+ * @param {string} shop_id
+ * @returns {{ storageKey: string }}
+ */
+export async function regenerateInvoicePdf(order_id, shop_id) {
+  const order = await prisma.marketplaceOrder.findUnique({
+    where: { order_id },
+    select: {
+      order_id: true,
+      order_number: true,
+      shop_id: true,
+      sales_invoice_id: true,
+      invoice_pdf_key: true,
+      status: true,
+    },
+  });
+
+  if (!order || order.shop_id !== shop_id) {
+    throw new Error("Order not found");
+  }
+
+  if (!order.sales_invoice_id) {
+    throw new Error("Order has not been billed yet");
+  }
+
+  if (order.invoice_pdf_key) {
+    // PDF already exists — return existing key
+    return { storageKey: order.invoice_pdf_key, already_exists: true };
+  }
+
+  // Generate the PDF
+  const { generateMarketplaceInvoice } = await import(
+    "../mobile/invoice/invoice.service.js"
+  );
+
+  const result = await generateMarketplaceInvoice(
+    order.order_id,
+    order.sales_invoice_id,
+  );
+
+  return { storageKey: result.storageKey, already_exists: false };
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // FORMATTERS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1057,6 +1104,7 @@ function formatErpOrderDetail(order) {
   return {
     order_id: order.order_id,
     order_number: order.order_number,
+    branch_id: order.branch_id,
     status: order.status,
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
@@ -1137,8 +1185,19 @@ function formatMobileOrderDetail(order) {
     delivery_address: order.delivery_address_snapshot,
     total_amount: Number(order.total_amount),
     subtotal: Number(order.subtotal),
-    requires_prescription: order.requires_prescription,
+
+    // ── NEW: Expose detailed charges and payment status ──────
     payment_method: order.payment_method,
+    payment_status: order.payment_status,
+    service_charge: Number(order.service_charge ?? 0),
+    delivery_fee: Number(order.delivery_fee ?? 0),
+    km_surcharge: Number(order.km_surcharge ?? 0),
+    tip: Number(order.tip ?? 0),
+    grand_total: Number(order.grand_total ?? order.total_amount),
+    invoice_generated_at: order.invoice_generated_at ?? null,
+    // ────────────────────────────────────────────────────────
+
+    requires_prescription: order.requires_prescription,
     notes: order.notes,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
@@ -1149,13 +1208,11 @@ function formatMobileOrderDetail(order) {
     rejected_at: order.rejected_at,
     cancelled_at: order.cancelled_at,
     items: order.items.map(formatOrderItem),
-    // Prescriptions now exposed to mobile customer
     prescriptions: order.prescriptions.map((p) => ({
       prescription_id: p.prescription_id,
       original_name: p.original_name,
       mime_type: p.mime_type,
       sequence: p.sequence,
-      // is_expired = true when file has been purged from S3
       is_expired: p.deleted_at !== null,
     })),
     status_history: order.statusHistory.map((h) => ({

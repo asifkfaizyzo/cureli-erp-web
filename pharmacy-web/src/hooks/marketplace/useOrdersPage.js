@@ -1,13 +1,20 @@
 // pharmacy-web/src/hooks/marketplace/useOrdersPage.js
-// Updated: "Accept Order" now calls accept API then redirects to billing page.
-// "Bill & Accept" flow is now handled via navigation with query param.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../../store/useNotificationStore';
+import { useAuthStore, selectBranchContext } from '../../store/useAuthStore';
+import { switchBranch } from '../../api/branches';
 import * as ordersAPI from '../../api/marketplaceOrders';
 
 export const ORDER_TABS = [
+  {
+    id:         'all',
+    label:      'All Orders',
+    statuses:   'PLACED,ACCEPTED,READY_FOR_PICKUP,COMPLETED,REJECTED,CANCELLED',
+    emptyLabel: 'No orders found',
+    emptyDesc:  'All customer orders will appear here.',
+  },
   {
     id:         'new',
     label:      'New Orders',
@@ -47,7 +54,11 @@ export function useOrdersPage() {
   const newOrderCount = useNotificationStore((s) => s.newOrderCount);
   const lastOrderUpdate = useNotificationStore((s) => s.lastOrderUpdate);
 
-  const [activeTab, setActiveTab] = useState('new');
+  const branchContext = useAuthStore(selectBranchContext);
+  const setBranch = useAuthStore((s) => s.setBranch);
+
+  // Set 'all' as the default active tab
+  const [activeTab, setActiveTab] = useState('all');
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -106,6 +117,7 @@ export function useOrdersPage() {
   useEffect(() => {
     if (newOrderCount > prevOrderCount.current) {
       if (activeTab === 'new') fetchOrders('new', 1);
+      if (activeTab === 'all') fetchOrders('all', 1);
       prevOrderCount.current = newOrderCount;
     }
   }, [newOrderCount, activeTab, fetchOrders]);
@@ -120,7 +132,7 @@ export function useOrdersPage() {
     }
 
     clearLastOrderUpdate();
-  }, [lastOrderUpdate]);
+  }, [lastOrderUpdate, activeTab, page, selectedOrderId]);
 
   const handleTabChange = useCallback((tabId) => {
     setActiveTab(tabId);
@@ -151,23 +163,29 @@ export function useOrdersPage() {
     setDetailError(null);
   }, []);
 
-  // ── UPDATED: Accept now calls API then redirects to billing page ──
+  // ── Navigate to billing page — auto-switch branch if needed ──
   const handleAccept = useCallback(async (orderId) => {
-    setActionLoading(true);
-    setActionError(null);
+    const orderBranchId = orderDetail?.branch_id;
 
-    try {
-      const res = await ordersAPI.acceptOrder(orderId);
-      if (res.success) {
-        // After accept, redirect to billing page with marketplace_order param
-        navigate(`/erp/sales-billing?marketplace_order=${orderId}`);
+    if (orderBranchId && branchContext.branch_id !== orderBranchId) {
+      try {
+        setActionLoading(true);
+        const res = await switchBranch(orderBranchId);
+        if (res.success) {
+          setBranch(orderBranchId, res.data.branch_name);
+        }
+      } catch (err) {
+        console.error('[OrdersPage] Auto-switch branch failed:', err);
+        setActionError('Failed to switch to the order branch. Please select it manually.');
+        setActionLoading(false);
+        return;
+      } finally {
+        setActionLoading(false);
       }
-    } catch (err) {
-      setActionError(err?.response?.data?.message || 'Failed to accept order');
-    } finally {
-      setActionLoading(false);
     }
-  }, [navigate]);
+
+    navigate(`/erp/sales-billing?marketplace_order=${orderId}`);
+  }, [navigate, orderDetail, branchContext.branch_id, setBranch]);
 
   const handleOpenReject = useCallback((orderId) => {
     setRejectModal({ open: true, orderId });

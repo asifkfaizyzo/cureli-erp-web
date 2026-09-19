@@ -1,5 +1,4 @@
-// pharmacy-web/src/components/layout/AppLayout.jsx
-
+// src/components/layout/AppLayout.jsx
 
 import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -86,6 +85,9 @@ const AppLayout = () => {
     }
   }, [location.pathname, setBreadcrumbs, setActiveMenu]);
 
+  // ★ TEST BYPASS: Check if current route is storefront
+  const isStorefrontRoute = location.pathname === "/marketplace/storefront";
+
   return (
     <motion.div
       data-theme={isMarketplace ? "marketplace" : "erp"}
@@ -117,11 +119,6 @@ const AppLayout = () => {
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         <TopHeader />
 
-        {/* ── NEW: Persistent order alert banner ────────────────────────────
-            Renders as a fixed overlay below the header.
-            Visible on all routes except /marketplace/orders.
-            Handles its own visibility logic internally.
-        ──────────────────────────────────────────────────────────────────── */}
         <NewOrderBanner />
 
         <motion.main
@@ -133,18 +130,29 @@ const AppLayout = () => {
         >
           <Breadcrumb />
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="mt-2 w-[96%] sm:w-[100%] mx-auto"
-            >
+          {/* 
+            ★ TEST BYPASS: 
+            If navigating to/from the storefront route, mount a static div instantly.
+            This completely takes storefront out of Framer Motion's orchestrator.
+          */}
+          {isStorefrontRoute ? (
+            <div className="mt-2 w-[96%] sm:w-[100%] mx-auto">
               <Outlet />
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="mt-2 w-[96%] sm:w-[100%] mx-auto"
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </motion.main>
       </div>
     </motion.div>

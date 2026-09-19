@@ -35,7 +35,7 @@ function normalizeStorefront(raw) {
     is_live:                raw.is_live                ?? false,
     onboarding_completed:   raw.onboarding_completed   ?? false,
 
-    // ── ADDED BANKING DETAILS MAPPING ─────────────────────────
+    // ── BANKING DETAILS ───────────────────────────────────────
     bank_account_holder:   raw.bank_account_holder    ?? null,
     bank_name:             raw.bank_name              ?? null,
     bank_branch_name:      raw.bank_branch_name       ?? null,
@@ -74,7 +74,7 @@ function normalizeConfiguredBranch(bs) {
 
     pickup_enabled:        bs.pickup_enabled   ?? false,
     delivery_enabled:      bs.delivery_enabled ?? false,
-    delivery_mode:         bs.delivery_mode    ?? "CURELI", // ← Added delivery mode
+    delivery_mode:         bs.delivery_mode    ?? "CURELI",
 
     contact_override:      bs.contact_override ?? null,
   };
@@ -107,7 +107,7 @@ function normalizeUnconfiguredBranch(b) {
 
     pickup_enabled:        false,
     delivery_enabled:      false,
-    delivery_mode:         "CURELI", // ← Added default
+    delivery_mode:         "CURELI",
 
     contact_override:      null,
   };
@@ -149,7 +149,7 @@ function buildBranchPayload(branch, overrides = {}) {
     open_days:            merged.open_days         ?? ['MON','TUE','WED','THU','FRI','SAT','SUN'],
     pickup_enabled:       merged.pickup_enabled    ?? false,
     delivery_enabled:     merged.delivery_enabled  ?? false,
-    delivery_mode:        merged.delivery_mode     ?? "CURELI", // ← Include in update payload
+    delivery_mode:        merged.delivery_mode     ?? "CURELI",
     contact_override:     merged.contact_override  ?? null,
   };
 }
@@ -163,7 +163,12 @@ export function useStorefrontPage() {
   const [branches,   setBranches]             = useState([]);
 
   // ── Loading ───────────────────────────────
-  const [isLoading,       setIsLoading]       = useState(false);
+  // ★ FIX: Initialize as `true` because the hook fetches on mount.
+  // This prevents the first render from evaluating `!storefront`
+  // and flashing an ErrorState during page transitions, which
+  // was breaking Framer Motion's <AnimatePresence mode="wait">
+  // entry layout projection.
+  const [isLoading,       setIsLoading]       = useState(true);
   const [storefrontError, setStorefrontError] = useState(null);
   const [branchesError,   setBranchesError]   = useState(null);
 
