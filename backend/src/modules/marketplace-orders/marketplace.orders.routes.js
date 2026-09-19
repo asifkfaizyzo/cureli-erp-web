@@ -11,6 +11,7 @@ import {
   completeOrder,
   getPrescriptionUrl,
   getBillingData,
+  regenerateInvoice,
 } from './marketplace.orders.controller.js';
 
 const router = Router();
@@ -34,6 +35,12 @@ router.get('/:orderId/billing-data', getBillingData);
  * GET /api/marketplace-orders/:orderId/prescriptions/:prescriptionId/url
  */
 router.get('/:orderId/prescriptions/:prescriptionId/url', getPrescriptionUrl);
+
+/**
+ * POST /api/marketplace-orders/:orderId/regenerate-invoice
+ * Manually retry PDF generation if background generation failed.
+ */
+router.post('/:orderId/regenerate-invoice', regenerateInvoice);
 
 /**
  * GET /api/marketplace-orders/:orderId/invoice

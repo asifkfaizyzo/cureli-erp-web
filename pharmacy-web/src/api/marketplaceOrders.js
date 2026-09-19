@@ -41,3 +41,10 @@ export const getBillingData = (orderId) =>
  */
 export const getInvoiceUrl = (orderId) =>
   API.get(`/marketplace-orders/${orderId}/invoice`).then((r) => r.data);
+
+/**
+ * POST /api/marketplace-orders/:orderId/regenerate-invoice
+ * Manually retry PDF generation if background generation failed.
+ */
+export const regenerateInvoice = (orderId) =>
+  API.post(`/marketplace-orders/${orderId}/regenerate-invoice`).then((r) => r.data);

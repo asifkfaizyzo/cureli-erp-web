@@ -7,6 +7,7 @@ import {
   transitionOrderStatus,
   getPrescriptionSignedUrl,
   getMarketplaceBillingData,
+  regenerateInvoicePdf,
 } from './marketplace.orders.service.js';
 import {
   rejectOrderSchema,
@@ -142,5 +143,23 @@ export async function getBillingData(req, res) {
     console.error('[ERP Orders] getBillingData error:', err.message);
     if (err.message.includes('not found')) return fail(res, err.message, 404);
     return fail(res, 'Failed to fetch billing data', 500);
+  }
+}
+
+export async function regenerateInvoice(req, res) {
+  try {
+    const result = await regenerateInvoicePdf(
+      req.params.orderId,
+      req.user.shop_id,
+    );
+    const message = result.already_exists
+      ? 'Invoice already exists'
+      : 'Invoice regenerated successfully';
+    return success(res, result, message);
+  } catch (err) {
+    console.error('[ERP Orders] regenerateInvoice error:', err.message);
+    if (err.message.includes('not found')) return fail(res, err.message, 404);
+    if (err.message.includes('not been billed')) return fail(res, err.message, 400);
+    return fail(res, 'Failed to regenerate invoice', 500);
   }
 }

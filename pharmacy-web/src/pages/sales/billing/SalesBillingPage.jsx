@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ShoppingBag,
   Loader2,
+  XCircle,
 } from "lucide-react";
 
 import SalesHeader from "./components/SalesHeader";
@@ -18,6 +19,9 @@ import CustomerDetailsCard from "./components/CustomerDetailsCard";
 import SalesSummaryCard from "./components/SalesSummaryCard";
 import SalesInvoicePrint from "./components/SalesInvoicePrint";
 import CustomerSearchModal from "./components/CustomerSearchModal";
+
+import RejectModal from "../../marketplace-orders/components/RejectModal";
+import { rejectOrder } from "../../../api/marketplaceOrders";
 
 import {
   useSalesCalculation,
@@ -35,6 +39,25 @@ import { useAuthStore, selectBranchContext } from "../../../store/useAuthStore";
 import { useShopDetails } from "../../../hooks/useShopDetails";
 
 import "../../../styles/print.css";
+
+// ============================================
+// PHONE NORMALIZATION HELPER
+// ============================================
+
+/**
+ * Normalize Indian phone numbers to 10 digits.
+ * Strips +91, 91, 0 prefixes from mobile snapshots.
+ *
+ * @param {string|null} phone
+ * @returns {string} Normalized 10-digit phone or original if invalid
+ */
+function normalizePhone(phone) {
+  if (!phone) return "";
+  let digits = phone.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  return digits.length === 10 ? digits : phone; // fallback to original if not 10 digits
+}
 
 const SalesBillingPage = () => {
   const toast = useToast();
@@ -62,10 +85,49 @@ const SalesBillingPage = () => {
   });
 
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [rejectModal, setRejectModal] = useState({ open: false });
+  const [rejectLoading, setRejectLoading] = useState(false);
+  const [rejectError, setRejectError] = useState(null);
 
   const closeConfirmDialog = useCallback(() => {
     setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   }, []);
+
+  const handleOpenReject = useCallback(() => {
+    setRejectModal({ open: true });
+    setRejectError(null);
+  }, []);
+
+  const handleCloseReject = useCallback(() => {
+    setRejectModal({ open: false });
+    setRejectError(null);
+  }, []);
+
+  const handleRejectSubmit = useCallback(
+    async (reason, reasonOther) => {
+      if (!marketplaceOrderId) return;
+      setRejectLoading(true);
+      setRejectError(null);
+      try {
+        const res = await rejectOrder(marketplaceOrderId, {
+          rejection_reason: reason,
+          rejection_reason_other: reasonOther || undefined,
+        });
+        if (res.success) {
+          handleCloseReject();
+          toast.success("Order Rejected", "The customer has been notified.");
+          navigate("/marketplace/orders");
+        }
+      } catch (err) {
+        setRejectError(
+          err?.response?.data?.message || "Failed to reject order",
+        );
+      } finally {
+        setRejectLoading(false);
+      }
+    },
+    [marketplaceOrderId, navigate, toast, handleCloseReject],
+  );
 
   const branchContext = useAuthStore(selectBranchContext);
   const user = useAuthStore((state) => state.user);
@@ -316,7 +378,7 @@ const SalesBillingPage = () => {
           ...prev,
           customer_id: null,
           name: data.customer_name || "",
-          phone: data.customer_phone || "",
+          phone: normalizePhone(data.customer_phone),
           patientName: data.patient?.name || data.customer_name || "",
           address: [
             data.delivery_address?.address_line_1,
@@ -516,15 +578,17 @@ const SalesBillingPage = () => {
           }
 
           // Extract CGST & SGST directly from selectedBatch medicine master, fallback to product, then to 0
-          const cgst = selectedBatch?.medicine?.cgst_percentage 
-            ?? product.cgst_percentage 
-            ?? product.cgstPercent 
-            ?? 0;
+          const cgst =
+            selectedBatch?.medicine?.cgst_percentage ??
+            product.cgst_percentage ??
+            product.cgstPercent ??
+            0;
 
-          const sgst = selectedBatch?.medicine?.sgst_percentage 
-            ?? product.sgst_percentage 
-            ?? product.sgstPercent 
-            ?? 0;
+          const sgst =
+            selectedBatch?.medicine?.sgst_percentage ??
+            product.sgst_percentage ??
+            product.sgstPercent ??
+            0;
 
           newRows[rowIndex] = {
             ...newRows[rowIndex],
@@ -535,7 +599,10 @@ const SalesBillingPage = () => {
             batch: selectedBatch?.batch_number || "",
             exp: expiry,
             mrp: selectedBatch?.mrp?.toString() || "",
-            rate: selectedBatch?.selling_rate?.toString() || selectedBatch?.mrp?.toString() || "",
+            rate:
+              selectedBatch?.selling_rate?.toString() ||
+              selectedBatch?.mrp?.toString() ||
+              "",
             rack: selectedBatch?.rack_no || product.rack_no || "",
             stock: selectedBatch?.available_stock?.toString() || "",
             cgstPercent: cgst.toString(),
@@ -703,27 +770,27 @@ const SalesBillingPage = () => {
 
   // ── Validation helpers ───────────────────────────────────────────────────────
   const validateCustomerData = useCallback(() => {
-  const errors = [];
-  if (!customer.customer_id && customer.phone) {
-    const phoneDigits = customer.phone.replace(/\D/g, "");
-    // Accepts: 10 digits, 11 digits (starting with 0), or 12 digits (starting with 91)
-    if (phoneDigits && !/^(?:91|0)?\d{10}$/.test(phoneDigits)) {
-      errors.push("Invalid phone number (must be a valid 10-digit number)");
+    const errors = [];
+    if (!customer.customer_id && customer.phone) {
+      const phoneDigits = customer.phone.replace(/\D/g, "");
+      // Accepts: 10 digits, 11 digits (starting with 0), or 12 digits (starting with 91)
+      if (phoneDigits && !/^(?:91|0)?\d{10}$/.test(phoneDigits)) {
+        errors.push("Invalid phone number (must be a valid 10-digit number)");
+      }
     }
-  }
-  if (
-    customer.gstNumber &&
-    !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
-      customer.gstNumber,
-    )
-  ) {
-    errors.push("Invalid GSTIN format");
-  }
-  if (customer.paymentType === "CREDIT" && !customer.customer_id) {
-    errors.push("Credit sales require a registered customer");
-  }
-  return errors;
-}, [customer]);
+    if (
+      customer.gstNumber &&
+      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
+        customer.gstNumber,
+      )
+    ) {
+      errors.push("Invalid GSTIN format");
+    }
+    if (customer.paymentType === "CREDIT" && !customer.customer_id) {
+      errors.push("Credit sales require a registered customer");
+    }
+    return errors;
+  }, [customer]);
 
   const validateNoDuplicateBatches = useCallback(() => {
     const inventoryUsage = new Map();
@@ -1046,13 +1113,22 @@ const SalesBillingPage = () => {
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/erp/marketplace-orders")}
-              className="shrink-0 flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Back to Orders
-            </button>
+            <div className="shrink-0 flex items-center gap-2">
+              <button
+                onClick={handleOpenReject}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+              >
+                <XCircle size={15} />
+                Reject Order
+              </button>
+              <button
+                onClick={() => navigate("/marketplace/orders")}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={16} />
+                Back to Orders
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1200,7 +1276,7 @@ const SalesBillingPage = () => {
         />
       )}
 
-      <ConfirmDialog
+ <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={closeConfirmDialog}
         onConfirm={confirmDialog.onConfirm}
@@ -1210,6 +1286,18 @@ const SalesBillingPage = () => {
         cancelText="Cancel"
         type={confirmDialog.type}
       />
+
+      {/* Reject Order Modal — Marketplace mode only */}
+      {isMarketplaceMode && (
+        <RejectModal
+          open={rejectModal.open}
+          onClose={handleCloseReject}
+          onSubmit={handleRejectSubmit}
+          isLoading={rejectLoading}
+          error={rejectError}
+          theme="light" 
+        />
+      )}
     </div>
   );
 };

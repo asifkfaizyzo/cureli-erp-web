@@ -1,5 +1,3 @@
-// backend/src/modules/mobile/checkout/mobile.checkout.service.js
-
 import prisma from "../../../config/prisma.js";
 import {
   razorpayMobile,
@@ -37,6 +35,24 @@ async function getConfig() {
   }
 
   return _configCache;
+}
+
+/**
+ * Fetch the actual payment method from Razorpay (card, upi, netbanking, wallet).
+ * Returns a friendly string like "RAZORPAY_UPI" or "RAZORPAY_CARD".
+ * Falls back to "RAZORPAY" if the API call fails.
+ */
+async function resolveRazorpayMethod(razorpay_payment_id) {
+  if (!razorpay_payment_id) return "RAZORPAY";
+  try {
+    const payment = await razorpayMobile.payments.fetch(razorpay_payment_id);
+    const method = payment?.method?.toUpperCase(); // "card" | "upi" | "netbanking" | "wallet" | "emi"
+    if (method) return `RAZORPAY_${method}`;
+    return "RAZORPAY";
+  } catch (err) {
+    console.error("[Checkout] Failed to fetch Razorpay payment method:", err.message);
+    return "RAZORPAY";
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -423,6 +439,7 @@ export async function confirmCheckoutPayment({
     razorpay_payment_id,
     razorpay_order_id,
     razorpay_signature,
+    resolved_payment_method: null, // Will fetch the actual method dynamically from Razorpay
   });
 
   return {
@@ -457,11 +474,16 @@ export async function handleCheckoutWebhook(payload) {
     if (session.status === "expired") return;
     if (session.order_id) return;
 
+    const rzpMethod = payment?.method?.toUpperCase()
+      ? `RAZORPAY_${payment.method.toUpperCase()}`
+      : "RAZORPAY";
+
     await _createOrderFromSession({
       session,
       razorpay_payment_id: payment_id,
       razorpay_order_id: rzp_order,
       razorpay_signature: null,
+      resolved_payment_method: rzpMethod,
     });
 
     console.log(`[Webhook] Order created from session ${session.session_id}`);
@@ -488,6 +510,7 @@ async function _createOrderFromSession({
   razorpay_payment_id,
   razorpay_order_id,
   razorpay_signature,
+  resolved_payment_method = null,  
 }) {
   // Guard: check session hasn't already produced an order (race condition)
   const fresh = await prisma.checkoutSession.findUnique({
@@ -553,7 +576,7 @@ async function _createOrderFromSession({
         customer_name_snapshot: customer.full_name ?? customer.phone,
         customer_phone_snapshot: customer.phone,
         status: "PLACED",
-        payment_method: "RAZORPAY",
+        payment_method: resolved_payment_method ?? await resolveRazorpayMethod(razorpay_payment_id),
         payment_status: "PAID",
         subtotal: session.subtotal,
         service_charge: session.service_charge,

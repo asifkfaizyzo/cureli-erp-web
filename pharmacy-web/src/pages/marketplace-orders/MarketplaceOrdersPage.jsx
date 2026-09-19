@@ -1,7 +1,4 @@
 // pharmacy-web/src/pages/marketplace-orders/MarketplaceOrdersPage.jsx
-// Updated:
-//   - onBillAndAccept passed to OrderDetailPanel (renamed from onAccept)
-//   - onGetInvoiceUrl passed to OrderDetailPanel (new)
 
 import { useState }    from 'react';
 import { ShoppingBag } from 'lucide-react';
@@ -13,17 +10,20 @@ import OrderDetailPanel  from './components/OrderDetailPanel';
 import RejectModal       from './components/RejectModal';
 import PrescriptionRequestsTab from '../prescription-requests/PrescriptionRequestsTab';
 import usePrescriptionRequestAlertStore from '../../store/usePrescriptionRequestAlertStore';
-import { getInvoiceUrl } from '../../api/marketplaceOrders';
+import { getInvoiceUrl, regenerateInvoice } from '../../api/marketplaceOrders';
 
 const MarketplaceOrdersPage = () => {
   const page = useOrdersPage();
   const [searchParams] = useSearchParams();
 
+  // Set default initialTab to 'all' if no specific query parameter is provided
   const initialTab = searchParams.get('tab') === 'prescriptions'
     ? PRESCRIPTION_TAB_ID
     : searchParams.get('tab') === 'active'
       ? 'active'
-      : page.activeTab;
+      : searchParams.get('tab') === 'new'
+        ? 'new'
+        : 'all';
 
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -49,14 +49,28 @@ const MarketplaceOrdersPage = () => {
 
   const isPrescriptionTab = activeTab === PRESCRIPTION_TAB_ID;
 
-  // ── NEW: get invoice signed URL ──────────────────────────────────────────
+  // ── Get invoice signed URL (returns { url, pending }) ──────────────────
   const handleGetInvoiceUrl = async (orderId) => {
     try {
       const res = await getInvoiceUrl(orderId);
-      return res.data?.url || null;
+      return {
+        url: res.data?.url || null,
+        pending: res.data?.pending || false,
+      };
     } catch (err) {
       console.error('[MarketplaceOrdersPage] getInvoiceUrl error:', err);
-      return null;
+      return { url: null, pending: false };
+    }
+  };
+
+  // ── Regenerate invoice PDF ─────────────────────────────────────────────
+  const handleRegenerateInvoice = async (orderId) => {
+    try {
+      const res = await regenerateInvoice(orderId);
+      return res.success;
+    } catch (err) {
+      console.error('[MarketplaceOrdersPage] regenerateInvoice error:', err);
+      return false;
     }
   };
 
@@ -106,12 +120,13 @@ const MarketplaceOrdersPage = () => {
             actionLoading={page.actionLoading}
             actionError={page.actionError}
             onClose={page.onCloseDetail}
-            onBillAndAccept={page.onAccept}       // ← renamed prop
+            onBillAndAccept={page.onAccept}
             onOpenReject={page.onOpenReject}
             onMarkReady={page.onMarkReady}
             onComplete={page.onComplete}
             onGetPrescriptionUrl={page.onGetPrescriptionUrl}
-            onGetInvoiceUrl={handleGetInvoiceUrl} // ← new prop
+            onGetInvoiceUrl={handleGetInvoiceUrl}
+            onRegenerateInvoice={handleRegenerateInvoice}
           />
         </div>
       )}

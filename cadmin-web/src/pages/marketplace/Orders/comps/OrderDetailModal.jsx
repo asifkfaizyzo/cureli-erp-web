@@ -1,3 +1,5 @@
+//cadmin-web\src\pages\marketplace\Orders\comps\OrderDetailModal.jsx
+
 import { useState, useEffect, useCallback } from "react";
 import {
   X,
@@ -14,6 +16,8 @@ import {
   CheckCircle2,
   Edit3,
   Save,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   getMarketplaceOrderById,
@@ -138,6 +142,9 @@ const fmtAmount = (n) =>
     maximumFractionDigits: 2,
   })}`;
 
+const buildMapsUrl = (lat, lng) =>
+  `https://www.google.com/maps/search/?api=1&query=${Number(lat)},${Number(lng)}`;
+
 // ─────────────────────────────────────────────
 // REUSABLE BITS
 // ─────────────────────────────────────────────
@@ -173,6 +180,51 @@ const PaymentStatusBadge = ({ status }) => {
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
       {cfg.label}
     </span>
+  );
+};
+
+const CopyLocationButton = ({ latitude, longitude, onToast }) => {
+  const [copied, setCopied] = useState(false);
+
+  // Hide entirely if coordinates are missing
+  if (latitude == null || longitude == null) return null;
+
+  const handleCopy = async () => {
+    const url = buildMapsUrl(latitude, longitude);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      onToast?.("Location link copied to clipboard!", "success");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers / insecure contexts
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      onToast?.("Location link copied to clipboard!", "success");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy Google Maps pin link"
+      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border transition-all ${
+        copied
+          ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+          : "bg-white text-[#05015A] border-gray-200 hover:border-[#05015A]/30 hover:bg-[#05015A]/5"
+      }`}
+    >
+      {copied ? <Check size={11} /> : <Copy size={11} />}
+      {copied ? "Copied!" : "Copy Pin"}
+    </button>
   );
 };
 
@@ -400,7 +452,6 @@ const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
     setEditing(false);
   }, [order.order_id, order.payment_status]);
 
-  // Construct options array in the format `{ value, label }` expected by StyledSelect
   const paymentStatusOptions = ALL_PAYMENT_STATUSES.map((status) => ({
     value: status,
     label: PAYMENT_STATUS_CONFIG[status]?.label || status,
@@ -470,7 +521,6 @@ const PaymentStatusBox = ({ order, onUpdated, onToast }) => {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Replaced standard HTML <select> with StyledSelect */}
           <div>
             <StyledSelect
               label="Payment Status"
@@ -672,8 +722,19 @@ const OrderDetailModal = ({ orderId, onClose, onStatusUpdated, onToast }) => {
 
           {order && activeTab === "overview" && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              {/* ── Shop & Branch ── */}
               <HorizontalCard>
-                <SectionTitle icon={Store} title="Shop & Branch" />
+                <SectionTitle
+                  icon={Store}
+                  title="Shop & Branch"
+                  action={
+                    <CopyLocationButton
+                      latitude={order.branch?.latitude}
+                      longitude={order.branch?.longitude}
+                      onToast={onToast}
+                    />
+                  }
+                />
                 <div>
                   <DetailRow label="Shop" value={order.shop?.business_name} />
                   <DetailRow
@@ -699,6 +760,7 @@ const OrderDetailModal = ({ orderId, onClose, onStatusUpdated, onToast }) => {
                 </div>
               </HorizontalCard>
 
+              {/* ── Customer ── */}
               <HorizontalCard>
                 <SectionTitle icon={User} title="Customer" />
                 <div>
@@ -716,8 +778,19 @@ const OrderDetailModal = ({ orderId, onClose, onStatusUpdated, onToast }) => {
                 </div>
               </HorizontalCard>
 
+              {/* ── Delivery Address ── */}
               <HorizontalCard>
-                <SectionTitle icon={MapPin} title="Delivery Address" />
+                <SectionTitle
+                  icon={MapPin}
+                  title="Delivery Address"
+                  action={
+                    <CopyLocationButton
+                      latitude={order.delivery_address?.latitude}
+                      longitude={order.delivery_address?.longitude}
+                      onToast={onToast}
+                    />
+                  }
+                />
                 <div className="text-xs text-gray-700 leading-relaxed space-y-1">
                   {order.delivery_address?.recipient_name && (
                     <p className="font-medium">

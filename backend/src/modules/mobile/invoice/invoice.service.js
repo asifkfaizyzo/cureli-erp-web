@@ -203,7 +203,17 @@ export async function getInvoiceDownloadUrl(
     throw new Error("Order not found");
   }
 
-  if (!order.invoice_pdf_key) {
+if (!order.invoice_pdf_key) {
+    // Check if a sales invoice exists — if so, PDF is still generating
+    const fullOrder = await prisma.marketplaceOrder.findUnique({
+      where: { order_id },
+      select: { sales_invoice_id: true },
+    });
+
+    if (fullOrder?.sales_invoice_id) {
+      return { url: null, pending: true, expires_in: 0 };
+    }
+
     throw new Error("Invoice not yet generated");
   }
 

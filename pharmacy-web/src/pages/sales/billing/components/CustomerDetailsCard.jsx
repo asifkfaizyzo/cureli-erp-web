@@ -307,7 +307,9 @@ const CustomerDetailsCard = ({
           <div className="col-span-2 flex items-center justify-start h-9 self-end mb-0.5 pl-1">
             <ToggleCheckbox
               checked={customer.showDiscountOnPrint !== false} // Defaults to true if missing
-              onChange={(checked) => updateField("showDiscountOnPrint", checked)}
+              onChange={(checked) =>
+                updateField("showDiscountOnPrint", checked)
+              }
               label="Print Discount"
               disabled={readOnly}
             />
