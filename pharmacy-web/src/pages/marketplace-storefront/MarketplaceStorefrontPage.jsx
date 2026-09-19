@@ -1,8 +1,8 @@
 // pharmacy-web/src/pages/marketplace-storefront/MarketplaceStorefrontPage.jsx
 
 import { useEffect, useState } from "react";
-import { AnimatePresence } from "framer-motion";
-import { Landmark, Edit3 } from "lucide-react"; // <-- Imported icons
+import { AnimatePresence, motion } from "framer-motion"; // ★ Imported motion
+import { Landmark, Edit3 } from "lucide-react";
 
 import { useStorefrontPage } from "../../hooks/marketplace/useStorefrontPage";
 import { usePermission } from "../../hooks/usePermission";
@@ -11,8 +11,8 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { PERMISSIONS } from "../../config/permissions";
 import EditBrandingModal from "./components/EditBrandingModal";
 import EditBranchModal from "./components/EditBranchModal";
-import EditBankingModal from "./components/EditBankingModal"; // <-- Imported new modal
-import { updateBankingDetails } from "../../api/marketplace"; // <-- Imported PATCH handler
+import EditBankingModal from "./components/EditBankingModal";
+import { updateBankingDetails } from "../../api/marketplace";
 
 // Layout components
 import PageSkeleton from "./components/PageSkeleton";
@@ -23,7 +23,15 @@ import StorefrontMetrics from "./components/StorefrontMetrics";
 import StorefrontIdentity from "./components/StorefrontIdentity";
 import BranchOperations from "./components/BranchOperations";
 
-// ─────────────────────────────────────────────────────────────────
+// ── Local animation variants matching AppLayout ───────────────────
+const localPageVariants = {
+  initial: { opacity: 0, x: 60 },
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.35, ease: "easeOut" },
+  },
+};
 
 const MarketplaceStorefrontPage = () => {
   const toast = useToast();
@@ -61,7 +69,7 @@ const MarketplaceStorefrontPage = () => {
 
   const [confirmDialog, setConfirmDialog] = useState({ open: false, type: null });
   const [brandingModalOpen, setBrandingModalOpen] = useState(false);
-  const [bankingModalOpen, setBankingModalOpen] = useState(false); // <-- Modal state added
+  const [bankingModalOpen, setBankingModalOpen] = useState(false);
   const [branchModal, setBranchModal]             = useState({ open: false, branch: null });
 
   useEffect(() => {
@@ -120,12 +128,11 @@ const MarketplaceStorefrontPage = () => {
     return result;
   };
 
-  // ── ADDED BANKING SAVE HANDLER ───────────────────────────────
   const handleBankingSave = async (data) => {
     try {
       await updateBankingDetails(data);
       toast.success("Banking updated", "Settlement details have been updated.");
-      await refresh(); // Force refresh parent payload to update read values
+      await refresh();
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || err.message || "Failed to update banking details";
@@ -133,8 +140,8 @@ const MarketplaceStorefrontPage = () => {
       return { success: false, error: message };
     }
   };
-  // ─────────────────────────────────────────────────────────────
 
+  // 1. Loading state (keeps skeleton safe from transition freezes)
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#010015]">
@@ -143,6 +150,7 @@ const MarketplaceStorefrontPage = () => {
     );
   }
 
+  // 2. Explicit error from API
   if (storefrontError || branchesError) {
     return (
       <div className="min-h-screen bg-[#010015]">
@@ -151,6 +159,7 @@ const MarketplaceStorefrontPage = () => {
     );
   }
 
+  // 3. Unexpected missing storefront data
   if (!storefront) {
     return (
       <div className="min-h-screen bg-[#010015]">
@@ -159,8 +168,14 @@ const MarketplaceStorefrontPage = () => {
     );
   }
 
+  // ★ Wrapped core container in motion.div to give it a local transition
   return (
-    <div className="min-h-screen bg-[#010015]">
+    <motion.div 
+      variants={localPageVariants}
+      initial="initial"
+      animate="animate"
+      className="min-h-screen bg-[#010015]"
+    >
       <div className="space-y-6">
         <AnimatePresence>
           {isSuspended && (
@@ -196,7 +211,7 @@ const MarketplaceStorefrontPage = () => {
           onEditBranding={() => setBrandingModalOpen(true)}
         />
 
-        {/* ── ADDED SETTLEMENT ACCOUNT CARD VIEW ─────────────────── */}
+        {/* ── SETTLEMENT ACCOUNT CARD ── */}
         {isSuperAdmin && (
           <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -262,7 +277,6 @@ const MarketplaceStorefrontPage = () => {
             </div>
           </div>
         )}
-        {/* ───────────────────────────────────────────────────────── */}
 
         <BranchOperations
           branches={branches}
@@ -282,7 +296,6 @@ const MarketplaceStorefrontPage = () => {
       </div>
 
       {/* ── Modals & Dialogs ── */}
-
       <ConfirmDialog
         isOpen={confirmDialog.open}
         onClose={() => setConfirmDialog({ open: false, type: null })}
@@ -313,14 +326,12 @@ const MarketplaceStorefrontPage = () => {
         uploadProgress={uploadProgress}
       />
 
-      {/* ── INJECTED BANKING MODAL RENDERING ────────────────────── */}
       <EditBankingModal
         isOpen={bankingModalOpen}
         onClose={() => setBankingModalOpen(false)}
-        banking={storefront} // storefront contains banking fields
+        banking={storefront}
         onSave={handleBankingSave}
       />
-      {/* ───────────────────────────────────────────────────────── */}
 
       <EditBranchModal
         isOpen={branchModal.open}
@@ -329,7 +340,7 @@ const MarketplaceStorefrontPage = () => {
         isSuperAdmin={isSuperAdmin}
         onSave={handleBranchSave}
       />
-    </div>
+    </motion.div>
   );
 };
 
