@@ -176,6 +176,70 @@ const CONFIG = {
       pincode: "682030",
     },
   ],
+
+  // ── NEW: Mobile App User (Asif) ──────────────────────────────────────────
+  mobileUser: {
+    phone: "9961045596",
+    email: "asifkfaiz@gmail.com",
+    password: "Qwerty@11",
+    full_name: "Asif Faizal",
+    date_of_birth: "1995-06-15",
+    sex: "MALE",
+    addresses: [
+      {
+        label: "Home",
+        recipient_name: "Asif Faizal",
+        recipient_phone: "9961045596",
+        address_line_1: "Flat 3B, Skyline Apartments",
+        address_line_2: "Marine Drive",
+        landmark: "Near GCDA Complex",
+        city: "Kochi",
+        state: "Kerala",
+        pincode: "682011",
+        latitude: 9.9716,
+        longitude: 76.2753,
+        is_default: true,
+      },
+      {
+        label: "Work",
+        recipient_name: "Asif Faizal",
+        recipient_phone: "9961045596",
+        address_line_1: "2nd Floor, TechPark Tower",
+        address_line_2: "Infopark Phase 1",
+        landmark: "Opposite Infopark Main Gate",
+        city: "Kochi",
+        state: "Kerala",
+        pincode: "682303",
+        latitude: 9.9173,
+        longitude: 76.3558,
+        is_default: false,
+      },
+    ],
+  },
+
+  // ── NEW: Rider (Asif — Independent, Fully Active) ────────────────────────
+  rider: {
+    phone: "9961045596",
+    email: "asifkfaiz@gmail.com",
+    password: "Qwerty@11",
+    full_name: "Asif Faizal",
+    date_of_birth: "1995-06-15",
+    sex: "MALE",
+    current_city: "Kochi",
+    residential_address: "Flat 3B, Skyline Apartments, Marine Drive, Kochi",
+    preferred_lat: 9.9716,
+    preferred_lng: 76.2753,
+    preferred_address: "Marine Drive, Kochi",
+    vehicle_type: "bike",
+    vehicle_number: "KL-07-AB-1234",
+    vehicle_make_model: "Honda Activa 6G",
+    bank_account_number: "1234567890123",
+    bank_ifsc: "SBIN0001234",
+    bank_holder_name: "Asif Faizal",
+    bank_name: "State Bank of India",
+    emergency_contact_name: "Faizal K",
+    emergency_contact_phone: "9876543210",
+  },
 };
 
 /* ════════════════════════════════════════════════════════
@@ -285,7 +349,34 @@ async function cleanup() {
   await prisma.cureliMobileAddress.deleteMany();
   await prisma.cureliMobileUser.deleteMany();
 
-  // ── Delivery pricing config — no FKs, safe to wipe anytime ──
+  // ── NEW: Fleet / Rider / Delivery cleanup ──────────────────────────────
+  await prisma.riderEarningLedger.deleteMany();
+  await prisma.riderPayout.deleteMany();
+  await prisma.riderRating.deleteMany();
+  await prisma.riderGivesRating.deleteMany();
+  await prisma.deliveryAssignmentLog.deleteMany();
+  await prisma.deliveryChat.deleteMany();
+  await prisma.delivery.deleteMany();
+  await prisma.incentiveSchedule.deleteMany();
+  await prisma.incentiveTier.deleteMany();
+  await prisma.incentiveTemplate.deleteMany();
+  await prisma.pricingDistanceSlab.deleteMany();
+  await prisma.riderPricingConfig.deleteMany();
+  await prisma.riderSurgeRule.deleteMany();
+  await prisma.riderSession.deleteMany();
+  await prisma.riderDocument.deleteMany();
+  await prisma.riderNotification.deleteMany();
+  await prisma.riderTicketReply.deleteMany();
+  await prisma.riderTicket.deleteMany();
+  await prisma.riderIncident.deleteMany();
+  await prisma.riderAppeal.deleteMany();
+  await prisma.zoneChangeRequest.deleteMany();
+  await prisma.riderTrainingContent.deleteMany();
+  await prisma.rider.deleteMany();
+  await prisma.deliveryZone.deleteMany();
+  // ────────────────────────────────────────────────────────────────────────
+
+  // Marketplace checkout pricing (kept separate from rider pricing)
   await prisma.deliveryPricingConfig.deleteMany();
 
   // ── CRITICAL ORDER ──────────────────────────────────────────
@@ -522,12 +613,7 @@ async function main() {
   console.log(`   ✅ Marketplace profile created (NOT_STARTED)\n`);
 
   /* ─────────────────────────────────────────
-     8. DELIVERY PRICING CONFIG
-     All fields have schema-level defaults so we pass nothing.
-     Only one config row should ever exist — this is the global
-     pricing config used by the checkout pricing engine.
-     The seed creates it fresh so the pricing engine always has
-     a valid row to read from without needing a manual DB insert.
+     8. DELIVERY PRICING CONFIG (Marketplace Checkout)
   ───────────────────────────────────────── */
   console.log("💰 Creating Delivery Pricing Config...");
 
@@ -717,6 +803,130 @@ async function main() {
   });
 
   /* ─────────────────────────────────────────
+     10. ── NEW: CURELI MOBILE USER (Asif) ──
+  ───────────────────────────────────────── */
+  console.log("📱 Creating Cureli Mobile User (Asif)...\n");
+
+  const mobileUser = await prisma.cureliMobileUser.create({
+    data: {
+      id: uuid(),
+      phone: CONFIG.mobileUser.phone,
+      phone_verified: true,
+      phone_verified_at: now,
+      password_hash: await bcrypt.hash(CONFIG.mobileUser.password, 10),
+      login_provider: "password",
+      email: CONFIG.mobileUser.email,
+      full_name: CONFIG.mobileUser.full_name,
+      date_of_birth: new Date(CONFIG.mobileUser.date_of_birth),
+      sex: CONFIG.mobileUser.sex,
+      profile_complete: true,
+      status: "active",
+      referral_code: "ASIF2026",
+      last_seen_at: now,
+    },
+  });
+
+  console.log(`   ✅ ${mobileUser.full_name} (${mobileUser.phone})`);
+
+  // Create addresses
+  for (const addr of CONFIG.mobileUser.addresses) {
+    await prisma.cureliMobileAddress.create({
+      data: {
+        id: uuid(),
+        user_id: mobileUser.id,
+        label: addr.label,
+        recipient_name: addr.recipient_name,
+        recipient_phone: addr.recipient_phone,
+        address_line_1: addr.address_line_1,
+        address_line_2: addr.address_line_2,
+        landmark: addr.landmark,
+        city: addr.city,
+        state: addr.state,
+        pincode: addr.pincode,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        is_default: addr.is_default,
+      },
+    });
+    console.log(`   ✅ Address: ${addr.label} — ${addr.address_line_1}`);
+  }
+
+  console.log();
+
+  /* ─────────────────────────────────────────
+     11. ── NEW: RIDER (Asif — Independent, ACTIVE) ──
+  ───────────────────────────────────────── */
+  console.log("🏍️  Creating Rider (Asif — Independent, Fully Active)...\n");
+
+  const rider = await prisma.rider.create({
+    data: {
+      rider_id: uuid(),
+      phone: CONFIG.rider.phone,
+      password_hash: await bcrypt.hash(CONFIG.rider.password, 10),
+      rider_type: "INDEPENDENT",
+
+      // Personal
+      full_name: CONFIG.rider.full_name,
+      email: CONFIG.rider.email,
+      date_of_birth: new Date(CONFIG.rider.date_of_birth),
+      sex: CONFIG.rider.sex,
+
+      // Location
+      current_city: CONFIG.rider.current_city,
+      residential_address: CONFIG.rider.residential_address,
+      preferred_lat: CONFIG.rider.preferred_lat,
+      preferred_lng: CONFIG.rider.preferred_lng,
+      preferred_address: CONFIG.rider.preferred_address,
+
+      // Vehicle
+      vehicle_type: CONFIG.rider.vehicle_type,
+      vehicle_number: CONFIG.rider.vehicle_number,
+      vehicle_make_model: CONFIG.rider.vehicle_make_model,
+
+      // Status — fully onboarded & active
+      status: "ACTIVE",
+      onboarding_step: "COMPLETED",
+      submitted_for_review: true,
+      first_submitted_at: now,
+
+      // Telemetry
+      is_online: false,
+
+      // Bank
+      bank_account_number: CONFIG.rider.bank_account_number,
+      bank_ifsc: CONFIG.rider.bank_ifsc,
+      bank_holder_name: CONFIG.rider.bank_holder_name,
+      bank_name: CONFIG.rider.bank_name,
+      bank_verified: true,
+
+      // Compliance
+      terms_accepted_at: now,
+
+      // Emergency
+      emergency_contact_name: CONFIG.rider.emergency_contact_name,
+      emergency_contact_phone: CONFIG.rider.emergency_contact_phone,
+
+      // Referral
+      referral_code: "RIDERASIF26",
+
+      // Ratings
+      rating: 4.5,
+      total_ratings: 12,
+      total_deliveries: 47,
+
+      last_seen_at: now,
+    },
+  });
+
+  console.log(`   ✅ ${rider.full_name} (${rider.phone})`);
+  console.log(`      Type: ${rider.rider_type} | Status: ${rider.status}`);
+  console.log(`      Vehicle: ${rider.vehicle_make_model} (${rider.vehicle_number})`);
+  console.log(`      City: ${rider.current_city} | Rating: ${rider.rating}⭐ (${rider.total_deliveries} deliveries)`);
+  console.log(`      Bank: ${rider.bank_name} — ${rider.bank_account_number}`);
+  console.log(`      ⚠️  Documents: NOT seeded (upload manually or provide files for seed)`);
+  console.log();
+
+  /* ─────────────────────────────────────────
      SUMMARY
   ───────────────────────────────────────── */
   console.log("═".repeat(60));
@@ -737,6 +947,12 @@ async function main() {
       `   Staff   │ ${b.staff.email.padEnd(20)} │ ${b.staff.password}`
     );
   }
+  console.log(
+    `   Mobile  │ ${CONFIG.mobileUser.phone.padEnd(20)} │ ${CONFIG.mobileUser.password}`
+  );
+  console.log(
+    `   Rider   │ ${CONFIG.rider.phone.padEnd(20)} │ ${CONFIG.rider.password}`
+  );
 
   console.log("\n📦 SEEDED:");
   console.log(`   1  Super CAdmin`);
@@ -755,6 +971,12 @@ async function main() {
   );
   console.log(`   ${CONFIG.customers.length}  Customers`);
   console.log(`   ${CONFIG.branches.length + 1}  Welcome Notifications`);
+  console.log(`   1  Cureli Mobile User (${CONFIG.mobileUser.full_name}) + ${CONFIG.mobileUser.addresses.length} addresses`);
+  console.log(`   1  Rider (${CONFIG.rider.full_name}, ${CONFIG.rider.rider_type}, ${rider.status})`);
+  console.log("\n⚠️  NOT SEEDED (requires separate scripts):");
+  console.log(`   • Master Medicine Catalog (run: node prisma/seeds/masterCatalog.seed.js --force)`);
+  console.log(`   • Marketplace Listings (requires master catalog + pharmacy inventory)`);
+  console.log(`   • Rider Documents (upload via rider app or provide files for seed)`);
   console.log("\n" + "═".repeat(60));
 }
 

@@ -1,6 +1,7 @@
-//backend\src\config\cadminPermissions.js
+// backend/src/config/cadminPermissions.js
 
 export const CADMIN_PERMISSIONS = {
+  // ── Admin Management ──────────────────────────────────────────
   ADMINS_VIEW: "admins.view",
   ADMINS_VIEW_DETAIL: "admins.view_detail",
   ADMINS_VIEW_ACTIVITY: "admins.view_activity",
@@ -8,6 +9,7 @@ export const CADMIN_PERMISSIONS = {
   ADMINS_EDIT: "admins.edit",
   ADMINS_TOGGLE_ACCESS: "admins.toggle_access",
 
+  // ── User Management ───────────────────────────────────────────
   USERS_VIEW: "users.view",
   USERS_VIEW_DETAIL: "users.view_detail",
   USERS_EDIT: "users.edit",
@@ -15,6 +17,7 @@ export const CADMIN_PERMISSIONS = {
   USERS_RESET_PASSWORD: "users.reset_password",
   USERS_DELETE: "users.delete",
 
+  // ── Shop Management ───────────────────────────────────────────
   SHOPS_VIEW: "shops.view",
   SHOPS_VIEW_DETAIL: "shops.view_detail",
   SHOPS_VIEW_STATS: "shops.view_stats",
@@ -23,6 +26,7 @@ export const CADMIN_PERMISSIONS = {
   SHOPS_UPDATE_SUBSCRIPTION: "shops.update_subscription",
   SHOPS_UPLOAD_DOCUMENTS: "shops.upload_documents",
 
+  // ── Plan Management ───────────────────────────────────────────
   PLANS_VIEW: "plans.view",
   PLANS_VIEW_DETAIL: "plans.view_detail",
   PLANS_VIEW_STATS: "plans.view_stats",
@@ -34,6 +38,7 @@ export const CADMIN_PERMISSIONS = {
   PLANS_CLONE: "plans.clone",
   PLANS_DELETE: "plans.delete",
 
+  // ── Subscription Management ───────────────────────────────────
   SUBSCRIPTIONS_VIEW_AT_RISK: "subscriptions.view_at_risk",
   SUBSCRIPTIONS_VIEW_DETAIL: "subscriptions.view_detail",
   SUBSCRIPTIONS_SEND_REMINDER: "subscriptions.send_reminder",
@@ -41,19 +46,29 @@ export const CADMIN_PERMISSIONS = {
   SUBSCRIPTIONS_FORCE_SUSPEND: "subscriptions.force_suspend",
   SUBSCRIPTIONS_REACTIVATE: "subscriptions.reactivate",
 
+  // ── Tickets (Shop / ERP) ──────────────────────────────────────
   TICKETS_VIEW: "tickets.view",
   TICKETS_VIEW_DETAIL: "tickets.view_detail",
   TICKETS_VIEW_STATS: "tickets.view_stats",
   TICKETS_VIEW_HISTORY: "tickets.view_history",
   TICKETS_UPDATE_STATUS: "tickets.update_status",
 
+  // ── Customer Support Tickets (Mobile) ─────────────────────────
+  CUSTOMER_TICKETS_VIEW: "customer_tickets.view",
+  CUSTOMER_TICKETS_VIEW_DETAIL: "customer_tickets.view_detail",
+  CUSTOMER_TICKETS_UPDATE_STATUS: "customer_tickets.update_status",
+  CUSTOMER_TICKETS_REPLY: "customer_tickets.reply",
+
+  // ── Master Medicines ──────────────────────────────────────────
   MASTER_MEDICINES_VIEW: "master_medicines.view",
   MASTER_MEDICINES_CREATE: "master_medicines.create",
   MASTER_MEDICINES_MANAGE_MAPPING: "master_medicines.manage_mapping",
   MASTER_MEDICINES_MANAGE_IMAGES: "master_medicines.manage_images",
 
+  // ── Dashboard ─────────────────────────────────────────────────
   DASHBOARD_VIEW: "dashboard.view",
 
+  // ── Document Verification ─────────────────────────────────────
   DOCUMENTS_VIEW: "documents.view",
   DOCUMENTS_VIEW_SHOP_DETAIL: "documents.view_shop_detail",
   DOCUMENTS_VIEW_FILE: "documents.view_file",
@@ -61,11 +76,13 @@ export const CADMIN_PERMISSIONS = {
   DOCUMENTS_REJECT: "documents.reject",
   DOCUMENTS_BATCH_UPDATE: "documents.batch_update",
 
+  // ── Audit Logs ────────────────────────────────────────────────
   AUDIT_VIEW: "audit.view",
   AUDIT_VIEW_DETAIL: "audit.view_detail",
   AUDIT_VIEW_STATS: "audit.view_stats",
   AUDIT_EXPORT: "audit.export",
 
+  // ── Enquiries ─────────────────────────────────────────────────
   ENQUIRIES_VIEW: "enquiries.view",
   ENQUIRIES_VIEW_STATS: "enquiries.view_stats",
   ENQUIRIES_VIEW_DETAIL: "enquiries.view_detail",
@@ -73,6 +90,7 @@ export const CADMIN_PERMISSIONS = {
   ENQUIRIES_UPDATE_STATUS: "enquiries.update_status",
   ENQUIRIES_DELETE: "enquiries.delete",
 
+  // ── Broadcast — In-App ────────────────────────────────────────
   BROADCAST_INAPP_SEND: "broadcast_inapp.send",
   BROADCAST_INAPP_UPLOAD: "broadcast_inapp.upload",
   BROADCAST_INAPP_MANAGE_DRAFTS: "broadcast_inapp.manage_drafts",
@@ -81,8 +99,7 @@ export const CADMIN_PERMISSIONS = {
   BROADCAST_INAPP_MANAGE_SEGMENTS: "broadcast_inapp.manage_segments",
   BROADCAST_INAPP_MANAGE_TEMPLATES: "broadcast_inapp.manage_templates",
 
-  BROADCAST_MOBILE_SEND: "broadcast_mobile.send",
-
+  // ── Broadcast — Email ─────────────────────────────────────────
   BROADCAST_EMAIL_SEND: "broadcast_email.send",
   BROADCAST_EMAIL_UPLOAD: "broadcast_email.upload",
   BROADCAST_EMAIL_MANAGE_DRAFTS: "broadcast_email.manage_drafts",
@@ -90,26 +107,54 @@ export const CADMIN_PERMISSIONS = {
   BROADCAST_EMAIL_VIEW_HISTORY: "broadcast_email.view_history",
   BROADCAST_EMAIL_MANAGE_UNSUBSCRIBES: "broadcast_email.manage_unsubscribes",
 
+  // ── Broadcast — Mobile ────────────────────────────────────────
+  BROADCAST_MOBILE_SEND: "broadcast_mobile.send",
+  BROADCAST_MOBILE_VIEW_HISTORY: "broadcast_mobile.view_history",
+  BROADCAST_MOBILE_MANAGE_DRAFTS: "broadcast_mobile.manage_drafts",
+  BROADCAST_MOBILE_SCHEDULE: "broadcast_mobile.schedule",
+
+  // ── Settings ──────────────────────────────────────────────────
   SETTINGS_VIEW: "settings.view",
   SETTINGS_EDIT_IDENTITY: "settings.edit_identity",
   SETTINGS_EDIT_CONTACT: "settings.edit_contact",
   SETTINGS_EDIT_PASSWORD: "settings.edit_password",
 
+  // ── App Config ────────────────────────────────────────────────
   APP_CONFIG_VIEW: "app_config.view",
   APP_CONFIG_MANAGE_CATEGORY_IMAGES: "app_config.manage_category_images",
   APP_CONFIG_MANAGE_LAYOUT: "app_config.manage_layout",
   APP_CONFIG_MANAGE_LOYALTY: "app_config.manage_loyalty",
 
+  // ── Coupons & Promotions ──────────────────────────────────────
   COUPONS_VIEW: "coupons.view",
   COUPONS_CREATE: "coupons.create",
   COUPONS_EDIT: "coupons.edit",
   COUPONS_TOGGLE_ACTIVE: "coupons.toggle_active",
   COUPONS_DELETE: "coupons.delete",
 
-  CUSTOMER_TICKETS_VIEW: "customer_tickets.view",
-  CUSTOMER_TICKETS_VIEW_DETAIL: "customer_tickets.view_detail",
-  CUSTOMER_TICKETS_UPDATE_STATUS: "customer_tickets.update_status",
-  CUSTOMER_TICKETS_REPLY: "customer_tickets.reply",
+  // ── Fleet — Riders ────────────────────────────────────────────
+  FLEET_RIDERS_VIEW: "fleet.riders_view",
+  FLEET_RIDERS_VIEW_DETAIL: "fleet.riders_view_detail",
+  FLEET_RIDERS_CREATE_TEAM: "fleet.riders_create_team",
+  FLEET_RIDERS_SUSPEND: "fleet.riders_suspend",
+  FLEET_RIDERS_REACTIVATE: "fleet.riders_reactivate",
+  FLEET_RIDERS_BLOCK: "fleet.riders_block",
+
+  // ── Fleet — Verification ──────────────────────────────────────
+  FLEET_VERIFICATION_VIEW: "fleet.verification_view",
+  FLEET_VERIFICATION_APPROVE: "fleet.verification_approve",
+  FLEET_VERIFICATION_REJECT: "fleet.verification_reject",
+
+  // ── Fleet — Dashboard & Communications ────────────────────────
+  FLEET_DASHBOARD_VIEW: "fleet.dashboard_view",
+  FLEET_COMMUNICATIONS_VIEW: "fleet.communications_view",
+
+  // ── Fleet — Pricing & Incentives ──────────────────────────────
+  FLEET_PRICING_VIEW: "fleet_pricing.view",
+  FLEET_PRICING_MANAGE_BASE: "fleet_pricing.manage_base",
+  FLEET_PRICING_MANAGE_SURGE: "fleet_pricing.manage_surge",
+  FLEET_INCENTIVES_VIEW: "fleet_incentives.view",
+  FLEET_INCENTIVES_MANAGE: "fleet_incentives.manage",
 };
 
 export const CADMIN_PERMISSION_GROUPS = [
@@ -139,8 +184,8 @@ export const CADMIN_PERMISSION_GROUPS = [
       },
       {
         key: CADMIN_PERMISSIONS.ADMINS_EDIT,
-        label: "Edit Admin",
-        description: "Update admin profile and role assignments",
+        label: "Edit Admin & Roles",
+        description: "Update admin profile and manage role assignments",
       },
       {
         key: CADMIN_PERMISSIONS.ADMINS_TOGGLE_ACCESS,
@@ -175,39 +220,14 @@ export const CADMIN_PERMISSION_GROUPS = [
       },
       {
         key: CADMIN_PERMISSIONS.USERS_RESET_PASSWORD,
-        label: "Reset Password",
+        label: "Reset User Password",
         description: "Send password reset link to user",
       },
       {
         key: CADMIN_PERMISSIONS.USERS_DELETE,
         label: "Delete User",
-        description: "Permanently anonymise a user account. Frees email/username for reuse. Cannot be undone.",
-      },
-    ],
-  },
-    {
-    module: "Customer Support Tickets",
-    key: "customer_tickets",
-    permissions: [
-      {
-        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW,
-        label: "View Customer Tickets",
-        description: "List all support tickets submitted by mobile customers",
-      },
-      {
-        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW_DETAIL,
-        label: "View Customer Ticket Detail",
-        description: "Open customer ticket details, order context, and conversation timeline",
-      },
-      {
-        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_UPDATE_STATUS,
-        label: "Update Customer Ticket Status",
-        description: "Change status (In Progress, Resolved, Closed)",
-      },
-      {
-        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_REPLY,
-        label: "Reply to Customer Ticket",
-        description: "Send customer-facing responses and add internal notes",
+        description:
+          "Permanently anonymise a user account. Frees email/username for reuse. Cannot be undone.",
       },
     ],
   },
@@ -376,13 +396,41 @@ export const CADMIN_PERMISSION_GROUPS = [
     ],
   },
   {
+    module: "Customer Support Tickets",
+    key: "customer_tickets",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW,
+        label: "View Customer Tickets",
+        description: "List all support tickets submitted by mobile customers",
+      },
+      {
+        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_VIEW_DETAIL,
+        label: "View Customer Ticket Detail",
+        description:
+          "Open customer ticket details, order context, and conversation timeline",
+      },
+      {
+        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_UPDATE_STATUS,
+        label: "Update Customer Ticket Status",
+        description: "Change status (In Progress, Resolved, Closed)",
+      },
+      {
+        key: CADMIN_PERMISSIONS.CUSTOMER_TICKETS_REPLY,
+        label: "Reply to Customer Ticket",
+        description: "Send customer-facing responses and add internal notes",
+      },
+    ],
+  },
+  {
     module: "Master Medicines",
     key: "master_medicines",
     permissions: [
       {
         key: CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW,
         label: "View Catalog",
-        description: "Browse master medicine catalog, variants, and linked medicines",
+        description:
+          "Browse master medicine catalog, variants, and linked medicines",
       },
       {
         key: CADMIN_PERMISSIONS.MASTER_MEDICINES_CREATE,
@@ -392,7 +440,8 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.MASTER_MEDICINES_MANAGE_MAPPING,
         label: "Manage Mapping",
-        description: "Accept, reject, match, ignore, and unlink medicine mappings",
+        description:
+          "Accept, reject, match, ignore, and unlink medicine mappings",
       },
       {
         key: CADMIN_PERMISSIONS.MASTER_MEDICINES_MANAGE_IMAGES,
@@ -408,7 +457,8 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.DASHBOARD_VIEW,
         label: "View Dashboard",
-        description: "Access platform overview, KPIs, charts, and activity feed",
+        description:
+          "Access platform overview, KPIs, charts, and activity feed",
       },
     ],
   },
@@ -511,54 +561,20 @@ export const CADMIN_PERMISSION_GROUPS = [
     ],
   },
   {
-    module: "Broadcast — Email",
-    key: "broadcast_email",
-    permissions: [
-      {
-        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_SEND,
-        label: "Send Email Broadcast",
-        description: "Preview recipient count, check sending quota, send immediately, and send test emails",
-      },
-      {
-        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_UPLOAD,
-        label: "Upload Email Attachments",
-        description: "Upload and delete inline images and file attachments for email campaigns",
-      },
-      {
-        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_MANAGE_DRAFTS,
-        label: "Manage Email Drafts",
-        description: "Create, view, update, and delete email campaign drafts",
-      },
-      {
-        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_SCHEDULE,
-        label: "Schedule Email Campaigns",
-        description: "Schedule campaigns for future delivery, view scheduled list, and cancel pending campaigns",
-      },
-      {
-        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_VIEW_HISTORY,
-        label: "View Email History",
-        description: "Browse sent campaign history and open individual campaign details",
-      },
-      {
-        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_MANAGE_UNSUBSCRIBES,
-        label: "Manage Unsubscribe List",
-        description: "View, export, add, bulk-add, and remove entries from the email suppression list",
-      },
-    ],
-  },
-  {
     module: "Broadcast — In-App",
     key: "broadcast_inapp",
     permissions: [
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_SEND,
         label: "Send In-App Broadcast",
-        description: "Preview recipient count and send in-app notifications immediately",
+        description:
+          "Preview recipient count and send in-app notifications immediately",
       },
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_UPLOAD,
         label: "Upload Broadcast Attachments",
-        description: "Upload and delete attachments for in-app broadcast messages",
+        description:
+          "Upload and delete attachments for in-app broadcast messages",
       },
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_MANAGE_DRAFTS,
@@ -568,22 +584,67 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_SCHEDULE,
         label: "Schedule In-App Broadcasts",
-        description: "Schedule broadcasts for future delivery, view scheduled list, and cancel pending broadcasts",
+        description:
+          "Schedule broadcasts for future delivery, view scheduled list, and cancel pending broadcasts",
       },
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_VIEW_HISTORY,
         label: "View In-App Broadcast History",
-        description: "Browse sent broadcast history and open individual broadcast details",
+        description:
+          "Browse sent broadcast history and open individual broadcast details",
       },
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_MANAGE_SEGMENTS,
         label: "Manage Audience Segments",
-        description: "Create, view, and delete saved audience segments for targeting",
+        description:
+          "Create, view, and delete saved audience segments for targeting",
       },
       {
         key: CADMIN_PERMISSIONS.BROADCAST_INAPP_MANAGE_TEMPLATES,
         label: "Manage Broadcast Templates",
-        description: "Create, view, and apply reusable in-app broadcast message templates",
+        description:
+          "Create, view, and apply reusable in-app broadcast message templates",
+      },
+    ],
+  },
+  {
+    module: "Broadcast — Email",
+    key: "broadcast_email",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_SEND,
+        label: "Send Email Broadcast",
+        description:
+          "Preview recipient count, check sending quota, send immediately, and send test emails",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_UPLOAD,
+        label: "Upload Email Attachments",
+        description:
+          "Upload and delete inline images and file attachments for email campaigns",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_MANAGE_DRAFTS,
+        label: "Manage Email Drafts",
+        description: "Create, view, update, and delete email campaign drafts",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_SCHEDULE,
+        label: "Schedule Email Campaigns",
+        description:
+          "Schedule campaigns for future delivery, view scheduled list, and cancel pending campaigns",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_VIEW_HISTORY,
+        label: "View Email History",
+        description:
+          "Browse sent campaign history and open individual campaign details",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_EMAIL_MANAGE_UNSUBSCRIBES,
+        label: "Manage Unsubscribe List",
+        description:
+          "View, export, add, bulk-add, and remove entries from the email suppression list",
       },
     ],
   },
@@ -594,7 +655,25 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.BROADCAST_MOBILE_SEND,
         label: "Send Mobile Broadcast",
-        description: "Preview recipient count, check sending limits, and dispatch mobile/SMS broadcasts immediately",
+        description:
+          "Preview recipient count, check sending limits, and dispatch mobile/SMS broadcasts immediately",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_MOBILE_VIEW_HISTORY,
+        label: "View Mobile Broadcast History",
+        description:
+          "Browse sent mobile broadcast history and open individual broadcast details",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_MOBILE_MANAGE_DRAFTS,
+        label: "Manage Mobile Drafts",
+        description: "Create, view, update, and delete mobile broadcast drafts",
+      },
+      {
+        key: CADMIN_PERMISSIONS.BROADCAST_MOBILE_SCHEDULE,
+        label: "Schedule Mobile Broadcasts",
+        description:
+          "Schedule mobile broadcasts for future delivery and cancel pending ones",
       },
     ],
   },
@@ -610,7 +689,8 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.APP_CONFIG_MANAGE_CATEGORY_IMAGES,
         label: "Manage Category Images",
-        description: "Upload, replace, and remove category images shown in the mobile app",
+        description:
+          "Upload, replace, and remove category images shown in the mobile app",
       },
       {
         key: CADMIN_PERMISSIONS.APP_CONFIG_MANAGE_LAYOUT,
@@ -620,7 +700,8 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.APP_CONFIG_MANAGE_LOYALTY,
         label: "Manage Loyalty Program",
-        description: "Configure point earning rates, redemption values, minimums, and expiry rules",
+        description:
+          "Configure point earning rates, redemption values, minimums, and expiry rules",
       },
     ],
   },
@@ -631,7 +712,8 @@ export const CADMIN_PERMISSION_GROUPS = [
       {
         key: CADMIN_PERMISSIONS.COUPONS_VIEW,
         label: "View Coupons",
-        description: "List all promotional discount codes and view usage metrics",
+        description:
+          "List all promotional discount codes and view usage metrics",
       },
       {
         key: CADMIN_PERMISSIONS.COUPONS_CREATE,
@@ -652,6 +734,101 @@ export const CADMIN_PERMISSION_GROUPS = [
         key: CADMIN_PERMISSIONS.COUPONS_DELETE,
         label: "Delete Coupon",
         description: "Deactivate and archive coupons",
+      },
+    ],
+  },
+  {
+    module: "Fleet Management",
+    key: "fleet",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDERS_VIEW,
+        label: "View Riders",
+        description: "List all delivery partners",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDERS_VIEW_DETAIL,
+        label: "View Rider Detail",
+        description: "Open rider profiles and documents",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDERS_CREATE_TEAM,
+        label: "Create Team Rider",
+        description: "Onboard team riders directly",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDERS_SUSPEND,
+        label: "Suspend Rider",
+        description: "Temporarily disable a rider",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDERS_REACTIVATE,
+        label: "Reactivate Rider",
+        description: "Re-enable a suspended rider",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDERS_BLOCK,
+        label: "Block Rider",
+        description: "Permanently block a rider",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_VERIFICATION_VIEW,
+        label: "View Verification Queue",
+        description: "See riders pending document review",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_VERIFICATION_APPROVE,
+        label: "Approve Documents",
+        description: "Approve rider documents and applications",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_VERIFICATION_REJECT,
+        label: "Reject Documents",
+        description: "Reject rider documents with reason",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_DASHBOARD_VIEW,
+        label: "View Fleet Dashboard",
+        description: "Access fleet KPIs and stats",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_COMMUNICATIONS_VIEW,
+        label: "View Fleet Communications",
+        description: "Manage rider tickets and broadcasts",
+      },
+    ],
+  },
+  {
+    module: "Fleet Pricing & Incentives",
+    key: "fleet_pricing",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.FLEET_PRICING_VIEW,
+        label: "View Fleet Pricing",
+        description: "View active base pay, distance slabs, and surge settings",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_PRICING_MANAGE_BASE,
+        label: "Manage Base Pay & Slabs",
+        description:
+          "Create, schedule, and update delivery base pay and distance slabs",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_PRICING_MANAGE_SURGE,
+        label: "Manage Surge Rules",
+        description:
+          "Create and toggle manual rain, festival, or peak surge multipliers",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_INCENTIVES_VIEW,
+        label: "View Incentives",
+        description: "View incentive templates, quests, and calendar schedules",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_INCENTIVES_MANAGE,
+        label: "Manage Incentives",
+        description:
+          "Create incentive templates, configure tiers, and assign to calendar",
       },
     ],
   },

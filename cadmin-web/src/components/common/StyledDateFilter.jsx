@@ -309,13 +309,24 @@ const StyledDateFilter = ({ label, date, setDate }) => {
 
         {/* Right side: Clear Button or Chevron */}
         {isActive ? (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="flex-shrink-0 p-0.5 rounded-full hover:bg-indigo-200 text-indigo-500 transition-colors"
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClear(e);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClear(e);
+              }
+            }}
+            className="flex-shrink-0 p-0.5 rounded-full hover:bg-indigo-200 text-indigo-500 transition-colors cursor-pointer inline-flex items-center justify-center"
           >
             <X size={14} strokeWidth={2.5} />
-          </button>
+          </span>
         ) : (
           <ChevronDown
             size={16}

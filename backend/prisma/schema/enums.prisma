@@ -444,3 +444,38 @@ enum RiderType {
   INDEPENDENT
   TEAM
 }
+
+// ── Fleet Pricing & Incentives Enums ─────────────────────────────────────────
+
+enum IncentiveMetricType {
+  ORDER_COUNT       
+  BASE_EARNINGS     
+}
+
+enum IncentivePeriodType {
+  DAILY             
+  WEEKLY            
+  CUSTOM_PERIOD     
+}
+
+enum SurgeCalculationType {
+  MULTIPLIER        
+  FLAT_ADDITION    
+}
+
+enum DistanceLegType {
+  LEG_1_PICKUP      
+  LEG_2_DROP        
+}
+
+enum SlabRateType {
+  FLAT_FIXED        
+  PER_KM           
+}
+
+enum PricingConfigStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  ARCHIVED
+}

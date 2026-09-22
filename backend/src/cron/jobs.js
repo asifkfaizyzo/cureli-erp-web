@@ -1,3 +1,4 @@
+//backend\src\cron\jobs.js
 import cron from "node-cron";
 import prisma from "../config/prisma.js";
 import { withCronLock, getInstanceId } from "./cronLock.js";
@@ -5,6 +6,7 @@ import { transitionDeprecatedPlans } from "../modules/cadmin/plans/cadminPlans.s
 import { cleanupExpiredSessions } from "../utils/session.js";
 import { deleteFile } from "../services/fileStorage.service.js";
 import { processExpiredLoyaltyPoints } from "./loyaltyExpiryWorker.js";
+import { runBirthdayPushJob } from "./birthdayPushWorker.js";
 
 import {
   cleanupOldPendingUsers,
@@ -37,6 +39,10 @@ import {
   expireStaleRequests,
   cleanupExpiredRequestFiles,
 } from "../modules/prescription-requests/prescription.requests.service.js";
+
+// Import Fleet Incentives and Pricing services for daily evaluations
+import { evaluateDailyIncentivesForShift } from "../modules/cadmin/fleet-incentives/incentiveEngine.service.js";
+import { checkAndActivateScheduledConfigs } from "../modules/cadmin/fleet-pricing/fleetPricing.service.js";
 
 async function processScheduledBroadcasts() {
   cronLogger.info("Checking for scheduled broadcasts...");
@@ -557,6 +563,36 @@ function initializeLoyaltyPointsExpiryJob() {
   cronLogger.info("Loyalty points expiry job scheduled (daily at 2:00 AM IST)");
 }
 
+async function runShiftEvaluation() {
+  cronLogger.info("Starting daily rider incentive shift evaluation...");
+  try {
+    // Yesterday's date (whose shift closed at 06:00 AM today)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    await evaluateDailyIncentivesForShift(yesterday);
+    await checkAndActivateScheduledConfigs();
+
+    cronLogger.success("Daily rider incentive shift evaluation and configuration activation completed.");
+  } catch (err) {
+    cronLogger.error("Daily rider incentive evaluation failed", err);
+  }
+}
+
+function initializeShiftEvaluationJob() {
+  cron.schedule("5 6 * * *", () =>
+    withCronLock("shift-evaluation", 60, runShiftEvaluation),
+  );
+  cronLogger.info("Shift evaluation job scheduled (daily at 6:05 AM)");
+}
+function initializeBirthdayPushJob() {
+  // 11:00 AM IST = 05:30 UTC
+  cron.schedule("30 5 * * *", () =>
+    withCronLock("birthday-push", 30, runBirthdayPushJob),
+  );
+  cronLogger.info("Birthday push job scheduled (daily at 11:00 AM IST)");
+}
+
 export function initializeCronJobs() {
   cronLogger.info("Initializing cron jobs...");
   cronLogger.info(`Instance ID: ${getInstanceId()}`);
@@ -587,6 +623,8 @@ export function initializeCronJobs() {
   initializePrescriptionQuoteExpiryJob();
   initializePrescriptionRequestCleanupJob();
   initializeLoyaltyPointsExpiryJob();
+  initializeShiftEvaluationJob();
+  initializeBirthdayPushJob();
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -643,6 +681,7 @@ export function initializeCronJobs() {
     }),
   );
 
+  
   cronLogger.info("All cron jobs initialized:");
   cronLogger.info("  - Session cleanup: Every hour");
   cronLogger.info("  - Plan transition: Daily at 2:00 AM");
@@ -662,4 +701,6 @@ export function initializeCronJobs() {
   cronLogger.info("  - Prescription quote expiry: Every 5 minutes");
   cronLogger.info("  - Prescription request cleanup: Daily at 02:00 IST");
   cronLogger.info("  - Loyalty points expiry: Daily at 2:00 AM IST");
+  cronLogger.info("  - Shift evaluation: Daily at 6:05 AM");
+  cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
 }

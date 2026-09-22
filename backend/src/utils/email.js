@@ -35,14 +35,20 @@ export const mailer = nodemailer.createTransport({
 /**
  * Simple one-shot send helper (used by system transactional emails).
  * Broadcast emails use mailer.sendMail() directly from the service.
+ *
+ * @param {string} to
+ * @param {string} subject
+ * @param {string} html
+ * @param {Array} [attachments=[]] - Optional nodemailer attachments array
  */
-export async function sendMail(to, subject, html) {
+export async function sendMail(to, subject, html, attachments = []) {
   await mailer.sendMail({
     from:    `"${process.env.EMAIL_FROM_NAME    || 'Cureli Health'}" <${process.env.EMAIL_FROM_ADDRESS || 'info@curelihealth.com'}>`,
     replyTo: process.env.EMAIL_REPLY_TO || 'support@curelihealth.com',
     to,
     subject,
     html,
+    attachments,
   });
 }
 

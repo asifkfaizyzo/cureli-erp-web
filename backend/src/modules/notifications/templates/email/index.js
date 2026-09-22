@@ -1,7 +1,4 @@
 // backend/src/modules/notifications/templates/email/index.js
-// ============================================
-// EMAIL TEMPLATES INDEX - DARK MODE COMPATIBLE
-// ============================================
 
 import { shopVerifiedTemplate } from "./shopVerified.js";
 import { documentRejectedTemplate } from "./documentRejected.js";
@@ -29,6 +26,8 @@ import { passwordChangedTemplate } from "./passwordChanged.js";
 import { phoneChangedTemplate } from "./phoneChanged.js";
 import { NOTIFICATION_EVENTS } from "../../notification.events.js";
 export { returnApprovalToSupplier } from "./returnApprovalToSupplier.js";
+import { marketplaceOrderBilledTemplate } from "./marketplaceOrderBilled.js";
+import { mobileWelcomeTemplate } from "./mobileWelcome.js";
 
 export const EMAIL_TEMPLATES = {
   // Account Security
@@ -37,42 +36,54 @@ export const EMAIL_TEMPLATES = {
   [NOTIFICATION_EVENTS.EMAIL_CHANGED]: emailChangedTemplate,
   [NOTIFICATION_EVENTS.PASSWORD_CHANGED]: passwordChangedTemplate,
   [NOTIFICATION_EVENTS.PHONE_CHANGED]: phoneChangedTemplate,
-  
+
   // Shop Verification
   [NOTIFICATION_EVENTS.SHOP_VERIFIED]: shopVerifiedTemplate,
   [NOTIFICATION_EVENTS.DOCUMENT_REJECTED]: documentRejectedTemplate,
   [NOTIFICATION_EVENTS.DOCUMENT_PARTIALLY_REJECTED]: documentRejectedTemplate,
-  
+
   // Tickets
   [NOTIFICATION_EVENTS.TICKET_CREATED]: ticketCreatedTemplate,
   [NOTIFICATION_EVENTS.TICKET_STATUS_CHANGED]: ticketStatusChangedTemplate,
-  
+
   // Password Reset
   [NOTIFICATION_EVENTS.PASSWORD_RESET_REQUESTED]: passwordResetTemplate,
-  [NOTIFICATION_EVENTS.CADMIN_PASSWORD_RESET_REQUESTED]: cadminPasswordResetTemplate,
-  
+  [NOTIFICATION_EVENTS.CADMIN_PASSWORD_RESET_REQUESTED]:
+    cadminPasswordResetTemplate,
+
   // Subscriptions
   [NOTIFICATION_EVENTS.SUBSCRIPTION_ACTIVATED]: subscriptionActivatedTemplate,
-  [NOTIFICATION_EVENTS.SUBSCRIPTION_EXPIRING_7_DAYS]: subscriptionExpiringTemplate,
-  [NOTIFICATION_EVENTS.SUBSCRIPTION_EXPIRING_3_DAYS]: subscriptionExpiringTemplate,
+  [NOTIFICATION_EVENTS.SUBSCRIPTION_EXPIRING_7_DAYS]:
+    subscriptionExpiringTemplate,
+  [NOTIFICATION_EVENTS.SUBSCRIPTION_EXPIRING_3_DAYS]:
+    subscriptionExpiringTemplate,
   [NOTIFICATION_EVENTS.SUBSCRIPTION_EXPIRED]: subscriptionExpiringTemplate,
-  [NOTIFICATION_EVENTS.SUBSCRIPTION_GRACE_STARTED]: subscriptionGraceStartedTemplate,
-  [NOTIFICATION_EVENTS.SUBSCRIPTION_GRACE_ENDING]: subscriptionGraceEndingTemplate,
-  [NOTIFICATION_EVENTS.SUBSCRIPTION_GRACE_EXTENDED]: subscriptionGraceExtendedTemplate,
+  [NOTIFICATION_EVENTS.SUBSCRIPTION_GRACE_STARTED]:
+    subscriptionGraceStartedTemplate,
+  [NOTIFICATION_EVENTS.SUBSCRIPTION_GRACE_ENDING]:
+    subscriptionGraceEndingTemplate,
+  [NOTIFICATION_EVENTS.SUBSCRIPTION_GRACE_EXTENDED]:
+    subscriptionGraceExtendedTemplate,
   [NOTIFICATION_EVENTS.SUBSCRIPTION_SUSPENDED]: subscriptionSuspendedTemplate,
   [NOTIFICATION_EVENTS.SUBSCRIPTION_RENEWED]: subscriptionRenewedTemplate,
-  [NOTIFICATION_EVENTS.SUBSCRIPTION_PAYMENT_REMINDER]: subscriptionPaymentReminderTemplate,
-  
+  [NOTIFICATION_EVENTS.SUBSCRIPTION_PAYMENT_REMINDER]:
+    subscriptionPaymentReminderTemplate,
+
   // Payments
   [NOTIFICATION_EVENTS.PAYMENT_SUCCESS]: paymentSuccessTemplate,
   [NOTIFICATION_EVENTS.PAYMENT_FAILED]: paymentFailedTemplate,
-  
+
   // Broadcast
   [NOTIFICATION_EVENTS.SYSTEM_BROADCAST]: systemBroadcastTemplate,
-  
+
   // Enquiries
   [NOTIFICATION_EVENTS.ENQUIRY_RECEIVED]: enquiryReceivedTemplate,
   [NOTIFICATION_EVENTS.ENQUIRY_REPLIED]: enquiryRepliedTemplate,
+
+  // Registered Marketplace Order Billed Template
+  [NOTIFICATION_EVENTS.MARKETPLACE_ORDER_BILLED]:
+    marketplaceOrderBilledTemplate,
+  [NOTIFICATION_EVENTS.MOBILE_USER_WELCOME]: mobileWelcomeTemplate,
 };
 
 export function getEmailTemplate(eventType) {

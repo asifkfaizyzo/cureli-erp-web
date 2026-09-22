@@ -55,6 +55,8 @@ import RidersPage from "./pages/Fleet/Riders/RidersPage";
 import RiderVerificationPage from "./pages/Fleet/Verification/RiderVerificationPage";
 import FleetCommunicationsPage from "./pages/Fleet/Communications/FleetCommunicationsPage";
 import FleetPricingPage from "./pages/Fleet/Pricing/FleetPricingPage";
+import BasePayPage from "./pages/Fleet/Pricing/BasePayPage";
+import IncentivesPage from "./pages/Fleet/Pricing/IncentivesPage";
 
 import AppLayout from "./components/layout/AppLayout";
 import { AuthProvider } from "./context/AuthContext";
@@ -469,7 +471,38 @@ function App() {
             path="/fleet/communications"
             element={<FleetCommunicationsPage />}
           />
-          <Route path="/fleet/pricing" element={<FleetPricingPage />} />
+
+          {/* ── Fleet Pricing & Incentives ───────────────────────────────── */}
+          <Route
+            path="/fleet/pricing"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.FLEET_PRICING_VIEW}
+              >
+                <FleetPricingPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/fleet/pricing/base-pay"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.FLEET_PRICING_VIEW}
+              >
+                <BasePayPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/fleet/pricing/incentives"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.FLEET_INCENTIVES_VIEW}
+              >
+                <IncentivesPage />
+              </PermissionGuard>
+            }
+          />
         </Route>
 
         {/* ── Catch-all ───────────────────────────────────────────────── */}

@@ -633,6 +633,7 @@ async function _completeVerification(user, deviceInfo, requestMeta) {
     refreshToken: refreshTokenPlain,
     expiresIn:    ACCESS_TOKEN_EXPIRY_SECONDS,
     isNewUser,
+    requires_email: !updatedUser.email,
     user:         formatUserForResponse(updatedUser),
   };
 }

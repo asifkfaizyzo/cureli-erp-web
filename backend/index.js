@@ -92,6 +92,9 @@ import cadminRiderRoutes from "./src/modules/cadmin/delivery/cadminRiders.routes
 import cadminCouponRoutes from "./src/modules/cadmin/coupons/cadminCoupon.routes.js";
 import cadminCustomerSupportRoutes from "./src/modules/cadmin/customer-support/cadmin.customerSupport.routes.js";
 import cadminMobileEmailBroadcastRoutes from "./src/modules/cadmin/broadcast/mobile-email/cadminMobileEmailBroadcast.routes.js";
+import fleetPricingRoutes from "./src/modules/cadmin/fleet-pricing/fleetPricing.routes.js";
+import fleetIncentivesRoutes from "./src/modules/cadmin/fleet-incentives/fleetIncentives.routes.js";
+
 // ============================================
 // MOBILE ROUTES
 // ============================================
@@ -299,6 +302,8 @@ app.use("/cadmin", cadminRiderRoutes);
 app.use("/cadmin/coupons", cadminCouponRoutes);
 app.use("/cadmin", cadminCustomerSupportRoutes);
 app.use("/cadmin", cadminMobileEmailBroadcastRoutes);
+app.use("/cadmin/fleet/pricing", fleetPricingRoutes);
+app.use("/cadmin/fleet/incentives", fleetIncentivesRoutes);
 
 // ============================================
 // MOBILE ROUTES

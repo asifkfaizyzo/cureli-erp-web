@@ -7,6 +7,8 @@ import {
   msg91SendSms,
   formatPhoneNumber,
 } from "../../../providers/msg91/sendSms.js";
+import { notifyAsync } from "../../notifications/notification.service.js";
+import { NOTIFICATION_EVENTS } from "../../notifications/notification.events.js";
 
 const DELETE_OTP_EXPIRY_MINUTES = 10;
 
@@ -52,6 +54,13 @@ export async function updateMobileProfile(userId, fields) {
     }
   }
 
+  // ── Fetch current email BEFORE update (for welcome email detection) ──
+  const currentUser = await prisma.cureliMobileUser.findUnique({
+    where: { id: userId },
+    select: { email: true, full_name: true },
+  });
+  const oldEmail = currentUser?.email ?? null;
+
   // Coerce date_of_birth string → Date if present
   const dataToWrite = { ...fields };
   if (dataToWrite.date_of_birth) {
@@ -95,6 +104,22 @@ export async function updateMobileProfile(userId, fields) {
       data: { profile_complete: true },
     });
     updated.profile_complete = true;
+  }
+
+  const newEmail = updated.email;
+  if (!oldEmail && newEmail) {
+    notifyAsync({
+      type: NOTIFICATION_EVENTS.MOBILE_USER_WELCOME,
+      audience: [
+        {
+          email: newEmail,
+          name: updated.full_name || "there",
+        },
+      ],
+      context: {
+        recipientName: updated.full_name || "there",
+      },
+    });
   }
 
   return updated;
