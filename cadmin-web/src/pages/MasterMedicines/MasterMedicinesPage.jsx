@@ -48,8 +48,10 @@ import {
   unlinkMedicine as apiUnlinkMedicine,
   IMAGE_STATUS,
   createMasterMedicine,
-  getMappingHistory, 
+  createVariantUnderMaster,
+  getMappingHistory,
   unignoreMedicine,
+  uploadImage,
 } from "../../api/cadminMasterMedicines";
 
 import { useToast } from "../../components/common/Toast";
@@ -88,7 +90,8 @@ const MasterMedicinesPage = () => {
     review: false,
     history: false,
   });
-   // History paginated state
+
+  // History paginated state
   const [historyData, setHistoryData] = useState([]);
   const [historyMeta, setHistoryMeta] = useState({
     total: 0,
@@ -109,7 +112,7 @@ const MasterMedicinesPage = () => {
     dateTo: "",
   });
 
-  const [confirmUnlinkDetail, setConfirmUnlinkDetail] = useState(null); 
+  const [confirmUnlinkDetail, setConfirmUnlinkDetail] = useState(null);
 
   const [stats, setStats] = useState({
     totalMasters: 0,
@@ -258,8 +261,7 @@ const MasterMedicinesPage = () => {
     }
   }, []);
 
-
-    const loadHistory = useCallback(
+  const loadHistory = useCallback(
     async (filters = historyFilters) => {
       try {
         setLoading((prev) => ({ ...prev, history: true }));
@@ -268,7 +270,9 @@ const MasterMedicinesPage = () => {
         const data = res.data?.data;
         if (data) {
           setHistoryData(data.history || []);
-          setHistoryMeta(data.meta || { total: 0, page: 1, limit: 10, totalPages: 0 });
+          setHistoryMeta(
+            data.meta || { total: 0, page: 1, limit: 10, totalPages: 0 },
+          );
         }
       } catch (error) {
         console.error("History load error:", error);
@@ -324,7 +328,6 @@ const MasterMedicinesPage = () => {
     async (filters = unmappedFilters) => {
       try {
         setLoading((prev) => ({ ...prev, unmapped: true }));
-        // Clean query params (omit UI-only fields)
         const { selectedShops, ...queryParams } = filters;
         const res = await getUnmappedMedicines(queryParams);
         const data = res.data?.data;
@@ -334,7 +337,6 @@ const MasterMedicinesPage = () => {
             data.meta || { total: 0, page: 1, limit: 10, totalPages: 0 },
           );
 
-          // Auto-step back if current page is empty after item deletion
           if (data.unmapped?.length === 0 && (filters.page || 1) > 1) {
             setUnmappedFilters((prev) => ({ ...prev, page: prev.page - 1 }));
           }
@@ -352,7 +354,6 @@ const MasterMedicinesPage = () => {
     async (filters = reviewFilters) => {
       try {
         setLoading((prev) => ({ ...prev, review: true }));
-        // Clean query params (omit UI-only fields)
         const { selectedShops, ...queryParams } = filters;
         const res = await getNeedsReview(queryParams);
         const data = res.data?.data;
@@ -362,7 +363,6 @@ const MasterMedicinesPage = () => {
             data.meta || { total: 0, page: 1, limit: 10, totalPages: 0 },
           );
 
-          // Auto-step back if current page is empty after item action
           if (data.reviewItems?.length === 0 && (filters.page || 1) > 1) {
             setReviewFilters((prev) => ({ ...prev, page: prev.page - 1 }));
           }
@@ -436,13 +436,11 @@ const MasterMedicinesPage = () => {
   // WATCH AND LAZY-LOAD SYNC
   // ═══════════════════════════════════════════════════════════
 
-  // Load basic stats + Catalog on mount
   useEffect(() => {
     loadStats();
     loadCatalog();
   }, []);
 
-   // Reset states & trigger load when section / tab switches
   useEffect(() => {
     if (activeSection === "mapping") {
       if (activeMappingTab === "unmapped") {
@@ -450,7 +448,7 @@ const MasterMedicinesPage = () => {
       } else if (activeMappingTab === "review") {
         loadReview();
       } else {
-        loadHistory(); // <-- ADD THIS LINE HERE
+        loadHistory();
       }
     } else if (activeSection === "images") {
       if (activeImageTab === "raw") {
@@ -461,14 +459,12 @@ const MasterMedicinesPage = () => {
     }
   }, [activeSection, activeMappingTab, activeImageTab]);
 
-  // Handle unmapped filters execution
   useEffect(() => {
     if (activeSection === "mapping" && activeMappingTab === "unmapped") {
       loadUnmapped(unmappedFilters);
     }
   }, [unmappedFilters]);
 
-  // Handle review filters execution
   useEffect(() => {
     if (activeSection === "mapping" && activeMappingTab === "review") {
       loadReview(reviewFilters);
@@ -650,11 +646,10 @@ const MasterMedicinesPage = () => {
     [bringToFront, toast],
   );
 
-    const handleConfirmMatch = useCallback(
+  const handleConfirmMatch = useCallback(
     async (selection) => {
       const { item, source } = matchModal;
       try {
-        // Resilient ID extraction: use medicineIds if present (unmapped group), else fallback to [item.id]
         const medicineIds =
           Array.isArray(item.medicineIds) && item.medicineIds.length > 0
             ? item.medicineIds
@@ -677,7 +672,6 @@ const MasterMedicinesPage = () => {
         setMatchModal({ open: false, item: null, source: null });
         toast.success("Medicine Linked", "Matched successfully!");
 
-        // Refresh all relevant tables
         if (source === "unmapped") {
           loadUnmapped();
         } else if (source === "review") {
@@ -688,51 +682,144 @@ const MasterMedicinesPage = () => {
         loadStats();
       } catch (e) {
         console.error("Match error:", e);
-        toast.error("Failed", e.response?.data?.message || "Could not complete match");
+        toast.error(
+          "Failed",
+          e.response?.data?.message || "Could not complete match",
+        );
       }
     },
-    [matchModal, toast, loadUnmapped, loadReview, loadHistory, loadCatalog, loadStats],
+    [
+      matchModal,
+      toast,
+      loadUnmapped,
+      loadReview,
+      loadHistory,
+      loadCatalog,
+      loadStats,
+    ],
   );
+
+  // ═══════════════════════════════════════════════════════════
+  // CREATE + OPTION C (SMART MERGE) HANDLERS
+  // ═══════════════════════════════════════════════════════════
 
   const handleConfirmCreate = useCallback(
     async (payload) => {
-      try {
-        const res = await createMasterMedicine(payload);
-        const created = res.data?.data;
+      const res = await createMasterMedicine(payload);
+      const created = res.data?.data;
 
-        if (payload.images?.length > 0 && created?.master?.id) {
-          const { uploadImage } =
-            await import("../../api/cadminMasterMedicines");
-          for (const img of payload.images) {
-            if (img.file) {
+      // Upload images (if any)
+      if (payload.images?.length > 0 && created?.master?.id) {
+        for (const img of payload.images) {
+          if (img.file) {
+            try {
               await uploadImage(
                 created.master.id,
                 img.file,
                 img.type || "GALLERY",
                 created.variant?.skuId,
               );
+            } catch (imgErr) {
+              console.error("Image upload failed:", imgErr);
             }
           }
         }
+      }
 
-        if (createModal.item?.medicineIds?.length > 0) {
-          await ignoreUnmapped(createModal.item.medicineIds);
+      // Auto-link source unmapped group to newly created variant
+      if (
+        createModal.item?.medicineIds?.length > 0 &&
+        created?.variant?.id
+      ) {
+        try {
+          await matchToVariant(
+            createModal.item.medicineIds,
+            created.variant.id,
+          );
+        } catch (linkErr) {
+          console.error("Auto-link after create failed:", linkErr);
+        }
+      }
+
+      setCreateModal({ open: false, item: null });
+      loadCatalog();
+      loadUnmapped();
+      loadHistory();
+      loadStats();
+      toast.success(
+        "Success",
+        "Medicine created and added to master catalog",
+      );
+    },
+    [createModal.item, loadCatalog, loadUnmapped, loadHistory, loadStats, toast],
+  );
+
+  const handleLinkExistingVariant = useCallback(
+    async (variantId) => {
+      if (!createModal.item) return;
+      try {
+        const medicineIds =
+          createModal.item.medicineIds?.length > 0
+            ? createModal.item.medicineIds
+            : [createModal.item.id];
+
+        await matchToVariant(medicineIds, variantId);
+        setCreateModal({ open: false, item: null });
+        loadUnmapped();
+        loadHistory();
+        loadStats();
+        toast.success(
+          "Medicine Linked",
+          "Mapped directly to existing master variant",
+        );
+      } catch (e) {
+        console.error("Link existing variant failed:", e);
+        toast.error(
+          "Failed",
+          e.response?.data?.message || "Could not link to existing variant",
+        );
+      }
+    },
+    [createModal.item, loadUnmapped, loadHistory, loadStats, toast],
+  );
+
+  const handleAddVariantToExisting = useCallback(
+    async (masterId, variantData) => {
+      if (!createModal.item) return;
+      try {
+        const res = await createVariantUnderMaster(masterId, variantData);
+        const createdVariant = res.data?.data?.variant;
+
+        if (createdVariant?.id && createModal.item.medicineIds?.length > 0) {
+          await matchToVariant(
+            createModal.item.medicineIds,
+            createdVariant.id,
+          );
         }
 
         setCreateModal({ open: false, item: null });
         loadCatalog();
         loadUnmapped();
+        loadHistory();
         loadStats();
         toast.success(
-          "Success",
-          "Medicine created and added to master catalog",
+          "Variant Added",
+          "New variant added under existing master and linked",
         );
       } catch (e) {
-        toast.error("Failed", "Failed to create master medicine");
+        console.error("Add variant to existing failed:", e);
+        toast.error(
+          "Failed",
+          e.response?.data?.message || "Could not add variant",
+        );
       }
     },
-    [createModal.item, loadCatalog, loadUnmapped, loadStats, toast],
+    [createModal.item, loadCatalog, loadUnmapped, loadHistory, loadStats, toast],
   );
+
+  // ═══════════════════════════════════════════════════════════
+  // IGNORE + BULK HANDLERS
+  // ═══════════════════════════════════════════════════════════
 
   const executeIgnore = useCallback(async () => {
     const { item, bulk } = confirmIgnore;
@@ -803,7 +890,8 @@ const MasterMedicinesPage = () => {
     if (activeSection === "catalog") loadCatalog();
     if (activeSection === "mapping") {
       if (activeMappingTab === "unmapped") loadUnmapped();
-      else loadReview();
+      else if (activeMappingTab === "review") loadReview();
+      else loadHistory();
     }
     if (activeSection === "images") {
       if (activeImageTab === "raw") loadRawImages();
@@ -821,6 +909,43 @@ const MasterMedicinesPage = () => {
     loadRawImages,
     loadNoImages,
   ]);
+
+  const handleUnignoreAction = useCallback(
+    async (item) => {
+      try {
+        await unignoreMedicine(item.id);
+        toast.success(
+          "Medicine Unignored",
+          `"${item.rawName}" moved back to Unmapped queue.`,
+        );
+        loadHistory();
+        loadStats();
+      } catch (e) {
+        toast.error("Failed", e.message || "Could not unignore medicine");
+      }
+    },
+    [toast, loadHistory, loadStats],
+  );
+
+  const handleUnlinkHistoryAction = useCallback((item) => {
+    setConfirmUnlinkDetail(item);
+  }, []);
+
+  const confirmUnlinkHistory = async () => {
+    if (!confirmUnlinkDetail) return;
+    try {
+      await apiUnlinkMedicine(confirmUnlinkDetail.id);
+      toast.success(
+        "Medicine Unlinked",
+        "Unlinked successfully and moved back to unmapped list",
+      );
+      setConfirmUnlinkDetail(null);
+      loadHistory();
+      loadStats();
+    } catch (e) {
+      toast.error("Error", "Could not unlink medicine");
+    }
+  };
 
   // ═══════════════════════════════════════════════════════════
   // RENDER INTERACTION
@@ -864,7 +989,7 @@ const MasterMedicinesPage = () => {
       );
     }
 
-        if (activeSection === "mapping") {
+    if (activeSection === "mapping") {
       if (activeMappingTab === "unmapped") {
         return (
           <UnmappedTable
@@ -877,7 +1002,8 @@ const MasterMedicinesPage = () => {
             selectedIds={selectedUnmapped}
             onSelectionChange={setSelectedUnmapped}
             onMatch={handleMatchUnmapped}
-            onCreate={handleCreateFromUnmapped}
+            /* ── FIXED: Plus button in table actions now opens UnmappedDetailModal ── */
+            onCreate={handleViewUnmappedDetail}
             onIgnore={handleIgnoreUnmapped}
             onViewDetail={handleViewUnmappedDetail}
             onBulkIgnore={handleBulkIgnoreUnmapped}
@@ -905,8 +1031,7 @@ const MasterMedicinesPage = () => {
           />
         );
       } else {
-        // ── MOUNT HISTORY TABLE HERE ──
-         return (
+        return (
           <HistoryTable
             data={historyData}
             meta={historyMeta}
@@ -915,7 +1040,6 @@ const MasterMedicinesPage = () => {
               setHistoryFilters((prev) => ({ ...prev, ...f }))
             }
             onRelink={(item) => {
-              // Open match modal with history context
               setMatchModal({ open: true, item, source: "history" });
               bringToFront("match");
             }}
@@ -951,36 +1075,6 @@ const MasterMedicinesPage = () => {
           />
         );
       }
-    }
-  };
-    const handleUnignoreAction = useCallback(
-    async (item) => {
-      try {
-        await unignoreMedicine(item.id);
-        toast.success("Medicine Unignored", `"${item.rawName}" moved back to Unmapped queue.`);
-        loadHistory();
-        loadStats();
-      } catch (e) {
-        toast.error("Failed", e.message || "Could not unignore medicine");
-      }
-    },
-    [toast, loadHistory, loadStats],
-  );
-
-  const handleUnlinkHistoryAction = useCallback((item) => {
-    setConfirmUnlinkDetail(item);
-  }, []);
-
-  const confirmUnlinkHistory = async () => {
-    if (!confirmUnlinkDetail) return;
-    try {
-      await apiUnlinkMedicine(confirmUnlinkDetail.id);
-      toast.success("Medicine Unlinked", "Unlinked successfully and moved back to unmapped list");
-      setConfirmUnlinkDetail(null);
-      loadHistory();
-      loadStats();
-    } catch (e) {
-      toast.error("Error", "Could not unlink medicine");
     }
   };
 
@@ -1115,14 +1209,12 @@ const MasterMedicinesPage = () => {
             {MAPPING_TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeMappingTab === tab.id;
-              
-              // ── DYNAMICALLY MAP EACH TAB TO ITS RESPECTIVE METRIC ──
               const count =
                 tab.id === "unmapped"
                   ? stats.unmapped
                   : tab.id === "review"
                     ? stats.needsReview
-                    : stats.totalLinked; // "History" maps to total linked medicines (18)
+                    : stats.totalLinked;
               return (
                 <button
                   key={tab.id}
@@ -1207,6 +1299,8 @@ const MasterMedicinesPage = () => {
         item={createModal.item}
         onClose={() => setCreateModal({ open: false, item: null })}
         onConfirm={handleConfirmCreate}
+        onLinkExistingVariant={handleLinkExistingVariant}
+        onAddVariantToExisting={handleAddVariantToExisting}
         zIndex={getZ("create")}
       />
 
@@ -1307,7 +1401,7 @@ const MasterMedicinesPage = () => {
         type="danger"
       />
 
-         {/* Unlink Confirmation Dialog */}
+      {/* Unlink Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!confirmUnlinkDetail}
         onClose={() => setConfirmUnlinkDetail(null)}
@@ -1317,7 +1411,8 @@ const MasterMedicinesPage = () => {
           confirmUnlinkDetail ? (
             <p>
               Are you sure you want to unlink{" "}
-              <strong>"{confirmUnlinkDetail.rawName}"</strong> from its current variant? This will return it to the unmapped list.
+              <strong>"{confirmUnlinkDetail.rawName}"</strong> from its current
+              variant? This will return it to the unmapped list.
             </p>
           ) : (
             ""
@@ -1326,7 +1421,6 @@ const MasterMedicinesPage = () => {
         confirmText="Unlink"
         type="danger"
       />
-
     </div>
   );
 };
