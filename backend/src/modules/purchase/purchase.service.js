@@ -784,3 +784,120 @@ export async function getPurchaseStats(
     unpaidAmount: unpaidAmount._sum.balance_amount || 0,
   };
 }
+
+/**
+ * Reverts a CONFIRMED purchase invoice back to DRAFT state
+ * - Reverses the stock addition (deducts stock)
+ * - Sets status back to DRAFT
+ * - Super Admin only
+ */
+export async function revertPurchaseInvoiceToDraft(userId, shopId, branchId, invoiceId, auditContext) {
+  const user = await prisma.user.findUnique({
+    where: { user_id: userId },
+    select: { role: true },
+  });
+
+  if (!user || user.role !== "super_admin") {
+    const err = new Error("Only super admin can revert confirmed invoices to draft");
+    err.code = "PERMISSION_DENIED";
+    throw err;
+  }
+
+  const invoice = await prisma.purchaseInvoice.findFirst({
+    where: { invoice_id: invoiceId, shop_id: shopId },
+    include: {
+      lineItems: true,
+      returnInvoices: {
+        where: { is_return: true, return_approval_status: "APPROVED" }
+      }
+    }
+  });
+
+  if (!invoice) {
+    const err = new Error("Invoice not found");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  if (invoice.status !== "CONFIRMED") {
+    const err = new Error("Only CONFIRMED invoices can be reverted to draft");
+    err.code = "INVALID_STATUS";
+    throw err;
+  }
+
+  // Block reversion if there are already approved returns against this invoice
+  if (invoice.returnInvoices.length > 0) {
+    const err = new Error("Cannot revert invoice because it has approved returns. Cancel the returns first.");
+    err.code = "HAS_APPROVED_RETURNS";
+    throw err;
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. REVERSE STOCK ADDITION
+    for (const item of invoice.lineItems) {
+      const isFreeItemRow = parseFloat(item.line_total) === 0 && parseFloat(item.quantity) > 0;
+      if (isFreeItemRow) continue; // Skip free rows
+
+      if (item.inventory_id) {
+        const purchasedQty = Number(item.quantity) || 0;
+        const freeQty = Number(item.free_quantity) || 0;
+        const totalQty = purchasedQty + freeQty;
+
+        // Deduct the quantity originally added
+        await inventoryService.updateStock(
+          {
+            inventoryId: item.inventory_id,
+            shopId: shopId,
+            branchId: invoice.branch_id,
+            medicineId: item.medicine_id,
+            batchNumber: item.batch_number,
+            movementType: "PURCHASE_RETURN", // Deducts stock safely
+            quantityIn: 0,
+            quantityOut: totalQty,
+            rate: item.purchase_rate,
+            referenceType: "PURCHASE_INVOICE_REVERT",
+            referenceId: invoice.invoice_id,
+            referenceNumber: `${invoice.invoice_number}-REVERT`,
+            transactionDate: new Date(),
+            remarks: `Stock reversal: Reverting confirmed invoice ${invoice.invoice_number} to Draft`,
+          },
+          userId,
+          tx,
+        );
+      }
+    }
+
+    // 2. UPDATE INVOICE STATUS BACK TO DRAFT
+    const updatedInvoice = await tx.purchaseInvoice.update({
+      where: { invoice_id: invoiceId },
+      data: {
+        status: "DRAFT",
+        confirmed_by: null,
+        confirmed_at: null,
+      },
+    });
+
+    return updatedInvoice;
+  });
+
+  // 3. AUDIT LOG
+  await audit.log({
+    action: audit.AuditAction.PURCHASE_INVOICE_UPDATED,
+    entity_type: audit.EntityType.PURCHASE_INVOICE,
+    entity_id: invoiceId,
+    shop_id: shopId,
+    branch_id: invoice.branch_id,
+    actor_type: audit.ActorType.ERP_USER,
+    actor_id: userId,
+    actor_role: user.role,
+    ...auditContext,
+    reason_code: audit.AuditReasonCode.SUPER_ADMIN_OVERRIDE,
+    metadata: {
+      invoice_number: invoice.invoice_number,
+      action: "REVERT_TO_DRAFT",
+      previous_status: "CONFIRMED",
+    },
+  });
+
+  return result;
+}
