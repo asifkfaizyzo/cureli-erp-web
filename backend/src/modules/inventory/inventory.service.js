@@ -66,13 +66,9 @@ class InventoryService {
     const effectiveMinStock = minStockFromInventory ?? minStockFromMedicine;
 
     // ── PRIORITY 1: AVAILABILITY (OUT OF STOCK) ──
-    // If quantity is 0, it is Out of Stock. Expiry alerts on empty batches
-    // are irrelevant and create false positives for inventory audits.
     if (stock === 0) return "Out of Stock";
 
     // ── PRIORITY 2: COMPLIANCE & LEGAL (EXPIRED) ──
-    // If we have physical stock, but it is expired, we must flag it immediately
-    // to block dispensing systems and prevent illegal sales.
     if (isExpired === true) return "Expired";
 
     if (expiryDate) {
@@ -86,12 +82,10 @@ class InventoryService {
       if (daysUntilExpiry < 0) return "Expired";
 
       // ── PRIORITY 3: LIQUIDATION ALERT (EXPIRING SOON) ──
-      // If we have stock expiring within 30 days, flag it for near-term removal.
       if (daysUntilExpiry <= 30) return "Expiring Soon";
     }
 
     // ── PRIORITY 4: REPLENISHMENT ALERT (LOW STOCK) ──
-    // The item is safe to sell, but quantity is below the safety threshold.
     if (effectiveMinStock !== null && stock < effectiveMinStock) {
       return "Low Stock";
     }
@@ -126,6 +120,7 @@ class InventoryService {
     return isNaN(date.getTime()) ? null : date;
   }
 
+  // FIXED: Auto-reactivates existing soft-deleted/reset batches
   async getOrCreateInventory(
     shopId,
     branchId,
@@ -154,7 +149,14 @@ class InventoryService {
           mrp,
           current_stock: 0,
           available_stock: 0,
+          is_active: true,
         },
+      });
+    } else if (!inventory.is_active) {
+      // Re-activate soft-deleted/reset batch on new purchase
+      inventory = await prisma.inventory.update({
+        where: { inventory_id: inventory.inventory_id },
+        data: { is_active: true },
       });
     }
 
@@ -330,6 +332,20 @@ class InventoryService {
      GET INVENTORY — Dynamic Server-Side Filter & Sort
   ============================================ */
   async getInventory(shopId, branchId, role, branchMode, filters = {}) {
+    // ── Self-Healing ──
+    // Automatically reactivate any inventory row that has physical stock (gt: 0)
+    // but was marked inactive during inventory reset.
+    await prisma.inventory.updateMany({
+      where: {
+        shop_id: shopId,
+        is_active: false,
+        current_stock: { gt: 0 },
+      },
+      data: {
+        is_active: true,
+      },
+    });
+
     const {
       medicineId,
       search,
@@ -362,7 +378,6 @@ class InventoryService {
       is_active: true,
     };
 
-    // ── Load full set to execute precise, compliant, global sorting and filtering ──
     const rawInventories = await prisma.inventory.findMany({
       where,
       include: {
@@ -383,8 +398,8 @@ class InventoryService {
             reorder_point: true,
             master_medicine_id: true,
             link_status: true,
-            resubmission_count: true,   
-            last_resubmitted_at: true,   
+            resubmission_count: true,
+            last_resubmitted_at: true,
             masterMedicine: {
               select: {
                 primary_category: true,
@@ -439,7 +454,7 @@ class InventoryService {
       purchaseInvoices.map((inv) => [inv.invoice_id, inv.supplier?.name]),
     );
 
-        let inventories = rawInventories.map((inv) => {
+    let inventories = rawInventories.map((inv) => {
       const firstMovementId = inv.stockMovements?.[0]?.reference_id;
       const supplierName = firstMovementId
         ? supplierMap.get(firstMovementId)
@@ -466,7 +481,7 @@ class InventoryService {
 
       return {
         ...rest,
-        medicine: inv.medicine, // ── EXPLICITLY PRESERVE THE RELATION PROPERTY ──
+        medicine: inv.medicine,
         supplier_name: supplierName || null,
         status: computedStatus,
         medicine_name: rest.medicine?.name,
@@ -480,12 +495,11 @@ class InventoryService {
         medicine_min_stock: rest.medicine?.min_stock_level,
         medicine_max_stock: rest.medicine?.max_stock_level,
         medicine_reorder_point: rest.medicine?.reorder_point,
-        resubmission_count: rest.medicine?.resubmission_count || 0, 
-        last_resubmitted_at: rest.medicine?.last_resubmitted_at || null, 
+        resubmission_count: rest.medicine?.resubmission_count || 0,
+        last_resubmitted_at: rest.medicine?.last_resubmitted_at || null,
       };
     });
 
-    // ── Apply JS Filtering ──
     if (search) {
       const s = search.toLowerCase();
       inventories = inventories.filter(
@@ -558,9 +572,8 @@ class InventoryService {
       );
     }
 
-    // ── ADD THIS NEW BLOCK FOR CATALOG STATUS FILTERING ──
     if (catalogStatus) {
-      const targetStatus = catalogStatus.toLowerCase(); // "linked", "pending", "not_linked"
+      const targetStatus = catalogStatus.toLowerCase();
       inventories = inventories.filter((inv) => {
         const itemStatus = inv.medicine?.master_medicine_id
           ? "linked"
@@ -577,7 +590,6 @@ class InventoryService {
       );
     }
 
-    // ── Apply JS Global Sorting ──
     const dir = sortOrder === "desc" ? -1 : 1;
 
     if (sortBy === "status") {
@@ -654,7 +666,6 @@ class InventoryService {
         return aVal.localeCompare(bVal) * dir;
       });
     } else {
-      // Default Sort: Expiry Ascending, then Batch Ascending
       inventories.sort((a, b) => {
         const aExp = a.expiry_date ? new Date(a.expiry_date).getTime() : 0;
         const bExp = b.expiry_date ? new Date(b.expiry_date).getTime() : 0;
@@ -1346,7 +1357,7 @@ class InventoryService {
               max_stock_level: true,
               reorder_point: true,
               rack_no: true,
-               resubmission_count: true,
+              resubmission_count: true,
             },
           },
           branch: {
@@ -1506,22 +1517,21 @@ class InventoryService {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    // Set column widths
     worksheet["!cols"] = [
-      { wch: 30 }, // Product Name
-      { wch: 20 }, // Manufacturer
-      { wch: 12 }, // Batch
-      { wch: 12 }, // Expiry
-      { wch: 10 }, // Pack Size
-      { wch: 10 }, // Quantity
-      { wch: 10 }, // MRP
-      { wch: 12 }, // Purchase Rate
-      { wch: 12 }, // Selling Rate
-      { wch: 10 }, // HSN
-      { wch: 15 }, // Category
-      { wch: 8 }, // Rack
-      { wch: 15 }, // Branch
-      { wch: 10 }, // Status
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 15 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 10 },
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -1537,9 +1547,6 @@ class InventoryService {
 
   /* ============================================
      RESET INVENTORY (SOFT DELETE ALL)
-     - Deactivates all inventory for a branch
-     - Creates stock ledger entries for audit trail
-     - Does NOT permanently delete any records
   ============================================ */
   async resetInventory(shopId, branchId, userId) {
     if (!branchId) {
@@ -1551,7 +1558,6 @@ class InventoryService {
     }
 
     return prisma.$transaction(async (tx) => {
-      // Fetch all active inventory for this branch
       const allInventory = await tx.inventory.findMany({
         where: {
           shop_id: shopId,
@@ -1575,7 +1581,6 @@ class InventoryService {
 
       let ledgerEntriesCreated = 0;
 
-      // Create audit ledger entries for items that have stock
       for (const inv of allInventory) {
         const currentStock = Number(inv.current_stock || 0);
 
@@ -1586,8 +1591,8 @@ class InventoryService {
               branch_id: branchId,
               medicine_id: inv.medicine_id,
               inventory_id: inv.inventory_id,
-              movement_type: "STOCK_ADJUSTMENT", // ← FIXED (was "INVENTORY_RESET")
-              reference_type: "STOCK_ADJUSTMENT", // ← FIXED (was "INVENTORY_RESET")
+              movement_type: "STOCK_ADJUSTMENT",
+              reference_type: "STOCK_ADJUSTMENT",
               reference_id: null,
               reference_number: `RESET-${Date.now()}`,
               batch_number: inv.batch_number,
@@ -1609,7 +1614,6 @@ class InventoryService {
         }
       }
 
-      // Soft-deactivate all inventory and zero out stock
       const updateResult = await tx.inventory.updateMany({
         where: {
           shop_id: shopId,

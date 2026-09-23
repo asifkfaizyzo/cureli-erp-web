@@ -1,10 +1,4 @@
 // pharmacy-web/src/pages/purchase/invoice/components/ViewInvoiceModal.jsx
-// Main Modal Container - Orchestrates View and Edit modes with Payment Status Dropdown
-// Updated with Payment Status Threshold Logic (Balance > ₹10 for Partially Paid)
-// Status/Payment dropdowns only available in Edit mode
-//  UPDATED: Integrated PrintInvoiceModal
-//  UPDATED: Disable save button when returns exist
-
 import React, {
   useEffect,
   useState,
@@ -644,7 +638,7 @@ const ViewInvoiceModal = ({
   const paymentStatusButtonRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  NEW: COMPUTED - Check if invoice has linked returns (blocks save)
+  // COMPUTED - Check if invoice has linked returns (blocks save)
   // ═══════════════════════════════════════════════════════════════════════════
 
   const hasLinkedReturns = useMemo(() => {
@@ -992,8 +986,8 @@ const ViewInvoiceModal = ({
             "Cancelled by Super Admin",
           );
         } else if (newStatus === "DRAFT") {
-          (await purchaseAPI.revertToDraft?.(invoice.invoice_id)) ||
-            (await purchaseAPI.update(invoice.invoice_id, { status: "DRAFT" }));
+          // FIXED: Strictly invokes transaction-safe POST /purchase/:invoiceId/revert
+          await purchaseAPI.revertToDraft(invoice.invoice_id);
         }
 
         const statusLabels = {
@@ -1625,11 +1619,10 @@ const ViewInvoiceModal = ({
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  UPDATED: SAVE HANDLER - Block if returns exist
+  // SAVE HANDLER - Block if returns exist
   // ═══════════════════════════════════════════════════════════════════════════
 
   const handleSave = useCallback(async () => {
-    //  NEW: Safety check - prevent save if returns exist
     if (hasLinkedReturns) {
       toast.error(
         "Cannot Save",
@@ -1920,7 +1913,6 @@ const ViewInvoiceModal = ({
     ) || 0;
   const itemCount = invoice.lineItems?.length || 0;
 
-  //  NEW: Determine if save should be disabled
   const isSaveDisabled = isSaving || hasLinkedReturns;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1984,9 +1976,7 @@ const ViewInvoiceModal = ({
               </div>
             )}
 
-            {/* ════════════════════════════════════════════════════════════════ */}
             {/* HEADER */}
-            {/* ════════════════════════════════════════════════════════════════ */}
             <div
               className={`shrink-0 px-6 py-4 border-b relative z-10 bg-white ${
                 mode === "edit" ? "border-amber-300" : "border-[#000060]/10"
@@ -2039,7 +2029,6 @@ const ViewInvoiceModal = ({
 
                   {/* Status Badges */}
                   <div className="flex items-center gap-2">
-                    {/* Invoice Status Badge */}
                     <button
                       ref={statusButtonRef}
                       onClick={() =>
@@ -2051,11 +2040,6 @@ const ViewInvoiceModal = ({
                         ${currentStatus.bg} ${currentStatus.text} ${currentStatus.border}
                         ${canChangeStatus ? `cursor-pointer ${currentStatus.hoverBg} hover:shadow-md active:scale-95` : "cursor-default"}
                       `}
-                      title={
-                        mode === "view"
-                          ? "Enter edit mode to change status"
-                          : undefined
-                      }
                     >
                       <StatusIcon size={12} />
                       {currentStatus.label}
@@ -2076,7 +2060,6 @@ const ViewInvoiceModal = ({
                       currentStatus={invoice.status}
                     />
 
-                    {/* Payment Status Badge */}
                     <button
                       ref={paymentStatusButtonRef}
                       onClick={() =>
@@ -2089,11 +2072,6 @@ const ViewInvoiceModal = ({
                         ${currentPayment.bg} ${currentPayment.text} ${currentPayment.border || "border-current/30"}
                         ${canChangePaymentStatus ? `cursor-pointer ${currentPayment.hoverBg} hover:shadow-md active:scale-95` : "cursor-default"}
                       `}
-                      title={
-                        mode === "view"
-                          ? "Enter edit mode to change payment status"
-                          : undefined
-                      }
                     >
                       <PaymentIcon size={12} />
                       {currentPayment.label}
@@ -2128,7 +2106,6 @@ const ViewInvoiceModal = ({
                       invoice={invoice}
                     />
 
-                    {/* Loading Returns Badge */}
                     {loadingReturns && (
                       <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
                         <Loader2 size={10} className="animate-spin" />
@@ -2136,7 +2113,6 @@ const ViewInvoiceModal = ({
                       </span>
                     )}
 
-                    {/* Linked Returns Badge */}
                     {!loadingReturns && linkedReturns.length > 0 && (
                       <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200 animate-pulse">
                         <Package size={10} />
@@ -2248,7 +2224,6 @@ const ViewInvoiceModal = ({
                           <span className="text-sm font-medium">Cancel</span>
                         </button>
 
-                        {/*  NEW: Show warning badge when returns exist in edit mode */}
                         {hasLinkedReturns && (
                           <div className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-xl border border-red-300 animate-pulse">
                             <AlertTriangle size={16} className="shrink-0" />
@@ -2260,7 +2235,6 @@ const ViewInvoiceModal = ({
                           </div>
                         )}
 
-                        {/*  UPDATED: Save button - now disabled when returns exist */}
                         <button
                           onClick={handleSave}
                           disabled={isSaveDisabled}
