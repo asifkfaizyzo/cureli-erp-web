@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/VariantLinkedModal.jsx (do not remove this comment)
 import { useEffect } from "react";
 import {
   X,

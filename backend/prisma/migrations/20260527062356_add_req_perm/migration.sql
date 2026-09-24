@@ -1,1 +1,2 @@
+-- backend/prisma/migrations/20260527062356_add_req_perm/migration.sql (do not remove this comment)
 -- placeholder: no schema changes in this migration

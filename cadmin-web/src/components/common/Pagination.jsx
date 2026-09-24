@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/Pagination.jsx (do not remove this comment)
 // src/components/common/Pagination.jsx
 import React from "react";
 import {

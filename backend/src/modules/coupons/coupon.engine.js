@@ -1,3 +1,4 @@
+// backend/src/modules/coupons/coupon.engine.js (do not remove this comment)
 // backend/src/modules/coupons/coupon.engine.js
 //
 // Pure functions — no DB calls, no side effects.

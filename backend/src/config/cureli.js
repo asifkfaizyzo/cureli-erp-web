@@ -1,3 +1,4 @@
+// backend/src/config/cureli.js (do not remove this comment)
 // backend/src/config/cureli.js
 // Cureli platform details for Page 2 of marketplace invoices.
 // Update these when real company details are available.

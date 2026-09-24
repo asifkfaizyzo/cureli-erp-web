@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/ErrorScreen.jsx (do not remove this comment)
 import React from "react";
 
 const ErrorScreen = ({ onBack }) => {

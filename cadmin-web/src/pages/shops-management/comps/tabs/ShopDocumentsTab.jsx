@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/tabs/ShopDocumentsTab.jsx (do not remove this comment)
 // src/components/Shops/tabs/ShopDocumentsTab.jsx
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";

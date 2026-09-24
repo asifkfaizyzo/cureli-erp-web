@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/enquiryReplied.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/enquiryReplied.js
 // ============================================
 // ENQUIRY REPLIED EMAIL TEMPLATE

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/pending/PhoneOTP.jsx (do not remove this comment)
 // src/components/onboarding/PhoneOtp.jsx
 
 import { useState, useRef, useEffect } from "react";

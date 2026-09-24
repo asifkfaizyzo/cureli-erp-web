@@ -1,3 +1,4 @@
+// backend/src/modules/files/staticAssets.routes.js (do not remove this comment)
 // backend/src/modules/files/staticAssets.routes.js
 import express from 'express';
 import path from 'path';

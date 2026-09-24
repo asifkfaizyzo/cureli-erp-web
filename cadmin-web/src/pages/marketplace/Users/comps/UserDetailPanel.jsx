@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Users/comps/UserDetailPanel.jsx (do not remove this comment)
 // cadmin-web/src/pages/marketplace/Users/comps/UserDetailPanel.jsx
 
 import {

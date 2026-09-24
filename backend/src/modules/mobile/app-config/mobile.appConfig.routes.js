@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/app-config/mobile.appConfig.routes.js (do not remove this comment)
 // src/modules/mobile/app-config/mobile.appConfig.routes.js
 
 import { Router } from "express";

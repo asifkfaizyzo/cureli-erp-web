@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/index.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/index.js
 
 import { shopVerifiedTemplate } from "./shopVerified.js";

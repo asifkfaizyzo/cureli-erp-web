@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/returnApprovalToSupplier.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/returnApprovalToSupplier.js
 // ============================================
 // RETURN APPROVAL TO SUPPLIER EMAIL TEMPLATE

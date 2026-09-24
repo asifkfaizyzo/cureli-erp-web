@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/components/OnboardingSidebar.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/components/OnboardingSidebar.jsx
 
 import {

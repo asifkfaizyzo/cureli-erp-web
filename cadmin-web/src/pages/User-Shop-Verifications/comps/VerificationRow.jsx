@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/User-Shop-Verifications/comps/VerificationRow.jsx (do not remove this comment)
 // cadmin-web/src/components/Verification/VerificationRow.jsx
 
 import { Eye } from "lucide-react";

@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Cadmin-management/comps/RoleDetailModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/Cadmin-management/comps/RoleDetailModal.jsx
 
 import { useState, useEffect } from "react";

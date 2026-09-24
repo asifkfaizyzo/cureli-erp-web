@@ -1,3 +1,4 @@
+// backend/src/modules/marketplace-dashboard/marketplaceDashboard.service.js (do not remove this comment)
 // backend/src/modules/marketplace-dashboard/marketplaceDashboard.service.js
 
 import prisma from "../../config/prisma.js";

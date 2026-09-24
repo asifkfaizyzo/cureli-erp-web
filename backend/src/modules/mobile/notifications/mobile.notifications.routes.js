@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/notifications/mobile.notifications.routes.js (do not remove this comment)
 // backend/src/modules/mobile/notifications/mobile.notifications.routes.js
 
 import { Router } from 'express';

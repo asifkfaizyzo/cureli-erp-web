@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/app-config/feedSection.registry.js (do not remove this comment)
 // backend/src/modules/cadmin/app-config/feedSection.registry.js
 //
 // Single source of truth for the 9 curated home feed sections.

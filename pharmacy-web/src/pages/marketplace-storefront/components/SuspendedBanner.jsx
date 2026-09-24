@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/SuspendedBanner.jsx (do not remove this comment)
 import { motion } from "framer-motion";
 import { PowerOff, Power, Loader2 } from "lucide-react";
 

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/pending/EmailOTP.jsx (do not remove this comment)
 // src/components/onboarding/EmailOTP.jsx
 
 import { useState, useRef, useEffect } from "react";

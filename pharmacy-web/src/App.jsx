@@ -1,3 +1,4 @@
+// pharmacy-web/src/App.jsx (do not remove this comment)
 // src/App.jsx
 
 import {

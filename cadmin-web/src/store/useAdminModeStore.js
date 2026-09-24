@@ -1,3 +1,4 @@
+// cadmin-web/src/store/useAdminModeStore.js (do not remove this comment)
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

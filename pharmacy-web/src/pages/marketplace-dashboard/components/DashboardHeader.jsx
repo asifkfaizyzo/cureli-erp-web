@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-dashboard/components/DashboardHeader.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/components/DashboardHeader.jsx
 
 import { LayoutGrid, RefreshCw, Wifi } from 'lucide-react';

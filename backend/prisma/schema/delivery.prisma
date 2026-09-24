@@ -1,3 +1,4 @@
+// backend/prisma/schema/delivery.prisma (do not remove this comment)
 // Delivery & Rider — Zones, riders, deliveries, earnings, payouts, pricing & incentives
 
 model DeliveryZone {

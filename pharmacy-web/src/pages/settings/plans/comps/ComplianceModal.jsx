@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/plans/comps/ComplianceModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/settings/plans/comps/ComplianceModal.jsx
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-dashboard/components/DashboardSkeleton.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/components/DashboardSkeleton.jsx
 
 const Pulse = ({ className = '' }) => (

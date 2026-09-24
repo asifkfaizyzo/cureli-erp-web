@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251124103118_xx/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "deletion_logs" (
     "id" UUID NOT NULL,

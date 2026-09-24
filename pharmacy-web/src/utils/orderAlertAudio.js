@@ -1,3 +1,4 @@
+// pharmacy-web/src/utils/orderAlertAudio.js (do not remove this comment)
 // pharmacy-web/src/utils/orderAlertAudio.js
 // Two independent audio singletons:
 //   1. orderAlertAudio        — for marketplace orders (cannot be muted from UI)

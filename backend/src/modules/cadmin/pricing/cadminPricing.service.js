@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/pricing/cadminPricing.service.js (do not remove this comment)
 // backend/src/modules/cadmin/pricing/cadminPricing.service.js
 
 import prisma from '../../../config/prisma.js';

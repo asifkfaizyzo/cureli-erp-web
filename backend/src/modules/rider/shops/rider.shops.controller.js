@@ -1,3 +1,4 @@
+// backend/src/modules/rider/shops/rider.shops.controller.js (do not remove this comment)
 import { fail, success } from "../../../utils/response.js";
 import { nearbyShopsQuerySchema } from "./rider.shops.schema.js";
 import { getNearbyShops } from "./rider.shops.service.js";

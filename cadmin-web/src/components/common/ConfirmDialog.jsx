@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/ConfirmDialog.jsx (do not remove this comment)
 //Q:\PROJECTS\YourZeroesAndOnes\cureli\curely_erp\cadmin-web\src\components\common\ConfirmDialog.jsx
 
 import { AlertTriangle, CheckCircle, Mail, Trash2 } from "lucide-react";

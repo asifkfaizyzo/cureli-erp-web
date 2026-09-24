@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/admins/cadminAdmin.controller.js (do not remove this comment)
 // backend/src/modules/cadmin/admins/cadminAdmin.controller.js
 
 import { success, fail } from "../../../utils/response.js";

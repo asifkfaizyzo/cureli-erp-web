@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260729050512_add_marketplace_category_display_overrides/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "marketplace_category_display_overrides" (
     "id" UUID NOT NULL,

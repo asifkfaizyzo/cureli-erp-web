@@ -1,3 +1,4 @@
+// backend/src/modules/suppliers/supplier.schema.js (do not remove this comment)
 // backend/src/modules/suppliers/supplier.schema.js
 import { z } from "zod";
 

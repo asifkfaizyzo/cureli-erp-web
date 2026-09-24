@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260225051612_add_cron_locks/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "cron_locks" (
     "job_name" VARCHAR(100) NOT NULL,

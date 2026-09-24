@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251230092036_add_enquiry_tables/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "EnquiryStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'REPLIED', 'CLOSED');
 

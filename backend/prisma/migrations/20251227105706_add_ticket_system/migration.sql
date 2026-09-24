@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251227105706_add_ticket_system/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "TicketCategory" AS ENUM ('TECHNICAL_ISSUE', 'BILLING_ISSUE', 'FEATURE_REQUEST', 'ACCOUNT_ISSUE', 'OTHER');
 

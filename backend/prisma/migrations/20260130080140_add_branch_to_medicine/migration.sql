@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260130080140_add_branch_to_medicine/migration.sql (do not remove this comment)
 /*
   Warnings:
 

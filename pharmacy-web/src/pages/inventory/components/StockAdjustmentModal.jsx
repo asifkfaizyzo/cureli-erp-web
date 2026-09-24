@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/StockAdjustmentModal.jsx (do not remove this comment)
 // src/pages/inventory/components/StockAdjustmentModal.jsx
 
 import React, { useState, useEffect } from "react";

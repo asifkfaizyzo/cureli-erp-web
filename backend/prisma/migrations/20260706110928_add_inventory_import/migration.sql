@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260706110928_add_inventory_import/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "ImportJobStatus" AS ENUM ('PENDING', 'PARSING', 'AWAITING_REVIEW', 'CONFIRMING', 'COMPLETED', 'PARTIAL', 'FAILED', 'CANCELLED');
 

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260122101028_add_medicine_supplier_masters/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "medicines" (
     "medicine_id" UUID NOT NULL,

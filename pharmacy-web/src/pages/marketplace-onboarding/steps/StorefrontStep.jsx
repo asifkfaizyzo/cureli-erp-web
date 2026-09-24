@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/steps/StorefrontStep.jsx (do not remove this comment)
 // src/pages/marketplace-onboarding/steps/StorefrontStep.jsx
 
 import { useState, useRef } from "react";

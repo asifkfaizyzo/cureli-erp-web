@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/setup/comps/SetupStepper.jsx (do not remove this comment)
 // src/components/setup/SetupStepper.jsx
 import { motion } from "framer-motion";
 import { Check, Building2, Users, ClipboardCheck } from "lucide-react";

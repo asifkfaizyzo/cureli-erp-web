@@ -1,3 +1,4 @@
+// backend/src/utils/tokens.js (do not remove this comment)
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 

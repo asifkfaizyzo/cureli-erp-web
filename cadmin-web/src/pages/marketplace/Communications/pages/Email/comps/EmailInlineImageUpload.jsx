@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/EmailInlineImageUpload.jsx (do not remove this comment)
 // cadmin-web/src/pages/Communications/pages/Broadcast/Email/comps/EmailInlineImageUpload.jsx
 
 import { useState, useRef, useCallback } from "react";

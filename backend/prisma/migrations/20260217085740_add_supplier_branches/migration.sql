@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260217085740_add_supplier_branches/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "supplier_branches" (
     "id" UUID NOT NULL,

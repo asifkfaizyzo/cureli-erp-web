@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Users-management/comps/ShopDetailRow.jsx (do not remove this comment)
 import { Pencil, ClipboardCopy } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 

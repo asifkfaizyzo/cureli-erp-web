@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260116061345_add_audit_log_table/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "audit_logs" (
     "audit_id" UUID NOT NULL,

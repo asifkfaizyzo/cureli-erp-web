@@ -1,3 +1,4 @@
+// backend/src/config/subscription.js (do not remove this comment)
 // backend/src/constants/subscription.js
 
 /**

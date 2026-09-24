@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Settings/comps/ActivityTab.jsx (do not remove this comment)
 // pharmacy-web/src/pages/Settings/comps/ActivityTab.jsx
 
 import { useState, useEffect, useCallback, useRef } from "react";

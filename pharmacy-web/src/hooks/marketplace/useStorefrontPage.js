@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/marketplace/useStorefrontPage.js (do not remove this comment)
 // pharmacy-web/src/hooks/marketplace/useStorefrontPage.js
 
 import { useState, useCallback, useRef, useEffect } from "react";

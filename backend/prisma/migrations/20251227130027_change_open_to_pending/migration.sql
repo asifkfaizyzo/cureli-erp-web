@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251227130027_change_open_to_pending/migration.sql (do not remove this comment)
 /*
   Warnings:
 

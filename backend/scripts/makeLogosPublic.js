@@ -1,3 +1,4 @@
+// backend/scripts/makeLogosPublic.js (do not remove this comment)
 // backend/scripts/makeLogosPublic.js
 
 import {

@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Subscription-management/comps/SubscriptionDetailsModal.jsx (do not remove this comment)
 // src/pages/Subscription-management/comps/SubscriptionDetailsModal.jsx
 
 import { useState, useEffect } from "react";

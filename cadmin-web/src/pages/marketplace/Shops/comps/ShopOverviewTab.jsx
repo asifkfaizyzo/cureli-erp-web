@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Shops/comps/ShopOverviewTab.jsx (do not remove this comment)
 // cadmin-web/src/pages/marketplace/Shops/comps/ShopOverviewTab.jsx
 // Full updated file — only changes are: import AnimatePresence/motion,
 // import EditStorefrontModal, add state + button + modal render

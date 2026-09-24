@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/tabs/ShopEditOverviewTab.jsx (do not remove this comment)
 import { Building2, User, MapPin, AlertTriangle } from "lucide-react";
 import DetailRow from "../../../../components/common/DetailRow";
 

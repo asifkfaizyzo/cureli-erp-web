@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/AttachmentsPanel.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/InApp/comps/AttachmentsPanel.jsx
 
 import { useState } from "react";

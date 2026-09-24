@@ -1,3 +1,4 @@
+// backend/src/config/ticketStateMachine.js (do not remove this comment)
 //backend\src\config\ticketStateMachine.js
 /**
  * SINGLE SOURCE OF TRUTH for ticket state transitions.

@@ -1,3 +1,4 @@
+// backend/src/middleware/mobile.auth.js (do not remove this comment)
 // src/middleware/mobile.auth.js
 //
 // Authentication middleware for Cureli Mobile API endpoints.

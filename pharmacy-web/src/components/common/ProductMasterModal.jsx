@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/ProductMasterModal.jsx (do not remove this comment)
 // src/components/common/ProductMasterModal.jsx
 
 import React, { useState, useEffect, useMemo } from "react";

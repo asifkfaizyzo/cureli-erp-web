@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260414053809_add_variant_linking/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "medicines" ADD COLUMN     "linked_variant_id" UUID,
 ADD COLUMN     "linked_variant_sku" VARCHAR(50);

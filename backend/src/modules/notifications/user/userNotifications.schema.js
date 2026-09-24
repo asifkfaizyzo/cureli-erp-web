@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/user/userNotifications.schema.js (do not remove this comment)
 // ============================================
 // USER NOTIFICATIONS - VALIDATION SCHEMAS
 // ============================================

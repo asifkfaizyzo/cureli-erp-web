@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/ShopsPage.jsx (do not remove this comment)
 // src/pages/shops-management/ShopsPage.jsx
 
 import { useState, useEffect, useCallback, useMemo } from "react";

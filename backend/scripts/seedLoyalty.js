@@ -1,3 +1,4 @@
+// backend/scripts/seedLoyalty.js (do not remove this comment)
 // backend/scripts/seedLoyalty.js
 import { PrismaClient } from "@prisma/client";
 

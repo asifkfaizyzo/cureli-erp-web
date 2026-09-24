@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/coupons/mobile.coupon.controller.js (do not remove this comment)
 // backend/src/modules/mobile/coupons/mobile.coupon.controller.js
 
 import { success, fail } from "../../../utils/response.js";

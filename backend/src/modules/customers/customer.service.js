@@ -1,3 +1,4 @@
+// backend/src/modules/customers/customer.service.js (do not remove this comment)
 // backend/src/modules/customers/customer.service.js
 
 import prisma from "../../config/prisma.js";

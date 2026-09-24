@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260207071210_add_purchase_return_fields/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "ReturnReason" AS ENUM ('DAMAGED_GOODS', 'EXPIRED_GOODS', 'WRONG_ITEM_RECEIVED', 'QUALITY_ISSUE', 'EXCESS_STOCK', 'PRICE_DIFFERENCE', 'OTHER');
 

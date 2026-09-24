@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/otp.js (do not remove this comment)
 // src/api/otp.js
 
 import API from "./axios";

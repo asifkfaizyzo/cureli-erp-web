@@ -1,3 +1,4 @@
+// backend/prisma/schema/notifications.prisma (do not remove this comment)
 // Notifications — In-app, broadcast, email campaigns, unsubscribe
 
 model Notification {

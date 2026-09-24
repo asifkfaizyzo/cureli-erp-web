@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251223073636_user_sessions/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "user_sessions" (
     "id" UUID NOT NULL,

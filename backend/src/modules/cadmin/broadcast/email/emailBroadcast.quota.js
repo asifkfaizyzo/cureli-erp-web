@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/broadcast/email/emailBroadcast.quota.js (do not remove this comment)
 // backend/src/modules/cadmin/broadcast/email/emailBroadcast.quota.js
 
 import prisma from '../../../../config/prisma.js';

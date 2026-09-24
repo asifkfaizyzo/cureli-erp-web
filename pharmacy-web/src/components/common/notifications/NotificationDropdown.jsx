@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/notifications/NotificationDropdown.jsx (do not remove this comment)
 // pharmacy-web/src/components/common/notifications/NotificationDropdown.jsx
 
 import React, { useState, useEffect, useRef } from "react";

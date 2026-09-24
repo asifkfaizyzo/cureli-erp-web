@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/RawImagesTable.jsx (do not remove this comment)
 // cadmin/src/pages/MasterMedicines/comps/RawImagesTable.jsx
 
 import { useState, useMemo, useEffect } from "react";

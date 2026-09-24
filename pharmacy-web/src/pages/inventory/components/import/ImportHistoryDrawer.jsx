@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/import/ImportHistoryDrawer.jsx (do not remove this comment)
 // src/pages/inventory/components/import/ImportHistoryDrawer.jsx
 //
 // Slide-in drawer showing past import jobs for this shop.

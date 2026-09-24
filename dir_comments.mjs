@@ -9,9 +9,7 @@ const CONFIG = {
   
   // Target directories relative to projectRoot
   targets: [
-    'backend/src',
-    'cadmin-web/src',
-    'pharmacy-web/src'
+    'backend/prisma'
   ],
   
   // Directories/files to skip entirely
@@ -37,6 +35,7 @@ const COMMENT_MAP = {
   '.mjs': { start: '// ', end: '' },
   '.cjs': { start: '// ', end: '' },
   '.prisma': { start: '// ', end: '' },
+  '.sql': { start: '-- ', end: '' },
   // Block Comments
   '.css': { start: '/* ', end: ' */' },
   '.scss': { start: '/* ', end: ' */' },

@@ -1,3 +1,4 @@
+// backend/prisma/schema/marketplace.prisma (do not remove this comment)
 // Marketplace — Profiles, listings, checkout, pricing, branch settings
 
 model MarketplaceProfile {

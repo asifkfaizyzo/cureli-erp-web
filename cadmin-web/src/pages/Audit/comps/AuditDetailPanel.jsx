@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Audit/comps/AuditDetailPanel.jsx (do not remove this comment)
 // ============================================
 // AUDIT DETAIL MODAL - Horizontal Layout
 // ============================================

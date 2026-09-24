@@ -1,3 +1,4 @@
+// cadmin-web/src/components/layout/AdminSidebar.jsx (do not remove this comment)
 // cadmin-web/src/components/layout/AdminSidebar.jsx
 
 import { useState, useCallback, useEffect, useMemo } from "react";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/billing/components/PrintPreviewModal.jsx (do not remove this comment)
 // src/pages/purchase/billing/components/PrintPreviewModal.jsx
 import { useRef } from "react";
 import { useReactToPrint } from "react-to-print";

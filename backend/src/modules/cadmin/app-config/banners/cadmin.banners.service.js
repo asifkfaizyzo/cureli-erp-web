@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/app-config/banners/cadmin.banners.service.js (do not remove this comment)
 // src/modules/cadmin/app-config/banners/cadmin.banners.service.js
 
 import prisma from "../../../../config/prisma.js";

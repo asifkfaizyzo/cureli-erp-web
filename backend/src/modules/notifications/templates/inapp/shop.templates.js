@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/shop.templates.js (do not remove this comment)
 // ============================================
 // SHOP & VERIFICATION TEMPLATES
 // ============================================

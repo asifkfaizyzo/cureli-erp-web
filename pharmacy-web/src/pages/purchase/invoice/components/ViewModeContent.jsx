@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/ViewModeContent.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/ViewModeContent.jsx
 // View Mode Components for Invoice Modal
 

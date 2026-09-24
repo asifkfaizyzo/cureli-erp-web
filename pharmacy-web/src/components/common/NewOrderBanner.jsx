@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/NewOrderBanner.jsx (do not remove this comment)
 // pharmacy-web/src/components/common/NewOrderBanner.jsx
 // MODIFIED — adds prescription request count to banner
 

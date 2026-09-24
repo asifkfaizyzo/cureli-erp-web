@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/paymentSuccess.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/paymentSuccess.js
 // ============================================
 // PAYMENT SUCCESS EMAIL TEMPLATE

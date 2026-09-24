@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/plans/comps/PlanCard.jsx (do not remove this comment)
 // pharmacy-web/src/pages/settings/plans/comps/PlanCard.jsx
 
 import { useMemo } from "react";

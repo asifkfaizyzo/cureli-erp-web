@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/components/SupplierModal.jsx (do not remove this comment)
 // src/pages/suppliers/components/SupplierModal.jsx - UPDATED WITH PROPER VALIDATION
 import React, {
   useState,

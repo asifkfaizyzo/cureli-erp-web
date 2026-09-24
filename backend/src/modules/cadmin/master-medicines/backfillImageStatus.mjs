@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/master-medicines/backfillImageStatus.mjs (do not remove this comment)
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 

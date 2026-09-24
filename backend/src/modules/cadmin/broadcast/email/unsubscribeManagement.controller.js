@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/broadcast/email/unsubscribeManagement.controller.js (do not remove this comment)
 // backend/src/modules/cadmin/broadcast/email/unsubscribeManagement.controller.js
 
 import { success, fail } from '../../../../utils/response.js';

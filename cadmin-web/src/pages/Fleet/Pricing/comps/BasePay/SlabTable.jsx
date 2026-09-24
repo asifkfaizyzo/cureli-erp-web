@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Fleet/Pricing/comps/BasePay/SlabTable.jsx (do not remove this comment)
 // cadmin-web/src/pages/Fleet/Pricing/comps/BasePay/SlabTable.jsx
 import { Plus, Trash2, Infinity as InfinityIcon } from "lucide-react";
 import StyledSelect from "../../../../../components/common/StyledSelect";

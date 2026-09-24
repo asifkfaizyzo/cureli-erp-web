@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/ticketCreated.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/ticketCreated.js
 // ============================================
 // TICKET CREATED EMAIL TEMPLATE

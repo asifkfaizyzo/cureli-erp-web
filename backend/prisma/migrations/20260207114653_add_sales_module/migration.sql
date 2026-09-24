@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260207114653_add_sales_module/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "SalesReturnReason" AS ENUM ('EXPIRED_PRODUCT', 'DAMAGED_PRODUCT', 'WRONG_PRODUCT', 'CUSTOMER_REQUEST', 'QUALITY_ISSUE', 'PRICE_DISPUTE', 'OTHER');
 

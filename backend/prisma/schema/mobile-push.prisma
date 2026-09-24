@@ -1,3 +1,4 @@
+// backend/prisma/schema/mobile-push.prisma (do not remove this comment)
 // Mobile Push — Push preferences, notifications, broadcast campaigns
 
 model CureliMobilePushPreference {

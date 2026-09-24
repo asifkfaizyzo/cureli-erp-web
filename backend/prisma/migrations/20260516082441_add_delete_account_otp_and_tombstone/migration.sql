@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260516082441_add_delete_account_otp_and_tombstone/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "cureli_mobile_users" ADD COLUMN "delete_otp_expires" TIMESTAMPTZ(6),
 ADD COLUMN "delete_otp_hash" TEXT;

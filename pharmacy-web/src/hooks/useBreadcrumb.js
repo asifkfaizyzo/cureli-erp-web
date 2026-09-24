@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/useBreadcrumb.js (do not remove this comment)
 // src/hooks/useBreadcrumb.js
 
 import { useEffect } from "react";

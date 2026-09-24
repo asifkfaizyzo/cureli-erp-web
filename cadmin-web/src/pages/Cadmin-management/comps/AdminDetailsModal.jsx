@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Cadmin-management/comps/AdminDetailsModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/Cadmin-management/comps/AdminDetailsModal.jsx
 
 import { useEffect, useState, useCallback, useRef } from "react";

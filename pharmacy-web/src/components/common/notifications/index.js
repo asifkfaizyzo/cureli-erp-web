@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/notifications/index.js (do not remove this comment)
 // pharmacy-web/src/components/common/notifications/index.js
 
 export { default as NotificationDropdown } from "./NotificationDropdown";

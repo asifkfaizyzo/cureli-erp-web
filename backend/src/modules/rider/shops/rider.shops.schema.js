@@ -1,3 +1,4 @@
+// backend/src/modules/rider/shops/rider.shops.schema.js (do not remove this comment)
 import { z } from "zod";
 
 export const nearbyShopsQuerySchema = z.object({

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/notification.rules.js (do not remove this comment)
 // backend/src/modules/notifications/notification.rules.js
 
 import prisma from "../../config/prisma.js";

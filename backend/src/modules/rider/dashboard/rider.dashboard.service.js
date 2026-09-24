@@ -1,3 +1,4 @@
+// backend/src/modules/rider/dashboard/rider.dashboard.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 
 // ── Shift & Week Window Helpers ──────────────────────────────

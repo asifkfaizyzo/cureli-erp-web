@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/HistoryTable.jsx (do not remove this comment)
 import React, { useState, useEffect } from "react";
 import {
   Link2,

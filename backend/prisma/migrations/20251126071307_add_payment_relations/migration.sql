@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251126071307_add_payment_relations/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "payment_transactions" (
     "transaction_id" UUID NOT NULL,

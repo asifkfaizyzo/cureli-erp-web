@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/places/mobile.places.service.js (do not remove this comment)
 // src/modules/mobile/places/mobile.places.service.js
 //
 // Places service for mobile users.

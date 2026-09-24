@@ -1,3 +1,4 @@
+// pharmacy-web/src/main.jsx (do not remove this comment)
 // src/main.jsx
 
 import React from "react";

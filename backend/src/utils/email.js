@@ -1,3 +1,4 @@
+// backend/src/utils/email.js (do not remove this comment)
 // backend/src/utils/email.js
 
 import nodemailer from 'nodemailer';

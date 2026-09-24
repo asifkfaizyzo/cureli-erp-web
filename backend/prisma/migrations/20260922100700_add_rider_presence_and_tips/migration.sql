@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260922100700_add_rider_presence_and_tips/migration.sql (do not remove this comment)
 -- AlterEnum
 ALTER TYPE "EarningType" ADD VALUE 'TIP';
 

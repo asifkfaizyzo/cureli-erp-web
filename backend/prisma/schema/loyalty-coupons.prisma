@@ -1,3 +1,4 @@
+// backend/prisma/schema/loyalty-coupons.prisma (do not remove this comment)
 // Loyalty & Coupons — Points, transactions, coupons
 
 model LoyaltyConfig {

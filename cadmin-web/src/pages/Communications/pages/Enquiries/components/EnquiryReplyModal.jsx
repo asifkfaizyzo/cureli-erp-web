@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Enquiries/components/EnquiryReplyModal.jsx (do not remove this comment)
 import { X, Send, Loader2, AlertCircle, Mail, FileText, User } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";

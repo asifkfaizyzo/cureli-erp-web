@@ -1,3 +1,4 @@
+// backend/src/middleware/rateLimiter.js (do not remove this comment)
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import jwt from "jsonwebtoken";
 

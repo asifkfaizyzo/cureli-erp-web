@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260103060632_add_ticket_status_history/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "ticket_status_history" (
     "id" UUID NOT NULL,

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/index.js (do not remove this comment)
 // ============================================
 // NOTIFICATIONS MODULE - Public API
 // ============================================

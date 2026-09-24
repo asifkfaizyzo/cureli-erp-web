@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Fleet/Riders/comps/RiderDetailModal.jsx (do not remove this comment)
 //cadmin-web\src\pages\Fleet\Riders\comps\RiderDetailModal.jsx
 
 import { useState, useEffect } from "react";

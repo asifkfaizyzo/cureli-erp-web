@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/steps/GoLiveStep.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/steps/GoLiveStep.jsx
 
 import { useState } from "react";

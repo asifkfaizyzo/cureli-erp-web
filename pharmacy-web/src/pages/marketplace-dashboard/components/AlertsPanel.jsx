@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-dashboard/components/AlertsPanel.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/components/AlertsPanel.jsx
 
 import { motion, AnimatePresence } from 'framer-motion';

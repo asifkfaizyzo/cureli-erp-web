@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/InventoryImportModal.jsx (do not remove this comment)
 import React, { useCallback, useState, useEffect } from "react";
 import { X, Database, Package, ArrowDownToLine } from "lucide-react";
 import { useInventoryImport, STEPS } from "../../../hooks/inventory/useInventoryImport";

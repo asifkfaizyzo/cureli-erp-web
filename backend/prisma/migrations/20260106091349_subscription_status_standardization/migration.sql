@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260106091349_subscription_status_standardization/migration.sql (do not remove this comment)
 /*
   Warnings:
 

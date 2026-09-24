@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/FileUploadAttachment.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/InApp/comps/FileUploadAttachment.jsx
 
 import { useState, useRef, useCallback } from "react";

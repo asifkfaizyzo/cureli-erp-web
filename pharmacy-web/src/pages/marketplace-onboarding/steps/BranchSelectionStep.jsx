@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/steps/BranchSelectionStep.jsx (do not remove this comment)
 // src/pages/marketplace-onboarding/steps/BranchSelectionStep.jsx
 
 import { useState } from "react";

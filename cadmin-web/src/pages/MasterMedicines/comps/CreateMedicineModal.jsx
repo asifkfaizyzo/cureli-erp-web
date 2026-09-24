@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/CreateMedicineModal.jsx (do not remove this comment)
 import { useState, useEffect, useRef } from "react";
 import {
   X,

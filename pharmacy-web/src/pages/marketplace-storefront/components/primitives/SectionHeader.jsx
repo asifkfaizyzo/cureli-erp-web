@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/primitives/SectionHeader.jsx (do not remove this comment)
 const SectionHeader = ({ icon: Icon, title, subtitle, action }) => (
   <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
     <div className="flex items-center gap-2.5">

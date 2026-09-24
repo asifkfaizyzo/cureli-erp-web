@@ -1,3 +1,4 @@
+// backend/src/modules/inventory/inventory.controller.js (do not remove this comment)
 // backend/src/modules/inventory/inventory.controller.js
 
 import inventoryService from "./inventory.service.js";

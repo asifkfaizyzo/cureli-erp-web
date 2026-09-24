@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Enquiries/components/EnquiriesTable.jsx (do not remove this comment)
 // cadmin-web/src/pages/Communications/pages/Enquiries/components/EnquiriesTable.jsx
 
 import { useEffect, useState, useCallback } from "react";

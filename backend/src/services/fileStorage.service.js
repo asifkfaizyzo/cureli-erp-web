@@ -1,3 +1,4 @@
+// backend/src/services/fileStorage.service.js (do not remove this comment)
 // backend/src/services/fileStorage.service.js
 // ============================================
 // FILE STORAGE SERVICE — S3 PROVIDER

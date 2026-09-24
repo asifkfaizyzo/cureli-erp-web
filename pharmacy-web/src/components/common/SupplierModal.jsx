@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/SupplierModal.jsx (do not remove this comment)
 // src/pages/suppliers/components/SupplierModal.jsx
 import React, {
   useState,

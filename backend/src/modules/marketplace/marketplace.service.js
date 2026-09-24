@@ -1,3 +1,4 @@
+// backend/src/modules/marketplace/marketplace.service.js (do not remove this comment)
 // backend/src/modules/marketplace/marketplace.service.js
 
 import prisma from "../../config/prisma.js";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/sales/billing/components/CustomerDetailsCard.jsx (do not remove this comment)
 // pharmacy-web/src/pages/sales/billing/components/CustomerDetailsCard.jsx
 
 import { useState, useCallback } from "react";

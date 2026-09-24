@@ -1,3 +1,4 @@
+// cadmin-web/src/utils/resolveFileUrl.js (do not remove this comment)
 // cadmin-web/src/utils/resolveFileUrl.js
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";

@@ -1,3 +1,4 @@
+// backend/src/modules/rider/dashboard/rider.dashboard.controller.js (do not remove this comment)
 import { fail, success } from "../../../utils/response.js";
 import { getDashboard } from "./rider.dashboard.service.js";
 

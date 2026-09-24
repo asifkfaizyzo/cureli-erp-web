@@ -1,3 +1,4 @@
+// backend/src/modules/medicines/linking.service.js (do not remove this comment)
 import prisma from "../../config/prisma.js";
 import { createListingForMedicine, handleMedicineUnlinked } from "../marketplace-listings/listings.service.js";
 import * as audit from "../audit/index.js";

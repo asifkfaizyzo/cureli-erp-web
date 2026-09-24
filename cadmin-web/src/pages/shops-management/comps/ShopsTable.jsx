@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/ShopsTable.jsx (do not remove this comment)
 // src/pages/shops-management/comps/ShopsTable.jsx
 
 import { useEffect, useState, useCallback } from "react";

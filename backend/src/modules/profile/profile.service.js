@@ -1,3 +1,4 @@
+// backend/src/modules/profile/profile.service.js (do not remove this comment)
 // backend/src/modules/profile/profile.service.js
 
 import prisma from "../../config/prisma.js";

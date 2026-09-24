@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260603100747_add_marketplace_orders_v2/migration.sql (do not remove this comment)
 -- DropIndex
 DROP INDEX IF EXISTS "idx_mmv_brand_trgm";
 

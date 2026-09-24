@@ -1,3 +1,4 @@
+// backend/prisma/schema/cadmin.prisma (do not remove this comment)
 // CAdmin — Cureli admin panel users, roles, activity logs
 
 model CAdmin {

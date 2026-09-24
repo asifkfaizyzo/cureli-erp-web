@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/mobileWelcome.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/mobileWelcome.js
 // ============================================
 // MOBILE USER WELCOME EMAIL TEMPLATE

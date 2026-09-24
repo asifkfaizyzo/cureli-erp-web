@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251227121847_make_ticket_branch_optional/migration.sql (do not remove this comment)
 -- DropForeignKey
 ALTER TABLE "tickets" DROP CONSTRAINT "tickets_branch_id_fkey";
 

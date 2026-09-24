@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/components/SupplierRow.jsx (do not remove this comment)
 // src/pages/suppliers/components/SupplierRow.jsx
 import { memo, forwardRef, useImperativeHandle, useRef } from "react";
 import { Eye, Pencil, Trash2, Layers, Building2 } from "lucide-react";

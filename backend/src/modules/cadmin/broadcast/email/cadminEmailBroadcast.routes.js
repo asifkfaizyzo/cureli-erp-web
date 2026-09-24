@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/broadcast/email/cadminEmailBroadcast.routes.js (do not remove this comment)
 import { Router } from 'express';
 import * as controller from './cadminEmailBroadcast.controller.js';
 import { validateBody, validateQuery } from '../../../../middleware/validate.js';

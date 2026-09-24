@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/verification/comps/DocumentResubmission.jsx (do not remove this comment)
 // src/components/verification/DocumentResubmission.jsx
 
 import { useState, useEffect, useRef } from "react";

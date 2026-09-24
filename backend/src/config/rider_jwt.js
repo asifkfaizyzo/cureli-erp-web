@@ -1,3 +1,4 @@
+// backend/src/config/rider_jwt.js (do not remove this comment)
 // backend/src/config/rider_jwt.js
 //
 // JWT configuration for Cureli Delivery rider auth.

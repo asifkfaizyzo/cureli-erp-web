@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminMobileBroadcast.js (do not remove this comment)
 // cadmin-web/src/api/cadminMobileBroadcast.js
 
 import CAdminAPI from './axios';

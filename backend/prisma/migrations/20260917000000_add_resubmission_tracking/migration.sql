@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260917000000_add_resubmission_tracking/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "medicines"
 ADD COLUMN "last_resubmitted_at" TIMESTAMPTZ(6),

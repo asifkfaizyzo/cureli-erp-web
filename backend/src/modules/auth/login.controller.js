@@ -1,3 +1,4 @@
+// backend/src/modules/auth/login.controller.js (do not remove this comment)
 // backend/src/modules/auth/login.controller.js
 
 import prisma from "../../config/prisma.js";

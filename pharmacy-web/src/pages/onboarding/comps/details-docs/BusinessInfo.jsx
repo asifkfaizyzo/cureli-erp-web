@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/details-docs/BusinessInfo.jsx (do not remove this comment)
 import { useState, useEffect, useRef, useCallback } from "react";
 import { updateShopInfo } from "../../../../api/shop";
 import { useNavigate } from "react-router-dom";

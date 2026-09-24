@@ -1,3 +1,4 @@
+// backend/src/modules/reports/financial/financial.report.controller.js (do not remove this comment)
 // backend/src/modules/reports/financial/financial.report.controller.js
 
 import { success, fail } from "../../../utils/response.js";

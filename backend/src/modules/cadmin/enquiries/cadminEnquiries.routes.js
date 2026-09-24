@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/enquiries/cadminEnquiries.routes.js (do not remove this comment)
 import { Router } from "express";
 import { validate } from "../../../middleware/validate.js";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";

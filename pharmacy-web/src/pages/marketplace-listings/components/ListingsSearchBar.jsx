@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-listings/components/ListingsSearchBar.jsx (do not remove this comment)
 // src/pages/marketplace-listings/components/ListingsSearchBar.jsx
 
 import { Search, SlidersHorizontal, X } from "lucide-react";

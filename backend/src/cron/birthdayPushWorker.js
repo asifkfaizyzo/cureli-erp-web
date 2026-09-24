@@ -1,3 +1,4 @@
+// backend/src/cron/birthdayPushWorker.js (do not remove this comment)
 // backend/src/cron/birthdayPushWorker.js
 // ============================================
 // BIRTHDAY PUSH NOTIFICATION WORKER

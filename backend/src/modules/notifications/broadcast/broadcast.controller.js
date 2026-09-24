@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/broadcast/broadcast.controller.js (do not remove this comment)
 import { success, error } from '../../../utils/response.js';
 import { sendBroadcast, previewBroadcastAudience } from './broadcast.service.js';
 

@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/DeveloperStamp.jsx (do not remove this comment)
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/branches/comps/BranchLimitBanner.jsx (do not remove this comment)
 // src/pages/settings/components/BranchLimitBanner.jsx
 
 import { motion } from "framer-motion";

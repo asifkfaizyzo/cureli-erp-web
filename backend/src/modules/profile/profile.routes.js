@@ -1,3 +1,4 @@
+// backend/src/modules/profile/profile.routes.js (do not remove this comment)
 // src/modules/profile/profile.routes.js
 
 import { Router } from "express";

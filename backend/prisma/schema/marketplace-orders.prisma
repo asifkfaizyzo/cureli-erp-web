@@ -1,3 +1,4 @@
+// backend/prisma/schema/marketplace-orders.prisma (do not remove this comment)
 // Marketplace Orders — Orders, items, prescriptions, status history
 
 model MarketplaceOrder {

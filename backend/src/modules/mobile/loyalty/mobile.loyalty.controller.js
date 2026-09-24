@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/loyalty/mobile.loyalty.controller.js (do not remove this comment)
 // backend/src/modules/mobile/loyalty/mobile.loyalty.controller.js
 
 import { success, fail } from "../../../utils/response.js";

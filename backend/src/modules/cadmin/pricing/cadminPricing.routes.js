@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/pricing/cadminPricing.routes.js (do not remove this comment)
 // backend/src/modules/cadmin/pricing/cadminPricing.routes.js
 
 import { Router } from 'express';

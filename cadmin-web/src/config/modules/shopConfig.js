@@ -1,3 +1,4 @@
+// cadmin-web/src/config/modules/shopConfig.js (do not remove this comment)
 // ═══════════════════════════════════════════════════════════════════
 // SHOP MODULE CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════

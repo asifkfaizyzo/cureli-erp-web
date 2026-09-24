@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/details-docs/UploadRegistration.jsx (do not remove this comment)
 import { useState, useRef } from "react";
 import { IoCloudUploadOutline } from "react-icons/io5";
 import { uploadShopFile } from "../../../../api/shopFiles";

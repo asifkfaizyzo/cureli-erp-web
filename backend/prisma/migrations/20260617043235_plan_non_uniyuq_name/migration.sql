@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260617043235_plan_non_uniyuq_name/migration.sql (do not remove this comment)
 /*
   Warnings:
 

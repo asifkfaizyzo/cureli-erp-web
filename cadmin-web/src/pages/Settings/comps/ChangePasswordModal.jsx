@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Settings/comps/ChangePasswordModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/Settings/comps/ChangePasswordModal.jsx
 
 import { useState } from "react";

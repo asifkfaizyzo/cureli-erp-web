@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/gst/GSTR2ReportPage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/gst/GSTR2ReportPage.jsx
 
 import React, { useState, useEffect, useCallback } from "react";

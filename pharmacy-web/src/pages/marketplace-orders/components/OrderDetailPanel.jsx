@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-orders/components/OrderDetailPanel.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-orders/components/OrderDetailPanel.jsx
 
 import { useState, useCallback } from "react";

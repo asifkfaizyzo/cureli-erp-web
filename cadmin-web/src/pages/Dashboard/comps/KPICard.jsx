@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Dashboard/comps/KPICard.jsx (do not remove this comment)
 // src/pages/Dashboard/comps/KPICard.jsx
 
 import { motion } from "framer-motion";

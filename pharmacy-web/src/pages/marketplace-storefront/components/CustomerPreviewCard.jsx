@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/CustomerPreviewCard.jsx (do not remove this comment)
 import { Store, Star, Truck, ShoppingBag, Image, Eye } from "lucide-react";
 
 const CustomerPreviewCard = ({ storefront }) => (

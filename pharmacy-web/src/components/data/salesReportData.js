@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/salesReportData.js (do not remove this comment)
 const salesReportData = [
   {
     saleId: "S-2025-0148",

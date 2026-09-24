@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/primitives/MetricCard.jsx (do not remove this comment)
 import { motion } from "framer-motion";
 
 const MetricCard = ({ icon: Icon, label, value, accent }) => (

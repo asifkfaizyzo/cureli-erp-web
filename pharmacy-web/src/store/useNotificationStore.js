@@ -1,3 +1,4 @@
+// pharmacy-web/src/store/useNotificationStore.js (do not remove this comment)
 // pharmacy-web/src/store/useNotificationStore.js
 // Full file — adds lastOrderUpdate state and receiveOrderStatusChangeSSE action.
 // Everything else is unchanged.

@@ -1,3 +1,4 @@
+// backend/src/config/prisma.js (do not remove this comment)
 //backend\src\config\prisma.js
 import { PrismaClient } from "@prisma/client";
 

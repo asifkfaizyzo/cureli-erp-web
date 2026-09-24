@@ -1,3 +1,4 @@
+// backend/src/modules/rider/presence/rider.presence.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 
 // ── Constants ────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/shopVerified.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/shopVerified.js
 // ============================================
 // SHOP VERIFIED EMAIL TEMPLATE

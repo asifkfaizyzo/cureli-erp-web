@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/checkout/pricing.engine.js (do not remove this comment)
 // backend/src/modules/mobile/checkout/pricing.engine.js
 // Pure function — no DB calls, no side effects.
 // Receives config object + order inputs, returns full breakdown.

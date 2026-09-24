@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/UnmappedDetailModal.jsx (do not remove this comment)
 // cadmin/src/pages/MasterMedicines/comps/UnmappedDetailModal.jsx
 
 import { useEffect, useState } from "react";

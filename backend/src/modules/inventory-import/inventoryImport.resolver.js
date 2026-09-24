@@ -1,3 +1,4 @@
+// backend/src/modules/inventory-import/inventoryImport.resolver.js (do not remove this comment)
 // Simplified — only handles conflict decisions now.
 // Medicine decisions are automatic, no user input needed.
 

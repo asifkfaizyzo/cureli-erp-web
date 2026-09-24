@@ -1,3 +1,4 @@
+// backend/src/middleware/validate.js (do not remove this comment)
 // backend/src/middleware/validate.js
 
 import { fail } from "../utils/response.js";

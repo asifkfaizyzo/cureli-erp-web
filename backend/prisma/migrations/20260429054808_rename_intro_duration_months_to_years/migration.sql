@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260429054808_rename_intro_duration_months_to_years/migration.sql (do not remove this comment)
 /*
   Warnings:
 

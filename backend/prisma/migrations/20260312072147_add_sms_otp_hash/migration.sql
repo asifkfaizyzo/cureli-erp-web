@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260312072147_add_sms_otp_hash/migration.sql (do not remove this comment)
 /*
   Warnings:
 

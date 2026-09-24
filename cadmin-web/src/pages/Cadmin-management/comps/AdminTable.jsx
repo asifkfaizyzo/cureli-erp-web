@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Cadmin-management/comps/AdminTable.jsx (do not remove this comment)
 // cadmin-web/src/pages/Cadmin-management/comps/AdminTable.jsx
 
 import { useEffect, useState, useCallback } from "react";

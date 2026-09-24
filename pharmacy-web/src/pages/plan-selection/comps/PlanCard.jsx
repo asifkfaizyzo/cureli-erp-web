@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/plan-selection/comps/PlanCard.jsx (do not remove this comment)
 // pharmacy-web/src/pages/plan-selection/comps/PlanCard.jsx
 
 import { motion } from "framer-motion";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/branches/comps/BranchFilters.jsx (do not remove this comment)
 // src/pages/settings/branches/comps/BranchFilters.jsx
 
 import { useState, useEffect, useRef } from "react";

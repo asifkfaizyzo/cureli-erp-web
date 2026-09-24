@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/auth.js (do not remove this comment)
 // src/api/auth.js
 
 import API from "./axios";

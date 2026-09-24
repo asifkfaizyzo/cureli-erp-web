@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/orders/PendingOrdersPage.jsx (do not remove this comment)
 // src/pages/orders/PendingOrdersPage.jsx
 
 import { motion } from "framer-motion";

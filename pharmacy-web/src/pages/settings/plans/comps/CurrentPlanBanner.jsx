@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/plans/comps/CurrentPlanBanner.jsx (do not remove this comment)
 // pharmacy-web/src/pages/settings/plans/comps/CurrentPlanBanner.jsx
 
 import { motion } from "framer-motion";

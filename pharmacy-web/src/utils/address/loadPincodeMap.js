@@ -1,3 +1,4 @@
+// pharmacy-web/src/utils/address/loadPincodeMap.js (do not remove this comment)
 let pincodeMapCache = null;
 let loadingPromise = null;
 

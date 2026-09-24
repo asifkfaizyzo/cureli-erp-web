@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/broadcast/broadcast.routes.js (do not remove this comment)
 import { Router } from 'express';
 import { requireCAdmin } from '../../../middleware/requireCAdmin.js';
 import { validate } from '../../../middleware/validate.js';

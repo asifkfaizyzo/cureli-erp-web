@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileDraftsList.jsx (do not remove this comment)
 // cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileDraftsList.jsx
 
 import { useState, useEffect } from 'react';

@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/app-config/banners/cadmin.banners.controller.js (do not remove this comment)
 // src/modules/cadmin/app-config/banners/cadmin.banners.controller.js
 
 import { success, fail } from "../../../../utils/response.js";

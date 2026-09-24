@@ -1,3 +1,4 @@
+// backend/prisma/schema/enums.prisma (do not remove this comment)
 // All enum definitions used across the schema
 
 enum LinkStatus {

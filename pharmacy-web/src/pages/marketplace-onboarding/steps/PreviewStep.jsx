@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/steps/PreviewStep.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/steps/PreviewStep.jsx
 
 import {

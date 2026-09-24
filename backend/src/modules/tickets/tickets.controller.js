@@ -1,3 +1,4 @@
+// backend/src/modules/tickets/tickets.controller.js (do not remove this comment)
 import { success, fail } from "../../utils/response.js";
 import * as svc from "./tickets.service.js";
 import * as audit from "../audit/index.js";

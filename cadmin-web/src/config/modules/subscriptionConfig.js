@@ -1,3 +1,4 @@
+// cadmin-web/src/config/modules/subscriptionConfig.js (do not remove this comment)
 import {
   FileEdit,
   CheckCircle2,

@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/purchase/usePurchaseSupplier.js (do not remove this comment)
 // src/hooks/purchase/usePurchaseSupplier.js
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuthStore, selectBranchContext } from "../../store/useAuthStore";

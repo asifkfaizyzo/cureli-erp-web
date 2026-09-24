@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/pricing/cadminPricing.controller.js (do not remove this comment)
 // backend/src/modules/cadmin/pricing/cadminPricing.controller.js
 
 import { getPricingConfig, updatePricingConfig } from './cadminPricing.service.js';

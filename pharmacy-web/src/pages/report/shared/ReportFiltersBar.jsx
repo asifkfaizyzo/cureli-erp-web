@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/shared/ReportFiltersBar.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/shared/ReportFiltersBar.jsx
 
 import { Search, X, ChevronDown } from "lucide-react";

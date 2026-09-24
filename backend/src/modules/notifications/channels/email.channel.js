@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/channels/email.channel.js (do not remove this comment)
 // backend/src/modules/notifications/channels/email.channel.js
 
 import { sendMail } from '../../../utils/email.js';

@@ -1,3 +1,4 @@
+// cadmin-web/src/config/modules/dashboardConfig.js (do not remove this comment)
 // src/config/modules/dashboardConfig.js
 
 import {

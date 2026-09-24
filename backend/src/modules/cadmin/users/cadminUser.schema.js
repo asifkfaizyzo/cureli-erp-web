@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/users/cadminUser.schema.js (do not remove this comment)
 //Q:\PROJECTS\YourZeroesAndOnes\cureli\curely_erp\backend\src\modules\cadmin\users\cadminUser.schema.js
 
 import { fail } from "../../../utils/response.js";

@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/broadcast/mobile/cadminMobileBroadcast.controller.js (do not remove this comment)
 // backend/src/modules/cadmin/broadcast/mobile/cadminMobileBroadcast.controller.js
 
 import { success, fail } from '../../../../utils/response.js';

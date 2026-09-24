@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/components/OnboardingProgressBar.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/components/OnboardingProgressBar.jsx
 
 import { Check } from "lucide-react";

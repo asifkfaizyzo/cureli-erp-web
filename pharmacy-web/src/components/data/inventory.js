@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/inventory.js (do not remove this comment)
 export const inventoryData = [
   {
     id: "INV001",

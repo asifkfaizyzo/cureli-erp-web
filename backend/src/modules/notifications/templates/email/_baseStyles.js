@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/_baseStyles.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/_baseStyles.js
 // ============================================
 // SHARED EMAIL STYLES - DARK MODE COMPATIBLE

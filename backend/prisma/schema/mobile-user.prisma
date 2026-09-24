@@ -1,3 +1,4 @@
+// backend/prisma/schema/mobile-user.prisma (do not remove this comment)
 // Mobile Users — Cureli customer accounts, sessions, addresses
 
 model CureliMobileUser {

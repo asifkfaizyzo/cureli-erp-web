@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260130074844_add_notifications_table/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "notifications" (
     "notification_id" UUID NOT NULL,

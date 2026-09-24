@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/master-medicines/cadminMasterMedicines.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 import { fileURLToPath } from "url";
 import path from "path";

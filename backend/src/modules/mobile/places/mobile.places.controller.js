@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/places/mobile.places.controller.js (do not remove this comment)
 // src/modules/mobile/places/mobile.places.controller.js
 
 import { success, fail } from "../../../utils/response.js";

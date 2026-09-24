@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/broadcast/broadcast.service.js (do not remove this comment)
 import { notify, NOTIFICATION_EVENTS } from '../notification.service.js';
 
 /**

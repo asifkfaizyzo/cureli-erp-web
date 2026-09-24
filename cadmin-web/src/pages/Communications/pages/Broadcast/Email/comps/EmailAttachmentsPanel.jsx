@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/Email/comps/EmailAttachmentsPanel.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/Email/comps/EmailAttachmentsPanel.jsx
 
 import { useState, useRef } from "react";

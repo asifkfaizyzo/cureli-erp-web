@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/cadminPasswordReset.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/cadminPasswordReset.js
 // ============================================
 // CADMIN PASSWORD RESET EMAIL TEMPLATE

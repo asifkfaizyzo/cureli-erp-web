@@ -1,3 +1,4 @@
+// backend/src/modules/rider/auth/rider.auth.service.js (do not remove this comment)
 import crypto from "crypto";
 import prisma from "../../../config/prisma.js";
 import {

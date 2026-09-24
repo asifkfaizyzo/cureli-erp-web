@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionGraceExtended.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionGraceExtended.js
 // ============================================
 // SUBSCRIPTION GRACE EXTENDED EMAIL TEMPLATE

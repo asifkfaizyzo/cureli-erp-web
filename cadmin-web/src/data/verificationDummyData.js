@@ -1,3 +1,4 @@
+// cadmin-web/src/data/verificationDummyData.js (do not remove this comment)
 const verificationDummyData = [
   {
     shopName: "CarePlus Medicals",

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/prescription-requests/components/RequestDetailPanel.jsx (do not remove this comment)
 // pharmacy-web/src/pages/prescription-requests/components/RequestDetailPanel.jsx
 
 import { useState, useCallback }  from 'react';

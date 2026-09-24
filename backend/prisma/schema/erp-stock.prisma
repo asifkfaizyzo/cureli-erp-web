@@ -1,3 +1,4 @@
+// backend/prisma/schema/erp-stock.prisma (do not remove this comment)
 // ERP Stock — Stock ledger, adjustments
 
 model StockLedger {

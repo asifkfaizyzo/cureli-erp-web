@@ -1,3 +1,4 @@
+// backend/src/utils/recaptcha.js (do not remove this comment)
 // backend/src/utils/recaptcha.js
 
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;

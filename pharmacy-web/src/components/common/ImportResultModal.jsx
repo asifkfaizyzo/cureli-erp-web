@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/ImportResultModal.jsx (do not remove this comment)
 // src/components/common/ImportResultModal.jsx
 
 import React, { useState, useMemo } from "react";

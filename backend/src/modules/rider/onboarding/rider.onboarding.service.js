@@ -1,3 +1,4 @@
+// backend/src/modules/rider/onboarding/rider.onboarding.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 import { uploadFile } from "../../../services/fileStorage.service.js";
 import { resolveAssetUrl } from "../../../services/assetUrl.service.js";

@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/Email/comps/CreateEmailForm.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/Email/comps/CreateEmailForm.jsx
 
 import { useState, useEffect, useCallback } from "react";
