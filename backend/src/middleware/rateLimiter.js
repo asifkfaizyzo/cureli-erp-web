@@ -23,6 +23,10 @@ const userOrIpKey = (req) => {
       if (payload?.user_id) {
         return `user:${payload.user_id}`;
       }
+      // Rider tokens use `sub` instead of `user_id`
+      if (payload?.sub) {
+        return `user:${payload.sub}`;
+      }
     }
   } catch {
     // decode failed — fall through to IP

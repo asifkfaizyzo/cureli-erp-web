@@ -15,6 +15,13 @@ export function createTeamRider(data) {
   return CAdminAPI.post("/delivery/riders", data);
 }
 
+// ── Convert Rider Type ──────────────────────────────────────
+export function convertRiderType(riderId, newType) {
+  return CAdminAPI.patch(`/delivery/riders/${riderId}/convert-type`, {
+    new_type: newType,
+  });
+}
+
 // ── Approve Application ───────────────────────────────────────
 export function approveRider(riderId) {
   return CAdminAPI.post(`/delivery/riders/${riderId}/approve`);

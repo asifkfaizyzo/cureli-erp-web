@@ -313,6 +313,7 @@ enum EarningType {
   WEEKLY_CHALLENGE
   REFERRAL_BONUS
   MANUAL_ADJUSTMENT
+  TIP 
 }
 
 enum PayoutStatus {

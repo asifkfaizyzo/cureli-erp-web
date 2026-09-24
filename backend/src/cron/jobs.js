@@ -1,4 +1,4 @@
-//backend\src\cron\jobs.js
+// backend/src/cron/jobs.js
 import cron from "node-cron";
 import prisma from "../config/prisma.js";
 import { withCronLock, getInstanceId } from "./cronLock.js";
@@ -7,6 +7,7 @@ import { cleanupExpiredSessions } from "../utils/session.js";
 import { deleteFile } from "../services/fileStorage.service.js";
 import { processExpiredLoyaltyPoints } from "./loyaltyExpiryWorker.js";
 import { runBirthdayPushJob } from "./birthdayPushWorker.js";
+import { staleRiderWorker } from "./staleRiderWorker.js";
 
 import {
   cleanupOldPendingUsers,
@@ -566,7 +567,6 @@ function initializeLoyaltyPointsExpiryJob() {
 async function runShiftEvaluation() {
   cronLogger.info("Starting daily rider incentive shift evaluation...");
   try {
-    // Yesterday's date (whose shift closed at 06:00 AM today)
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
@@ -585,12 +585,20 @@ function initializeShiftEvaluationJob() {
   );
   cronLogger.info("Shift evaluation job scheduled (daily at 6:05 AM)");
 }
+
 function initializeBirthdayPushJob() {
   // 11:00 AM IST = 05:30 UTC
   cron.schedule("30 5 * * *", () =>
     withCronLock("birthday-push", 30, runBirthdayPushJob),
   );
   cronLogger.info("Birthday push job scheduled (daily at 11:00 AM IST)");
+}
+
+function initializeStaleRiderJob() {
+  cron.schedule("*/2 * * * *", () =>
+    withCronLock("stale-rider-worker", 2, staleRiderWorker),
+  );
+  cronLogger.info("Stale rider cleanup job scheduled (every 2 minutes)");
 }
 
 export function initializeCronJobs() {
@@ -625,6 +633,7 @@ export function initializeCronJobs() {
   initializeLoyaltyPointsExpiryJob();
   initializeShiftEvaluationJob();
   initializeBirthdayPushJob();
+  initializeStaleRiderJob();
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -681,7 +690,6 @@ export function initializeCronJobs() {
     }),
   );
 
-  
   cronLogger.info("All cron jobs initialized:");
   cronLogger.info("  - Session cleanup: Every hour");
   cronLogger.info("  - Plan transition: Daily at 2:00 AM");
@@ -703,4 +711,5 @@ export function initializeCronJobs() {
   cronLogger.info("  - Loyalty points expiry: Daily at 2:00 AM IST");
   cronLogger.info("  - Shift evaluation: Daily at 6:05 AM");
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
+  cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
 }

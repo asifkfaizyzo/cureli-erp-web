@@ -375,8 +375,40 @@ export async function createRiderByAdmin(body, files, createdBy) {
     bank_ifsc,
     bank_holder_name,
     bank_name,
+    rider_type: rawRiderType,
   } = body;
 
+  // ── Validate rider_type ──────────────────────────────────
+  const riderType = ["TEAM", "INDEPENDENT"].includes(rawRiderType)
+    ? rawRiderType
+    : "TEAM"; // backward compat default
+
+  // ── Mandatory document check (all 7 files required) ──────
+  const REQUIRED_DOC_FIELDS = [
+    { field: "profile_photo", label: "Profile Photo" },
+    { field: "driving_license_front", label: "Driving License Front" },
+    { field: "driving_license_back", label: "Driving License Back" },
+    { field: "aadhaar_front", label: "Aadhaar Front" },
+    { field: "aadhaar_back", label: "Aadhaar Back" },
+    { field: "pan_front", label: "PAN Card" },
+    { field: "vehicle_rc", label: "Vehicle RC" },
+  ];
+
+  const missingDocs = REQUIRED_DOC_FIELDS.filter((d) => {
+    const arr = files[d.field];
+    return !arr || arr.length === 0;
+  });
+
+  if (missingDocs.length > 0) {
+    const err = new Error(
+      `Missing required documents: ${missingDocs.map((d) => d.label).join(", ")}`,
+    );
+    err.code = "DOCUMENTS_REQUIRED";
+    err.missing = missingDocs.map((d) => d.field);
+    throw err;
+  }
+
+  // ── Phone dedup ──────────────────────────────────────────
   const raw10 = phone
     .replace(/^\+?91/, "")
     .replace(/\s+/g, "")
@@ -403,6 +435,7 @@ export async function createRiderByAdmin(body, files, createdBy) {
   const { hashPassword } = await import("../../../utils/hash.js");
   const passwordHash = await hashPassword(initial_password);
 
+  // ── Upload helpers ───────────────────────────────────────
   const uploadDoc = async (fileField) => {
     const fileArray = files[fileField];
     if (!fileArray || fileArray.length === 0) return null;
@@ -419,67 +452,55 @@ export async function createRiderByAdmin(body, files, createdBy) {
     return s3Result.storage_key;
   };
 
+  // All 7 uploads (guaranteed non-null by validation above)
   const profilePhotoKey = await uploadDoc("profile_photo");
-  const preparedDocs = [];
-
   const dlFront = await uploadDoc("driving_license_front");
   const dlBack = await uploadDoc("driving_license_back");
-  if (dlFront) {
-    preparedDocs.push({
-      type: "DRIVING_LICENSE_FRONT",
-      storage_key: dlFront,
-      back_storage_key: dlBack || null,
-      status: "APPROVED",
-      uploaded_at: new Date(),
-    });
-  }
-
   const adFront = await uploadDoc("aadhaar_front");
   const adBack = await uploadDoc("aadhaar_back");
-  if (adFront) {
-    preparedDocs.push({
-      type: "AADHAAR_FRONT",
-      storage_key: adFront,
-      back_storage_key: adBack || null,
+  const panFront = await uploadDoc("pan_front");
+  const rcDoc = await uploadDoc("vehicle_rc");
+
+  const preparedDocs = [
+    {
+      type: "DRIVING_LICENSE_FRONT",
+      storage_key: dlFront,
+      back_storage_key: dlBack,
       status: "APPROVED",
       uploaded_at: new Date(),
-    });
-  }
-
-  const panFront = await uploadDoc("pan_front");
-  if (panFront) {
-    preparedDocs.push({
+    },
+    {
+      type: "AADHAAR_FRONT",
+      storage_key: adFront,
+      back_storage_key: adBack,
+      status: "APPROVED",
+      uploaded_at: new Date(),
+    },
+    {
       type: "PAN_FRONT",
       storage_key: panFront,
       status: "APPROVED",
       uploaded_at: new Date(),
-    });
-  }
-
-  const rcDoc = await uploadDoc("vehicle_rc");
-  if (rcDoc) {
-    preparedDocs.push({
+    },
+    {
       type: "VEHICLE_RC",
       storage_key: rcDoc,
       status: "APPROVED",
       uploaded_at: new Date(),
-    });
-  }
-
-  if (profilePhotoKey) {
-    preparedDocs.push({
+    },
+    {
       type: "PROFILE_PHOTO",
       storage_key: profilePhotoKey,
       status: "APPROVED",
       uploaded_at: new Date(),
-    });
-  }
+    },
+  ];
 
   const rider = await prisma.rider.create({
     data: {
       phone,
       password_hash: passwordHash,
-      rider_type: "TEAM",
+      rider_type: riderType,
       status: "ACTIVE",
       onboarding_step: "COMPLETED",
       submitted_for_review: true,
@@ -517,6 +538,71 @@ export async function createRiderByAdmin(body, files, createdBy) {
   });
 
   return rider;
+}
+
+export async function convertRiderType(riderId, newType) {
+  if (!["TEAM", "INDEPENDENT"].includes(newType)) {
+    const err = new Error("Invalid rider type. Must be TEAM or INDEPENDENT.");
+    err.code = "INVALID_TYPE";
+    throw err;
+  }
+
+  const rider = await prisma.rider.findUnique({
+    where: { rider_id: riderId },
+    select: { rider_id: true, rider_type: true, deleted_at: true, full_name: true },
+  });
+
+  if (!rider || rider.deleted_at) {
+    const err = new Error("Rider not found.");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  if (rider.rider_type === newType) {
+    const err = new Error(`Rider is already ${newType}.`);
+    err.code = "SAME_TYPE";
+    throw err;
+  }
+
+  // Block if rider has in-progress deliveries
+  const ACTIVE_DELIVERY_STATUSES = [
+    "ACCEPTED",
+    "ARRIVED_AT_PHARMACY",
+    "PHARMACY_CONFIRMED",
+    "PICKED_UP",
+    "EN_ROUTE",
+    "ARRIVED_AT_CUSTOMER",
+  ];
+
+  const activeCount = await prisma.delivery.count({
+    where: {
+      rider_id: riderId,
+      status: { in: ACTIVE_DELIVERY_STATUSES },
+    },
+  });
+
+  if (activeCount > 0) {
+    const err = new Error(
+      `Cannot convert type — rider has ${activeCount} active delivery/deliveries in progress.`,
+    );
+    err.code = "ACTIVE_DELIVERIES";
+    err.activeCount = activeCount;
+    throw err;
+  }
+
+  const updated = await prisma.rider.update({
+    where: { rider_id: riderId },
+    data: { rider_type: newType },
+    select: {
+      rider_id: true,
+      full_name: true,
+      rider_type: true,
+      status: true,
+      updated_at: true,
+    },
+  });
+
+  return updated;
 }
 
 // ── Zone management ───────────────────────────────────────────

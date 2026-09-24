@@ -15,6 +15,7 @@ import {
   addZone,
   editZone,
   getPendingReviews,
+  convertRiderTypeController,
 } from "./cadminRiders.controller.js";
 
 const router = Router();
@@ -74,6 +75,10 @@ router.post("/delivery/riders/:riderId/approve",     approveRiderApplication);
 router.post("/delivery/riders/:riderId/reject",      rejectRiderApplication);
 router.post("/delivery/riders/:riderId/suspend",     suspendRiderAccount);
 router.post("/delivery/riders/:riderId/reactivate",  reactivateRiderAccount);
+router.patch(
+  "/delivery/riders/:riderId/convert-type",
+  convertRiderTypeController
+);
 router.patch(
   "/delivery/riders/:riderId/documents/:documentId/review",
   reviewRiderDocument

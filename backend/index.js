@@ -119,6 +119,9 @@ import mobileSupportRoutes from "./src/modules/mobile/support/mobile.support.rou
 import riderAuthRoutes from "./src/modules/rider/auth/rider.auth.routes.js";
 import riderOnboardingRoutes from "./src/modules/rider/onboarding/rider.onboarding.routes.js";
 import riderSseRoutes from "./src/modules/rider/sse/rider.sse.routes.js";
+import riderPresenceRoutes from "./src/modules/rider/presence/rider.presence.routes.js";
+import riderDashboardRoutes from "./src/modules/rider/dashboard/rider.dashboard.routes.js";
+import riderShopsRoutes from "./src/modules/rider/shops/rider.shops.routes.js";
 
 // ============================================
 // APP SETUP
@@ -330,6 +333,9 @@ app.use("/mobile/support", mobileSupportRoutes);
 app.use("/rider/auth", riderAuthRoutes);
 app.use("/rider/onboarding", riderOnboardingRoutes);
 app.use("/rider/sse", riderSseRoutes);
+app.use("/rider", riderPresenceRoutes);
+app.use("/rider", riderDashboardRoutes);
+app.use("/rider", riderShopsRoutes);
 
 // ============================================
 // HEALTH CHECK
