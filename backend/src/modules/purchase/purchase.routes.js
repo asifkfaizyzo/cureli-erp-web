@@ -32,6 +32,7 @@ import {
   applyCreditNoteController,
   cancelApprovedReturnController,
   revertReturnToPendingController,
+  revertPurchaseInvoiceToDraftController, // Added Revert Invoice Controller
 } from "./purchase.controller.js";
 
 const router = express.Router();
@@ -40,7 +41,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 // ═══════════════════════════════════════════════════════════════════════
-// PURCHASE RETURN ROUTES (Must come BEFORE :invoiceId routes)
+// PURCHASE RETURN ROUTES (Must come BEFORE generic :invoiceId routes)
 // ═══════════════════════════════════════════════════════════════════════
 
 // Create purchase return
@@ -61,6 +62,20 @@ router.post(
   "/returns/:returnId/approve",
   validateBody(approveReturnSchema),
   approveOrRejectReturnController,
+);
+
+// Cancel approved return (Super Admin only)
+router.patch(
+  "/returns/:returnId/cancel",
+  validateBody(cancelApprovedReturnSchema),
+  cancelApprovedReturnController,
+);
+
+// Revert approved return to pending (Super Admin only)
+router.patch(
+  "/returns/:returnId/revert",
+  validateBody(revertReturnToPendingSchema),
+  revertReturnToPendingController,
 );
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -104,8 +119,11 @@ router.put(
   updatePurchaseInvoiceController,
 );
 
-// Confirm invoice
+// Confirm invoice (adds stock to inventory)
 router.post("/:invoiceId/confirm", confirmPurchaseInvoiceController);
+
+// Revert confirmed invoice to DRAFT (Super Admin only - reverses stock additions)
+router.post("/:invoiceId/revert", revertPurchaseInvoiceToDraftController);
 
 // Cancel invoice
 router.post(
@@ -126,22 +144,6 @@ router.post(
   "/:invoiceId/payments",
   validateBody(recordPaymentSchema),
   recordPaymentController,
-);
-
-//  ADD THESE TWO ROUTES
-
-// Cancel approved return (Super Admin only)
-router.patch(
-  "/returns/:returnId/cancel",
-  validateBody(cancelApprovedReturnSchema),
-  cancelApprovedReturnController,
-);
-
-// Revert approved return to pending (Super Admin only)
-router.patch(
-  "/returns/:returnId/revert",
-  validateBody(revertReturnToPendingSchema),
-  revertReturnToPendingController,
 );
 
 export default router;

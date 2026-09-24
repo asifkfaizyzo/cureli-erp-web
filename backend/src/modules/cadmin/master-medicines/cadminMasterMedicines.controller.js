@@ -28,6 +28,7 @@ import {
   uploadMasterImage,
   deleteMasterImage,
   createMasterMedicine,
+  createVariantForMasterMedicine,
   getMappingHistory,
   unignoreShopMedicine,
 } from "./cadminMasterMedicines.service.js";
@@ -595,8 +596,41 @@ export async function createMasterMed(req, res) {
     return res.status(201).json({ success: true, data: result });
   } catch (error) {
     console.error("Error creating master medicine:", error);
-    const status = error.message.includes("already exists") ? 409 : 500;
-    return res.status(status).json({
+    if (error.code === "DUPLICATE_MASTER_KEY" || error.statusCode === 409) {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE_MASTER_KEY",
+        message: error.message,
+        data: {
+          existingMaster: error.existingMaster || null,
+        },
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CREATE VARIANT FOR MASTER MEDICINE
+// ══════════════════════════════════════════════════════════════
+
+export async function createVariantUnderMaster(req, res) {
+  try {
+    const { id } = req.params;
+    const auditContext = buildAuditCtx(req);
+    const result = await createVariantForMasterMedicine(
+      id,
+      req.body,
+      auditContext.actor_id,
+      auditContext,
+    );
+    return res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Error creating variant under master:", error);
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: error.message,
     });
