@@ -1,5 +1,4 @@
-// backend/src/modules/cadmin/delivery/cadminRiders.service.js (do not remove this comment)
-// backend/src/modules/cadmin/delivery/cadminRiders.service.js
+// backend/src/modules/cadmin/riders/cadminRiders.service.js (do not remove this comment)
 
 import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";

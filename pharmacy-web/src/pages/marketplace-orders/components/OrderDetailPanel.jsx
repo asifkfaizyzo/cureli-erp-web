@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-orders/components/OrderDetailPanel.jsx (do not remove this comment)
-// pharmacy-web/src/pages/marketplace-orders/components/OrderDetailPanel.jsx
 
 import { useState, useCallback } from "react";
 import {
@@ -18,6 +17,7 @@ import {
   ShoppingBag,
   Download,
   RefreshCw,
+  KeyRound,
 } from "lucide-react";
 
 const STATUS_LABELS = {
@@ -70,6 +70,44 @@ const InfoRow = ({ label, value }) => (
     <span className="text-xs text-white/80 text-right">{value || "—"}</span>
   </div>
 );
+
+function PickupPinCard({ pin, isReady }) {
+  if (!pin) return null;
+
+  return (
+    <div
+      className={`rounded-xl p-4 border ${
+        isReady
+          ? "bg-emerald-500/10 border-emerald-500/25"
+          : "bg-white/[0.03] border-white/[0.06]"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <KeyRound
+          size={14}
+          className={isReady ? "text-emerald-300" : "text-white/45"}
+        />
+        <span
+          className={`text-[10px] font-bold uppercase tracking-wider ${
+            isReady ? "text-emerald-300" : "text-white/45"
+          }`}
+        >
+          Pickup PIN
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-2xl font-mono font-bold tracking-[0.3em] text-white">
+          {pin}
+        </span>
+        {isReady && (
+          <span className="text-[10px] text-emerald-300/80 text-right max-w-[130px] leading-tight">
+            Give this to the delivery rider on pickup
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function PatientSection({ patient }) {
   if (!patient || (!patient.name && patient.age === null && !patient.sex))
@@ -231,6 +269,7 @@ const OrderDetailPanel = ({
     cancelled_at,
     payment_method,
     patient,
+    pickup_otp,
   } = orderDetail;
 
   const canBillAndAccept = status === "PLACED";
@@ -239,6 +278,9 @@ const OrderDetailPanel = ({
   const canComplete = status === "READY_FOR_PICKUP";
   const isTerminal = ["COMPLETED", "REJECTED", "CANCELLED"].includes(status);
   const hasInvoice = ["READY_FOR_PICKUP", "COMPLETED"].includes(status);
+
+  const showPickupPin =
+    !!pickup_otp && (status === "ACCEPTED" || status === "READY_FOR_PICKUP");
 
   const hasFeeBreakdown =
     (service_charge && Number(service_charge) > 0) ||
@@ -266,12 +308,16 @@ const OrderDetailPanel = ({
       </div>
 
       {/* Scrollable body with layout safeguards and customized scrollbar */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {actionError && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-300">
             <AlertCircle size={14} className="flex-shrink-0" />
             {actionError}
           </div>
+        )}
+
+        {showPickupPin && (
+          <PickupPinCard pin={pickup_otp} isReady={status === "READY_FOR_PICKUP"} />
         )}
 
         <SectionCard title="Customer" icon={User}>

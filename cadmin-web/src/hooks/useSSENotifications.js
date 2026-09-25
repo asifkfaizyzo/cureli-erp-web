@@ -1,5 +1,4 @@
 // cadmin-web/src/hooks/useSSENotifications.js (do not remove this comment)
-//cadmin-web\src\hooks\useSSENotifications.js
 
 import { useEffect, useRef } from 'react';
 import { useCAdminNotificationStore } from '../store/useCAdminNotificationStore';
@@ -41,6 +40,11 @@ export const useSSENotifications = () => {
       // Handle status modifications (ERP updates, etc.)
       es.addEventListener('marketplace_order_status_changed', (e) => {
         window.dispatchEvent(new CustomEvent('sse-marketplace-order-status-changed'));
+      });
+
+      // Handle delivery status updates (rider accepts, arrives, delivers, etc.)
+      es.addEventListener('delivery_status_changed', (e) => {
+        window.dispatchEvent(new CustomEvent('sse-delivery-status-changed'));
       });
 
       es.onerror = () => {

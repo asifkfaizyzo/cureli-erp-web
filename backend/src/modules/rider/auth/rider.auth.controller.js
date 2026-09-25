@@ -1,5 +1,4 @@
 // backend/src/modules/rider/auth/rider.auth.controller.js (do not remove this comment)
-//backend\src\modules\rider\auth\rider.auth.controller.js
 import { fail, success } from "../../../utils/response.js";
 import {
   checkPhoneSchema,

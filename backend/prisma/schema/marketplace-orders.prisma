@@ -33,6 +33,10 @@ model MarketplaceOrder {
   razorpay_payment_id       String?                         @db.VarChar(100)
   razorpay_signature        String?                         @db.VarChar(500)
 
+
+  pickup_otp                String?                         @db.VarChar(6)
+  delivery_otp              String?                         @db.VarChar(6)
+
   requires_prescription     Boolean                         @default(false)
   notes                     String?                         @db.VarChar(500)
   patient_is_self           Boolean                         @default(true)
@@ -75,7 +79,8 @@ model MarketplaceOrder {
   salesInvoice              SalesInvoice?                   @relation("MarketplaceSalesInvoice", fields: [sales_invoice_id], references: [invoice_id])
   couponUsages              CouponUsage[]                   @relation("OrderCouponUsages")
   loyaltyTransactions       LoyaltyTransaction[]            @relation("OrderLoyaltyTransactions")
-  customerSupportTickets CustomerSupportTicket[] @relation("OrderCustomerSupportTickets")
+  customerSupportTickets    CustomerSupportTicket[]         @relation("OrderCustomerSupportTickets")
+  delivery                  Delivery?                       @relation("OrderDelivery")
 
   @@index([shop_id, status])
   @@index([customer_id, placed_at(sort: Desc)])

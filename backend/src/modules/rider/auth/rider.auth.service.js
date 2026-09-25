@@ -17,6 +17,7 @@ import {
   msg91SendSms,
   formatPhoneNumber,
 } from "../../../providers/msg91/sendSms.js";
+import { resolveAssetUrl } from "../../../services/assetUrl.service.js";
 
 // ── Constants ─────────────────────────────────────────────────
 const OTP_LENGTH = 6;
@@ -61,7 +62,13 @@ function formatRiderForResponse(rider) {
       ? new Date(rider.date_of_birth).toISOString().split("T")[0]
       : null,
     sex: rider.sex ?? null,
+
+    // ── RETURN BOTH RAW KEY AND FULL RESOLVED CDN URL ─────────
     profile_photo_key: rider.profile_photo_key,
+    profile_photo_url: rider.profile_photo_key
+      ? resolveAssetUrl(`rider_documents/${rider.profile_photo_key}`)
+      : null,
+
     status: rider.status,
     suspension_reason: rider.suspension_reason,
     current_city: rider.current_city,
@@ -827,13 +834,61 @@ export async function refreshRiderToken(refreshToken) {
 // ── logoutRider ───────────────────────────────────────────────
 
 export async function logoutRider(sessionId) {
-  await prisma.riderSession.updateMany({
-    where: { id: sessionId, is_active: true },
-    data: {
-      is_active: false,
-      revoked_at: new Date(),
-      revoked_reason: "logout",
-    },
+  // 1. Look up the session to get rider_id before revoking
+  const session = await prisma.riderSession.findUnique({
+    where: { id: sessionId },
+    select: { rider_id: true, is_active: true },
+  });
+
+  // Nothing to do if session doesn't exist or is already revoked
+  if (!session || !session.is_active) return;
+
+  const now = new Date();
+
+  // 2. Clean up presence + revoke JWT in a single transaction
+  await prisma.$transaction(async (tx) => {
+    // a) Set rider offline (safety net — may already be offline)
+    await tx.rider.update({
+      where: { rider_id: session.rider_id },
+      data: {
+        is_online: false,
+        last_seen_at: now,
+      },
+    });
+
+    // b) Close all open RiderOnlineSession records
+    const openSessions = await tx.riderOnlineSession.findMany({
+      where: {
+        rider_id: session.rider_id,
+        went_offline_at: null,
+      },
+      select: { session_id: true, went_online_at: true },
+    });
+
+    for (const onlineSession of openSessions) {
+      const durationMs =
+        now.getTime() - new Date(onlineSession.went_online_at).getTime();
+      const durationMinutes = Math.round((durationMs / 60_000) * 100) / 100;
+
+      await tx.riderOnlineSession.update({
+        where: { session_id: onlineSession.session_id },
+        data: {
+          went_offline_at: now,
+          duration_minutes: durationMinutes,
+          closed_by: "logout",
+        },
+      });
+    }
+
+    // c) Revoke JWT session (original behavior preserved)
+    await tx.riderSession.updateMany({
+      where: { id: sessionId, is_active: true },
+      data: {
+        is_active: false,
+        revoked_at: now,
+        revoked_reason: "logout",
+      },
+    });
   });
 }
 

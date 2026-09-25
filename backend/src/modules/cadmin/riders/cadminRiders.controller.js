@@ -1,5 +1,4 @@
-// backend/src/modules/cadmin/delivery/cadminRiders.controller.js (do not remove this comment)
-// backend/src/modules/cadmin/delivery/cadminRiders.controller.js
+// backend/src/modules/cadmin/riders/cadminRiders.controller.js (do not remove this comment)
 
 import { fail, success } from "../../../utils/response.js";
 import {
