@@ -701,6 +701,9 @@ export async function getMobileOrders(customer_id, query = {}) {
         shop: {
           select: { business_name: true },
         },
+        delivery: {
+          select: { status: true },
+        },
         items: {
           select: {
             item_id: true,
@@ -753,9 +756,62 @@ export async function getMobileOrderDetail(order_id, customer_id) {
       statusHistory: {
         orderBy: { created_at: "asc" },
       },
-      shop: { select: { business_name: true } },
-      branch: { select: { branch_name: true } },
-      delivery: { select: { status: true } },
+      shop: {
+        select: {
+          business_name: true,
+        },
+      },
+      branch: {
+        select: {
+          branch_name: true,
+          address_line_1: true,
+          city: true,
+          contact_number: true,
+          marketplaceSettings: {
+            select: {
+              latitude: true,
+              longitude: true,
+              formatted_address: true,
+              contact_override: true,
+            },
+          },
+        },
+      },
+      delivery: {
+        select: {
+          delivery_id: true,
+          status: true,
+          pickup_lat: true,
+          pickup_lng: true,
+          drop_lat: true,
+          drop_lng: true,
+          pickup_distance_km: true,
+          drop_distance_km: true,
+          total_distance_km: true,
+          assigned_at: true,
+          accepted_at: true,
+          arrived_at_pharmacy_at: true,
+          picked_up_at: true,
+          arrived_at_customer_at: true,
+          delivered_at: true,
+          rider: {
+            select: {
+              rider_id: true,
+              full_name: true,
+              phone: true,
+              profile_photo_key: true,
+              vehicle_type: true,
+              vehicle_number: true,
+              vehicle_make_model: true,
+              rating: true,
+              total_ratings: true,
+              current_lat: true,
+              current_lng: true,
+              last_location_at: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -1200,6 +1256,7 @@ function formatMobileOrderSummary(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    delivery_status: order.delivery?.status ?? null,
     shop_name: order.shop?.business_name ?? null,
     total_amount: Number(order.total_amount),
     requires_prescription: order.requires_prescription,
@@ -1217,12 +1274,96 @@ function formatMobileOrderSummary(order) {
 }
 
 function formatMobileOrderDetail(order) {
+  const delivery = order.delivery;
+  const rider = delivery?.rider;
+
+  // ── Resolve rider photo to a full accessible URL ──────────────────────
+  let riderPhotoUrl = null;
+  if (rider?.profile_photo_key) {
+    riderPhotoUrl = resolveAssetUrl(rider.profile_photo_key);
+  }
+
+  // ── Build rich delivery object for live tracking ──────────────────────
+  const deliveryData = delivery
+    ? {
+        delivery_id: delivery.delivery_id,
+        status: delivery.status,
+        pickup_location: {
+          latitude: delivery.pickup_lat ? Number(delivery.pickup_lat) : null,
+          longitude: delivery.pickup_lng ? Number(delivery.pickup_lng) : null,
+        },
+        drop_location: {
+          latitude: delivery.drop_lat ? Number(delivery.drop_lat) : null,
+          longitude: delivery.drop_lng ? Number(delivery.drop_lng) : null,
+        },
+        distances: {
+          pickup_km: delivery.pickup_distance_km
+            ? Number(delivery.pickup_distance_km)
+            : null,
+          drop_km: delivery.drop_distance_km
+            ? Number(delivery.drop_distance_km)
+            : null,
+          total_km: delivery.total_distance_km
+            ? Number(delivery.total_distance_km)
+            : null,
+        },
+        timestamps: {
+          assigned_at: delivery.assigned_at,
+          accepted_at: delivery.accepted_at,
+          arrived_at_pharmacy_at: delivery.arrived_at_pharmacy_at,
+          picked_up_at: delivery.picked_up_at,
+          arrived_at_customer_at: delivery.arrived_at_customer_at,
+          delivered_at: delivery.delivered_at,
+        },
+        rider: rider
+          ? {
+              rider_id: rider.rider_id,
+              name: rider.full_name,
+              phone: rider.phone,
+              photo_url: riderPhotoUrl,
+              vehicle_type: rider.vehicle_type,
+              vehicle_number: rider.vehicle_number,
+              vehicle_make_model: rider.vehicle_make_model,
+              rating: rider.rating,
+              total_ratings: rider.total_ratings,
+              current_location: {
+                latitude: rider.current_lat ? Number(rider.current_lat) : null,
+                longitude: rider.current_lng ? Number(rider.current_lng) : null,
+                last_updated_at: rider.last_location_at,
+              },
+            }
+          : null,
+      }
+    : null;
+
+  // ── Resolve pharmacy contact & address ────────────────────────────────
+  const pharmacyPhone =
+    order.branch?.marketplaceSettings?.contact_override ||
+    order.branch?.contact_number ||
+    null;
+
+  const pharmacyAddress =
+    order.branch?.marketplaceSettings?.formatted_address ||
+    [order.branch?.address_line_1, order.branch?.city]
+      .filter(Boolean)
+      .join(", ") ||
+    null;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
     shop_name: order.shop?.business_name ?? null,
+    shop_phone: pharmacyPhone,
     branch_name: order.branch?.branch_name ?? null,
+    branch_address: pharmacyAddress,
+    // ── Expose branch coordinates for map fallback when delivery is null ──
+    branch_latitude: order.branch?.marketplaceSettings?.latitude
+      ? Number(order.branch.marketplaceSettings.latitude)
+      : null,
+    branch_longitude: order.branch?.marketplaceSettings?.longitude
+      ? Number(order.branch.marketplaceSettings.longitude)
+      : null,
     delivery_address: order.delivery_address_snapshot,
     total_amount: Number(order.total_amount),
     subtotal: Number(order.subtotal),
@@ -1233,15 +1374,33 @@ function formatMobileOrderDetail(order) {
     km_surcharge: Number(order.km_surcharge ?? 0),
     tip: Number(order.tip ?? 0),
     grand_total: Number(order.grand_total ?? order.total_amount),
+
+    // ── Coupon & Loyalty breakdown for expanded tracking sheet ──
+    coupon_code: order.coupon_code ?? null,
+    coupon_discount_amount: Number(order.coupon_discount_amount ?? 0),
+    loyalty_points_redeemed: order.loyalty_points_redeemed ?? 0,
+    loyalty_discount_amount: Number(order.loyalty_discount_amount ?? 0),
+    loyalty_points_earned: order.loyalty_points_earned ?? null,
+
+    // ── Patient info (for "Ordering for Mom" tag) ───────────────
+    patient_is_self: order.patient_is_self,
+    patient_name_snapshot: order.patient_name_snapshot ?? null,
+
+    // ── Delivery distance (km) ──────────────────────────────────
+    distance_km: Number(order.distance_km ?? 0),
+
     invoice_generated_at: order.invoice_generated_at ?? null,
     requires_prescription: order.requires_prescription,
     notes: order.notes,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
+    // ── OTP security: only expose when rider has arrived ────────────────
     delivery_otp:
-      order.delivery?.status === "ARRIVED_AT_CUSTOMER"
+      delivery?.status === "ARRIVED_AT_CUSTOMER"
         ? (order.delivery_otp ?? null)
         : null,
+    // ── Full delivery + rider telemetry for live tracking ───────────────
+    delivery: deliveryData,
     placed_at: order.placed_at,
     accepted_at: order.accepted_at,
     ready_at: order.ready_at,
@@ -1265,7 +1424,6 @@ function formatMobileOrderDetail(order) {
     })),
   };
 }
-
 function formatOrderItem(item) {
   return {
     item_id: item.item_id,

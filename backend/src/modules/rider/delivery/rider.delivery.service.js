@@ -3,7 +3,11 @@
 import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";
 import { fireOrderStatusChangedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
-import { unregisterActiveDelivery } from "../presence/rider.presence.service.js";
+import {
+  registerActiveDelivery,
+  unregisterActiveDelivery,
+} from "../presence/rider.presence.service.js";
+
 /**
  * Fetch the active ongoing delivery task for a rider.
  */
@@ -123,7 +127,17 @@ export async function acceptDelivery(delivery_id, rider_id) {
     return res;
   });
 
-  // Broadcast to CAdmin
+  // ── Register SSE cache so rider GPS ticks broadcast to this customer ──
+  registerActiveDelivery(rider_id, updated.order.customer_id, updated.order_id);
+
+  // ── Notify Customer: rider accepted, delivery is live ─────────────────
+  sseService.notifyMobile(updated.order.customer_id, "delivery_update", {
+    order_id: updated.order_id,
+    order_number: updated.order.order_number,
+    delivery_status: "ACCEPTED",
+  });
+
+  // ── Notify CAdmin ─────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: updated.order_id,
     delivery_id: updated.delivery_id,
@@ -141,6 +155,7 @@ export async function acceptDelivery(delivery_id, rider_id) {
 export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
   const delivery = await prisma.delivery.findUnique({
     where: { delivery_id },
+    include: { order: true },
   });
 
   if (!delivery) throw new Error("Delivery assignment not found");
@@ -169,7 +184,19 @@ export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
     });
   });
 
-  // Notify CAdmin to re-assign
+  // ── Safety cleanup: ensure SSE cache is cleared for this rider ────────
+  unregisterActiveDelivery(rider_id);
+
+  // ── Notify Customer: delivery declined, re-assignment in progress ─────
+  if (delivery.order?.customer_id) {
+    sseService.notifyMobile(delivery.order.customer_id, "delivery_update", {
+      order_id: delivery.order_id,
+      order_number: delivery.order.order_number,
+      delivery_status: "PENDING_ASSIGNMENT",
+    });
+  }
+
+  // ── Notify CAdmin to re-assign ────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: delivery.order_id,
     delivery_id: delivery.delivery_id,
@@ -392,9 +419,10 @@ export async function completeDeliveryWithOtp(
     });
   });
 
+  // ── Clear SSE tracking cache ──────────────────────────────────────────
   unregisterActiveDelivery(rider_id);
 
-  // Fire loyalty, push notifications, and ERP status change
+  // ── Fire loyalty, push notifications, and ERP status change ───────────
   await fireOrderStatusChangedEvents({
     order_id: delivery.order_id,
     order_number: delivery.order.order_number,
@@ -404,7 +432,14 @@ export async function completeDeliveryWithOtp(
     customer_name: delivery.order.customer_name_snapshot,
   });
 
-  // Notify CAdmin
+  // ── Notify Customer: delivery complete ────────────────────────────────
+  sseService.notifyMobile(delivery.order.customer_id, "delivery_update", {
+    order_id: delivery.order_id,
+    order_number: delivery.order.order_number,
+    delivery_status: "DELIVERED",
+  });
+
+  // ── Notify CAdmin ─────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: delivery.order_id,
     delivery_id: delivery.delivery_id,

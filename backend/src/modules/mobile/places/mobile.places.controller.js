@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/places/mobile.places.controller.js (do not remove this comment)
-// src/modules/mobile/places/mobile.places.controller.js
 
 import { success, fail } from "../../../utils/response.js";
 import {
@@ -115,7 +114,11 @@ export async function handleGetDrivingDistance(req, res) {
 
 export async function directionsHandler(req, res) {
   try {
-    const { originLat, originLng, destLat, destLng } = req.query;
+    // Accept both camelCase (legacy) and snake_case (frontend SDK) param names
+    const originLat = req.query.originLat || req.query.origin_lat;
+    const originLng = req.query.originLng || req.query.origin_lng;
+    const destLat = req.query.destLat || req.query.dest_lat;
+    const destLng = req.query.destLng || req.query.dest_lng;
 
     if (!originLat || !originLng || !destLat || !destLng) {
       return res

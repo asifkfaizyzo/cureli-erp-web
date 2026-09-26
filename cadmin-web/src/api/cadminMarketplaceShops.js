@@ -10,10 +10,11 @@ export const getMarketplaceShops = (params = {}) =>
 export const getMarketplaceShopById = (shopId) =>
   CAdminAPI.get(`/marketplace/shops/${shopId}`);
 
-export const blockMarketplaceShop = (shopId, block) =>
-  CAdminAPI.patch(`/marketplace/shops/${shopId}/block`, { block });
+// ── Marketplace Visibility (is_live toggle) ────────────────────
+export const toggleShopMarketplaceVisibility = (shopId, visible) =>
+  CAdminAPI.patch(`/marketplace/shops/${shopId}/visibility`, { visible });
 
-// ── Storefront ─────────────────────────────────────────────────
+// ── Storefront & Bank Details ──────────────────────────────────
 export const updateShopStorefront = (shopId, data) =>
   CAdminAPI.patch(`/marketplace/shops/${shopId}/storefront`, data);
 
@@ -30,8 +31,24 @@ export const updateBranchMarketplaceConfig = (shopId, branchId, data) =>
     data
   );
 
+// ── Branch Visibility (marketplace_enabled toggle) ─────────────
+export const toggleBranchMarketplaceVisibility = (shopId, branchId, visible) =>
+  CAdminAPI.patch(
+    `/marketplace/shops/${shopId}/branches/${branchId}/visibility`,
+    { visible }
+  );
+
+// ── Holidays ───────────────────────────────────────────────────
+export const getShopHolidays = (shopId) =>
+  CAdminAPI.get(`/marketplace/shops/${shopId}/holidays`);
+
+export const createShopHoliday = (shopId, data) =>
+  CAdminAPI.post(`/marketplace/shops/${shopId}/holidays`, data);
+
+export const deleteShopHoliday = (shopId, holidayId) =>
+  CAdminAPI.delete(`/marketplace/shops/${shopId}/holidays/${holidayId}`);
+
 // ── Upload ─────────────────────────────────────────────────────
-// type: "logo" | "banner" | "branch_image"
 export const uploadMarketplaceAsset = (type, file, onProgress) => {
   const formData = new FormData();
   formData.append("file", file);

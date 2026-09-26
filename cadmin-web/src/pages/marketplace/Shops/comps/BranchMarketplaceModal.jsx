@@ -23,6 +23,7 @@ import {
   XCircle,
   Image,
   Upload,
+  CalendarDays,
 } from "lucide-react";
 import {
   searchPlaces,
@@ -86,16 +87,20 @@ function validateForm(data) {
     if (!data.opening_time) errors.opening_time = "Required";
     if (!data.closing_time) errors.closing_time = "Required";
   }
+  if (!Array.isArray(data.open_days) || data.open_days.length === 0) {
+    errors.open_days = "Must select at least one active operating day";
+  }
   return errors;
 }
 
 function completionCount(form) {
   if (!form.marketplace_enabled) return { done: 0, total: 0 };
   let done = 0;
-  const total = 4;
+  const total = 5;
   if (form.latitude && form.longitude && form.google_place_id) done++;
   if (form.pickup_enabled || form.delivery_enabled) done++;
   if (form.is_24_hours || (form.opening_time && form.closing_time)) done++;
+  if (Array.isArray(form.open_days) && form.open_days.length > 0) done++;
   done++;
   return { done, total };
 }
@@ -105,7 +110,7 @@ const Section = ({ icon: Icon, title, required, done, children }) => (
   <div className="space-y-2">
     <div className="flex items-center gap-1.5">
       <Icon size={12} className="text-gray-400" />
-      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
         {title}
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </p>
@@ -143,7 +148,7 @@ const ToggleChip = ({ icon: Icon, label, active, onClick }) => (
 // ── Slim toggle ────────────────────────────────────────────────
 const SlimToggle = ({ checked, onChange, label, disabled = false }) => (
   <div className="flex items-center justify-between">
-    <span className="text-sm font-medium text-gray-700">{label}</span>
+    <span className="text-sm font-semibold text-gray-700">{label}</span>
     <button
       type="button"
       onClick={() => !disabled && onChange(!checked)}
@@ -301,7 +306,7 @@ const PlacesSearchInput = ({ value, onChange, onSelect }) => {
                 className="text-gray-300 mt-0.5 flex-shrink-0"
               />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">
+                <p className="text-sm font-semibold text-gray-800 truncate">
                   {r.main_text}
                 </p>
                 <p className="text-xs text-gray-400 truncate mt-0.5">
@@ -584,7 +589,7 @@ const BranchImageUpload = ({
       </div>
 
       <div className="flex-1 pt-1 space-y-1">
-        <p className="text-xs font-medium text-gray-600">Branch Photo</p>
+        <p className="text-xs font-semibold text-gray-600">Branch Profile Photo</p>
         <p className="text-[11px] text-gray-400 leading-relaxed">
           Shown on the branch listing. Helps customers recognise your location.
         </p>
@@ -615,7 +620,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
     marketplace_enabled: ms?.marketplace_enabled ?? false,
     pickup_enabled: ms?.pickup_enabled ?? false,
     delivery_enabled: ms?.delivery_enabled ?? false,
-    delivery_mode: ms?.delivery_mode ?? "CURELI", // <-- Added delivery mode
+    delivery_mode: ms?.delivery_mode ?? "CURELI",
     is_24_hours: ms?.is_24_hours ?? false,
     opening_time: ms?.opening_time ?? "",
     closing_time: ms?.closing_time ?? "",
@@ -625,6 +630,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
     google_place_id: ms?.google_place_id ?? null,
     formatted_address: ms?.formatted_address ?? "",
     shop_image_url: ms?.shop_image_url ?? null,
+    open_days: ms?.open_days ?? ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], // default all days
   });
 
   const [errors, setErrors] = useState({});
@@ -652,6 +658,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
       opening_time: ["opening_time"],
       closing_time: ["closing_time"],
       is_24_hours: ["opening_time", "closing_time"],
+      open_days: ["open_days"],
     };
     const keys = relatedKeys[key] ?? [key];
     if (keys.some((k) => errors[k])) {
@@ -712,6 +719,27 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
     }
   };
 
+  const handleToggleDay = (day) => {
+    const current = [...form.open_days];
+    const index = current.indexOf(day);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(day);
+    }
+    patch("open_days", current);
+  };
+
+  const selectPresetDays = (preset) => {
+    if (preset === "all") {
+      patch("open_days", ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
+    } else if (preset === "weekdays") {
+      patch("open_days", ["MON", "TUE", "WED", "THU", "FRI"]);
+    } else if (preset === "weekends") {
+      patch("open_days", ["SAT", "SUN"]);
+    }
+  };
+
   const handleSave = async () => {
     setSubmitErr(null);
     const errs = validateForm(form);
@@ -725,7 +753,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
         marketplace_enabled: form.marketplace_enabled,
         pickup_enabled: form.pickup_enabled,
         delivery_enabled: form.delivery_enabled,
-        delivery_mode: form.delivery_mode || "CURELI", // <-- Included in payload
+        delivery_mode: form.delivery_mode,
         is_24_hours: form.is_24_hours,
         opening_time: form.is_24_hours ? null : form.opening_time || null,
         closing_time: form.is_24_hours ? null : form.closing_time || null,
@@ -735,6 +763,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
         google_place_id: form.google_place_id,
         formatted_address: form.formatted_address || null,
         shop_image_url: form.shop_image_url || null,
+        open_days: form.open_days,
       });
       setSaveSuccess(true);
       setTimeout(() => {
@@ -775,6 +804,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
   const isFulfillmentSet = form.pickup_enabled || form.delivery_enabled;
   const isTimingSet =
     form.is_24_hours || (!!form.opening_time && !!form.closing_time);
+  const isDaysSet = Array.isArray(form.open_days) && form.open_days.length > 0;
 
   return (
     <>
@@ -881,9 +911,9 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] text-gray-400 font-medium">
-                  Configuration
+                  Configuration Progress
                 </span>
-                <span className="text-[10px] text-gray-500 font-semibold">
+                <span className="text-[10px] text-gray-500 font-bold">
                   {done}/{total}
                 </span>
               </div>
@@ -911,7 +941,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                   className="text-red-500 flex-shrink-0 mt-0.5"
                 />
                 <p className="text-xs text-red-600 font-medium">
-                  This branch is blocked. Unblock it to enable marketplace.
+                  This branch is blocked. Unblock it to enable marketplace listing.
                 </p>
               </div>
             )}
@@ -923,8 +953,8 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                 label="Enable on Marketplace"
                 disabled={!branch.is_active}
               />
-              <p className="text-[11px] text-gray-400 mt-1.5">
-                Customers can discover and order from this branch
+              <p className="text-[11px] text-gray-400 mt-1.5 font-medium">
+                Customers can discover and place direct orders from this branch
               </p>
             </div>
 
@@ -972,7 +1002,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                           className="text-emerald-600 mt-0.5 flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <p className="text-xs text-emerald-700 font-medium">
+                          <p className="text-xs text-emerald-700 font-semibold">
                             Location set · drag the map pin to adjust
                           </p>
                           <p
@@ -981,7 +1011,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                           >
                             {form.formatted_address}
                           </p>
-                          <p className="text-[10px] text-emerald-500 mt-1">
+                          <p className="text-[10px] text-emerald-500 mt-1 font-mono">
                             {Number(form.latitude).toFixed(6)},{" "}
                             {Number(form.longitude).toFixed(6)}
                           </p>
@@ -1034,10 +1064,10 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                           />
                         </div>
 
-                        {/* ── Delivery Provider Selector (CAdmin) ── */}
+                        {/* Delivery Mode selector */}
                         {form.delivery_enabled && (
                           <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1.5">
-                            <p className="text-[10px] text-gray-500 font-semibold uppercase">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">
                               Delivery Provider
                             </p>
                             <div className="flex gap-2">
@@ -1112,7 +1142,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                                 }`}
                             />
                           </button>
-                          <span className="text-xs text-gray-600 font-medium">
+                          <span className="text-xs text-gray-600 font-semibold">
                             Open 24 hours
                           </span>
                         </div>
@@ -1130,7 +1160,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                                 <div>
                                   <label
                                     className="block text-[10px] text-gray-400
-                                      font-medium mb-1"
+                                      font-bold uppercase mb-1"
                                   >
                                     Opens
                                   </label>
@@ -1151,7 +1181,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                                       }`}
                                   />
                                   {errors.opening_time && (
-                                    <p className="text-[10px] text-red-500 mt-0.5">
+                                    <p className="text-[10px] text-red-500 mt-0.5 font-medium">
                                       {errors.opening_time}
                                     </p>
                                   )}
@@ -1159,7 +1189,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                                 <div>
                                   <label
                                     className="block text-[10px] text-gray-400
-                                      font-medium mb-1"
+                                      font-bold uppercase mb-1"
                                   >
                                     Closes
                                   </label>
@@ -1180,7 +1210,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                                       }`}
                                   />
                                   {errors.closing_time && (
-                                    <p className="text-[10px] text-red-500 mt-0.5">
+                                    <p className="text-[10px] text-red-500 mt-0.5 font-medium">
                                       {errors.closing_time}
                                     </p>
                                   )}
@@ -1193,10 +1223,71 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                     </Section>
                   </div>
 
+                  {/* Weekly Operating Days Schedule */}
+                  <Section
+                    icon={CalendarDays}
+                    title="Active Operating Days"
+                    required
+                    done={isDaysSet}
+                  >
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
+                      <div className="flex gap-1.5 justify-end mb-2">
+                        <button
+                          type="button"
+                          onClick={() => selectPresetDays("all")}
+                          className="text-[9px] font-bold text-[#05015A] hover:underline"
+                        >
+                          All Days
+                        </button>
+                        <span className="text-gray-300 text-[9px]">·</span>
+                        <button
+                          type="button"
+                          onClick={() => selectPresetDays("weekdays")}
+                          className="text-[9px] font-bold text-[#05015A] hover:underline"
+                        >
+                          Weekdays Only
+                        </button>
+                        <span className="text-gray-300 text-[9px]">·</span>
+                        <button
+                          type="button"
+                          onClick={() => selectPresetDays("weekends")}
+                          className="text-[9px] font-bold text-[#05015A] hover:underline"
+                        >
+                          Weekends Only
+                        </button>
+                      </div>
+
+                      <div className="flex gap-1.5 justify-between">
+                        {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => {
+                          const active = form.open_days.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => handleToggleDay(day)}
+                              className={`flex-1 py-1.5 px-0.5 rounded-lg border text-[10px] font-bold transition-all text-center ${
+                                active
+                                  ? "bg-[#05015A]/[0.08] border-[#05015A]/30 text-[#05015A]"
+                                  : "bg-white border-gray-200 text-gray-300 hover:border-gray-300"
+                              }`}
+                            >
+                              {day.slice(0, 3)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {errors.open_days && (
+                        <p className="text-xs text-red-500 flex items-center gap-1 mt-1 font-medium">
+                          <AlertCircle size={11} /> {errors.open_days}
+                        </p>
+                      )}
+                    </div>
+                  </Section>
+
                   {/* Contact override */}
                   <Section
                     icon={Phone}
-                    title="Contact Override"
+                    title="Contact Phone Override"
                     done={!!form.contact_override?.trim()}
                   >
                     <div className="relative">
@@ -1221,9 +1312,16 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                       />
                     </div>
                     <p className="text-[10px] text-gray-400">
-                      Leave blank to use the branch default contact
+                      Leave blank to fall back to the default branch phone line
                     </p>
                   </Section>
+
+                  {/* Auto-sync stats (Read Only) */}
+                  {ms?.last_auto_opened_date && (
+                    <div className="text-[10px] text-gray-400 text-right font-semibold">
+                      Auto-Opened Sync: <span className="text-gray-600 font-bold">{ms.last_auto_opened_date}</span>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1251,7 +1349,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
               onClick={handleBlockBranch}
               disabled={blocking || saving}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs
-                font-semibold transition-all disabled:opacity-50 border
+                font-bold transition-all disabled:opacity-50 border
                 ${
                   branch.is_active
                     ? "text-red-600 hover:bg-red-50 border-red-100"
@@ -1274,7 +1372,7 @@ const BranchMarketplaceModal = ({ branch, shop, onClose, onSaved }) => {
                 disabled={saving}
                 className="px-4 py-2 rounded-xl text-sm text-gray-500
                   hover:bg-gray-100 hover:text-gray-700 transition-all
-                  disabled:opacity-50 font-medium"
+                  disabled:opacity-50 font-semibold"
               >
                 Cancel
               </button>

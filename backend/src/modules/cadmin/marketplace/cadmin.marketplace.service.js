@@ -3,6 +3,11 @@
 
 import prisma from "../../../config/prisma.js";
 
+// Helper to sanitize/validate UUIDs safe from DB execution faults
+const isUuid = (val) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
+
 // ─────────────────────────────────────────────
 // SHOPS
 // ─────────────────────────────────────────────
@@ -124,6 +129,16 @@ export const getShopDetail = async (shop_id) => {
           banner_url: true,
           created_at: true,
           updated_at: true,
+          // ── Added Banking Fields ──
+          bank_account_holder: true,
+          bank_name: true,
+          bank_branch_name: true,
+          bank_ifsc: true,
+          bank_account_number: true,
+          bank_mmid: true,
+          bank_vpa: true,
+          // ── Added Draft JSON persistence ──
+          onboarding_draft: true,
         },
       },
       currentSubscription: {
@@ -171,8 +186,11 @@ export const getShopDetail = async (shop_id) => {
           is_24_hours: true,
           pickup_enabled: true,
           delivery_enabled: true,
+          delivery_mode: true,
           shop_image_url: true,
           contact_override: true,
+          open_days: true,
+          last_auto_opened_date: true,
           updated_at: true,
         },
       },
@@ -290,6 +308,7 @@ export const updateBranchMarketplaceConfig = async (
     marketplace_enabled: data.marketplace_enabled ?? false,
     pickup_enabled: data.pickup_enabled ?? false,
     delivery_enabled: data.delivery_enabled ?? false,
+    delivery_mode: data.delivery_mode ?? "CURELI",
     is_24_hours: data.is_24_hours ?? false,
     contact_override: data.contact_override ?? null,
     shop_image_url: data.shop_image_url ?? null,
@@ -299,6 +318,7 @@ export const updateBranchMarketplaceConfig = async (
     formatted_address: data.formatted_address ?? null,
     opening_time: data.is_24_hours ? null : (data.opening_time ?? null),
     closing_time: data.is_24_hours ? null : (data.closing_time ?? null),
+    open_days: Array.isArray(data.open_days) ? data.open_days : [],
   };
 
   return prisma.branchMarketplaceSettings.upsert({
@@ -318,7 +338,7 @@ export const updateBranchMarketplaceConfig = async (
 };
 
 // ─────────────────────────────────────────────
-// UPDATE SHOP STOREFRONT (new)
+// UPDATE SHOP STOREFRONT & BANK DETAILS
 // ─────────────────────────────────────────────
 
 export const updateShopStorefront = async (shop_id, data) => {
@@ -344,9 +364,30 @@ export const updateShopStorefront = async (shop_id, data) => {
       ...(data.logo_url !== undefined && {
         logo_url: data.logo_url,
       }),
-      // banner_url can be explicitly set to null (clear it)
       ...(data.banner_url !== undefined && {
         banner_url: data.banner_url,
+      }),
+      // ── Banking payouts ──
+      ...(data.bank_account_holder !== undefined && {
+        bank_account_holder: data.bank_account_holder,
+      }),
+      ...(data.bank_name !== undefined && {
+        bank_name: data.bank_name,
+      }),
+      ...(data.bank_branch_name !== undefined && {
+        bank_branch_name: data.bank_branch_name,
+      }),
+      ...(data.bank_ifsc !== undefined && {
+        bank_ifsc: data.bank_ifsc,
+      }),
+      ...(data.bank_account_number !== undefined && {
+        bank_account_number: data.bank_account_number,
+      }),
+      ...(data.bank_mmid !== undefined && {
+        bank_mmid: data.bank_mmid,
+      }),
+      ...(data.bank_vpa !== undefined && {
+        bank_vpa: data.bank_vpa,
       }),
     },
     select: {
@@ -358,6 +399,155 @@ export const updateShopStorefront = async (shop_id, data) => {
       banner_url: true,
       marketplace_status: true,
       updated_at: true,
+      bank_account_holder: true,
+      bank_name: true,
+      bank_branch_name: true,
+      bank_ifsc: true,
+      bank_account_number: true,
+      bank_mmid: true,
+      bank_vpa: true,
+    },
+  });
+};
+
+// ─────────────────────────────────────────────
+// HOLIDAYS
+// ─────────────────────────────────────────────
+
+export const getShopHolidays = async (shop_id) => {
+  return prisma.branchHoliday.findMany({
+    where: { shop_id },
+    orderBy: { holiday_date: "asc" },
+    include: {
+      branch: {
+        select: {
+          branch: {
+            select: {
+              branch_name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const createShopHoliday = async (shop_id, data, cadmin_user_id) => {
+  const { branch_id, holiday_date, reason, scope } = data;
+
+  const bSettings = await prisma.branchMarketplaceSettings.findUnique({
+    where: { branch_id },
+  });
+  if (!bSettings) {
+    throw new Error("Target branch settings not configured on the marketplace");
+  }
+
+  // Ensure UUID formatting safety
+  const safeCreatedBy = isUuid(cadmin_user_id)
+    ? cadmin_user_id
+    : "00000000-0000-0000-0000-000000000000";
+
+  return prisma.branchHoliday.create({
+    data: {
+      branch_id,
+      shop_id,
+      holiday_date: new Date(holiday_date),
+      reason: reason || null,
+      scope: scope === "SHOP" ? "SHOP" : "BRANCH",
+      created_by: safeCreatedBy,
+    },
+  });
+};
+
+export const deleteShopHoliday = async (shop_id, holiday_id) => {
+  const holiday = await prisma.branchHoliday.findFirst({
+    where: { holiday_id, shop_id },
+  });
+  if (!holiday) throw new Error("Holiday not found");
+
+  return prisma.branchHoliday.delete({
+    where: { holiday_id },
+  });
+};
+
+export const setShopMarketplaceVisibility = async (shop_id, visible) => {
+  const profile = await prisma.marketplaceProfile.findUnique({
+    where: { shop_id },
+    select: {
+      marketplace_profile_id: true,
+      marketplace_status: true,
+      is_live: true,
+    },
+  });
+
+  if (!profile) throw new Error("Marketplace profile not found for this shop");
+
+  // Can only toggle visibility if the shop is verified (LIVE status)
+  if (visible && profile.marketplace_status !== "LIVE") {
+    throw new Error("Cannot make shop visible — marketplace status is not Verified");
+  }
+
+  const updated = await prisma.marketplaceProfile.update({
+    where: { shop_id },
+    data: { is_live: visible },
+    select: {
+      marketplace_profile_id: true,
+      marketplace_status: true,
+      is_live: true,
+    },
+  });
+
+  // If hiding the shop, also disable all branch visibility
+  if (!visible) {
+    await prisma.branchMarketplaceSettings.updateMany({
+      where: {
+        marketplace_profile_id: profile.marketplace_profile_id,
+        marketplace_enabled: true,
+      },
+      data: { marketplace_enabled: false },
+    });
+  }
+
+  return updated;
+};
+
+// ── NEW: Toggle branch marketplace visibility (marketplace_enabled) ──
+export const setBranchMarketplaceVisibility = async (shop_id, branch_id, visible) => {
+  const branch = await prisma.branch.findFirst({
+    where: { branch_id, shop_id },
+    select: { branch_id: true, is_active: true },
+  });
+
+  if (!branch) throw new Error("Branch not found");
+
+  if (visible && !branch.is_active) {
+    throw new Error("Cannot make branch visible — branch is blocked");
+  }
+
+  const settings = await prisma.branchMarketplaceSettings.findUnique({
+    where: { branch_id },
+    select: { branch_marketplace_id: true },
+  });
+
+  if (!settings) throw new Error("Branch is not linked to marketplace");
+
+  // Check that the parent shop is_live before enabling
+  if (visible) {
+    const profile = await prisma.marketplaceProfile.findUnique({
+      where: { shop_id },
+      select: { is_live: true, marketplace_status: true },
+    });
+    if (!profile?.is_live) {
+      throw new Error("Cannot enable branch — shop is hidden from marketplace");
+    }
+  }
+
+  return prisma.branchMarketplaceSettings.update({
+    where: { branch_id },
+    data: { marketplace_enabled: visible },
+    select: {
+      branch_marketplace_id: true,
+      marketplace_enabled: true,
     },
   });
 };

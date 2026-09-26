@@ -6,16 +6,20 @@ import { requireCAdmin } from "../../../middleware/requireCAdmin.js";
 import {
   listShops,
   getShop,
-  blockShop,
+  toggleShopVisibility,
   updateStorefront,
   blockBranch,
   updateBranchConfig,
+  toggleBranchVisibility,
   uploadAsset,
   listUsers,
   getUser,
   blockUser,
   searchPlaces,
   getPlaceDetails,
+  getShopHolidays,
+  createShopHoliday,
+  deleteShopHoliday,
 } from "./cadmin.marketplace.controller.js";
 
 const router = express.Router();
@@ -23,15 +27,13 @@ const router = express.Router();
 router.use(requireCAdmin);
 
 // ─────────────────────────────────────────────
-// PLACES PROXY — before /:shop_id to avoid conflicts
+// PLACES PROXY
 // ─────────────────────────────────────────────
 router.get("/marketplace/places/search", searchPlaces);
 router.get("/marketplace/places/details", getPlaceDetails);
 
 // ─────────────────────────────────────────────
 // UPLOAD
-// POST /cadmin/marketplace/upload/:type
-// type: logo | banner | branch_image
 // ─────────────────────────────────────────────
 router.post("/marketplace/upload/:type", uploadAsset);
 
@@ -40,8 +42,18 @@ router.post("/marketplace/upload/:type", uploadAsset);
 // ─────────────────────────────────────────────
 router.get("/marketplace/shops", listShops);
 router.get("/marketplace/shops/:shop_id", getShop);
-router.patch("/marketplace/shops/:shop_id/block", blockShop);
+
+// Marketplace visibility toggle (is_live)
+router.patch("/marketplace/shops/:shop_id/visibility", toggleShopVisibility);
+
 router.patch("/marketplace/shops/:shop_id/storefront", updateStorefront);
+
+// ── Holidays ──
+router.get("/marketplace/shops/:shop_id/holidays", getShopHolidays);
+router.post("/marketplace/shops/:shop_id/holidays", createShopHoliday);
+router.delete("/marketplace/shops/:shop_id/holidays/:holiday_id", deleteShopHoliday);
+
+// ── Branches ──
 router.patch(
   "/marketplace/shops/:shop_id/branches/:branch_id/block",
   blockBranch
@@ -49,6 +61,11 @@ router.patch(
 router.patch(
   "/marketplace/shops/:shop_id/branches/:branch_id/config",
   updateBranchConfig
+);
+// Branch marketplace visibility toggle (marketplace_enabled)
+router.patch(
+  "/marketplace/shops/:shop_id/branches/:branch_id/visibility",
+  toggleBranchVisibility
 );
 
 // ─────────────────────────────────────────────

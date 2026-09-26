@@ -10,7 +10,6 @@ import { handleCAdminMarketplaceUpload } from "./cadmin.marketplace.upload.js";
 // SHOPS
 // ─────────────────────────────────────────────
 
-// GET /cadmin/marketplace/shops
 export const listShops = async (req, res) => {
   try {
     const {
@@ -36,7 +35,6 @@ export const listShops = async (req, res) => {
   }
 };
 
-// GET /cadmin/marketplace/shops/:shop_id
 export const getShop = async (req, res) => {
   try {
     const data = await Service.getShopDetail(req.params.shop_id);
@@ -51,52 +49,41 @@ export const getShop = async (req, res) => {
   }
 };
 
-// PATCH /cadmin/marketplace/shops/:shop_id/block
-export const blockShop = async (req, res) => {
+// PATCH /cadmin/marketplace/shops/:shop_id/visibility
+export const toggleShopVisibility = async (req, res) => {
   try {
-    const { block } = req.body;
+    const { visible } = req.body;
 
-    if (typeof block !== "boolean") {
-      return fail(res, "block must be a boolean", 400);
+    if (typeof visible !== "boolean") {
+      return fail(res, "visible must be a boolean", 400);
     }
 
-    const data = await Service.setShopBlockStatus(req.params.shop_id, block);
+    const data = await Service.setShopMarketplaceVisibility(
+      req.params.shop_id,
+      visible
+    );
 
     return success(
       res,
       data,
-      block ? "Shop blocked successfully" : "Shop unblocked successfully"
+      visible
+        ? "Shop is now visible on marketplace"
+        : "Shop is now hidden from marketplace"
     );
   } catch (err) {
-    console.error("[cadminMarketplace] blockShop:", err.message);
+    console.error("[cadminMarketplace] toggleShopVisibility:", err.message);
     return fail(
       res,
       err.message,
-      err.message === "Shop not found" ? 404 : 500
+      err.message.includes("not found") ? 404 : 400
     );
   }
 };
 
-// PATCH /cadmin/marketplace/shops/:shop_id/storefront
 export const updateStorefront = async (req, res) => {
   try {
     const { shop_id } = req.params;
-    const {
-      storefront_name,
-      storefront_description,
-      support_phone,
-      logo_url,
-      banner_url,
-    } = req.body;
-
-    const data = await Service.updateShopStorefront(shop_id, {
-      storefront_name,
-      storefront_description,
-      support_phone,
-      logo_url,
-      banner_url,
-    });
-
+    const data = await Service.updateShopStorefront(shop_id, req.body);
     return success(res, data, "Storefront updated");
   } catch (err) {
     console.error("[cadminMarketplace] updateStorefront:", err.message);
@@ -108,7 +95,10 @@ export const updateStorefront = async (req, res) => {
   }
 };
 
-// PATCH /cadmin/marketplace/shops/:shop_id/branches/:branch_id/block
+// ─────────────────────────────────────────────
+// BRANCHES
+// ─────────────────────────────────────────────
+
 export const blockBranch = async (req, res) => {
   try {
     const { block } = req.body;
@@ -138,7 +128,6 @@ export const blockBranch = async (req, res) => {
   }
 };
 
-// PATCH /cadmin/marketplace/shops/:shop_id/branches/:branch_id/config
 export const updateBranchConfig = async (req, res) => {
   try {
     const data = await Service.updateBranchMarketplaceConfig(
@@ -158,9 +147,75 @@ export const updateBranchConfig = async (req, res) => {
   }
 };
 
+// PATCH /cadmin/marketplace/shops/:shop_id/branches/:branch_id/visibility
+export const toggleBranchVisibility = async (req, res) => {
+  try {
+    const { visible } = req.body;
+
+    if (typeof visible !== "boolean") {
+      return fail(res, "visible must be a boolean", 400);
+    }
+
+    const data = await Service.setBranchMarketplaceVisibility(
+      req.params.shop_id,
+      req.params.branch_id,
+      visible
+    );
+
+    return success(
+      res,
+      data,
+      visible
+        ? "Branch is now visible on marketplace"
+        : "Branch is now hidden from marketplace"
+    );
+  } catch (err) {
+    console.error("[cadminMarketplace] toggleBranchVisibility:", err.message);
+    return fail(
+      res,
+      err.message,
+      err.message.includes("not found") ? 404 : 400
+    );
+  }
+};
+
+// ─────────────────────────────────────────────
+// HOLIDAYS
+// ─────────────────────────────────────────────
+
+export const getShopHolidays = async (req, res) => {
+  try {
+    const data = await Service.getShopHolidays(req.params.shop_id);
+    return success(res, data, "Shop holidays fetched");
+  } catch (err) {
+    console.error("[cadminMarketplace] getShopHolidays:", err.message);
+    return fail(res, err.message, 500);
+  }
+};
+
+export const createShopHoliday = async (req, res) => {
+  try {
+    const cadminId = req.cadmin?.cadmin_id || req.cadmin?.user_id || "00000000-0000-0000-0000-000000000000";
+    const data = await Service.createShopHoliday(req.params.shop_id, req.body, cadminId);
+    return success(res, data, "Holiday created");
+  } catch (err) {
+    console.error("[cadminMarketplace] createShopHoliday:", err.message);
+    return fail(res, err.message, 400);
+  }
+};
+
+export const deleteShopHoliday = async (req, res) => {
+  try {
+    const data = await Service.deleteShopHoliday(req.params.shop_id, req.params.holiday_id);
+    return success(res, data, "Holiday deleted");
+  } catch (err) {
+    console.error("[cadminMarketplace] deleteShopHoliday:", err.message);
+    return fail(res, err.message, 400);
+  }
+};
+
 // ─────────────────────────────────────────────
 // UPLOAD
-// POST /cadmin/marketplace/upload/:type
 // ─────────────────────────────────────────────
 
 export const uploadAsset = handleCAdminMarketplaceUpload;
@@ -169,23 +224,15 @@ export const uploadAsset = handleCAdminMarketplaceUpload;
 // MOBILE USERS
 // ─────────────────────────────────────────────
 
-// GET /cadmin/marketplace/users
 export const listUsers = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      search = "",
-      status = "",
-    } = req.query;
-
+    const { page = 1, limit = 20, search = "", status = "" } = req.query;
     const data = await Service.listMobileUsers({
       page: Math.max(1, parseInt(page)),
       limit: Math.min(100, parseInt(limit)),
       search: search.trim(),
       status,
     });
-
     return success(res, data, "Mobile users fetched");
   } catch (err) {
     console.error("[cadminMarketplace] listUsers:", err.message);
@@ -193,54 +240,31 @@ export const listUsers = async (req, res) => {
   }
 };
 
-// GET /cadmin/marketplace/users/:user_id
 export const getUser = async (req, res) => {
   try {
     const data = await Service.getMobileUserDetail(req.params.user_id);
     return success(res, data, "User detail fetched");
   } catch (err) {
     console.error("[cadminMarketplace] getUser:", err.message);
-    return fail(
-      res,
-      err.message,
-      err.message === "User not found" ? 404 : 500
-    );
+    return fail(res, err.message, err.message === "User not found" ? 404 : 500);
   }
 };
 
-// PATCH /cadmin/marketplace/users/:user_id/block
 export const blockUser = async (req, res) => {
   try {
     const { block, reason = "" } = req.body;
-
-    if (typeof block !== "boolean") {
-      return fail(res, "block must be a boolean", 400);
-    }
-
+    if (typeof block !== "boolean") return fail(res, "block must be a boolean", 400);
     const cadmin_name = req.cadmin?.username || "CAdmin";
-
-    const data = await Service.setMobileUserBlockStatus(
-      req.params.user_id,
-      block,
-      reason,
-      cadmin_name
-    );
-
-    return success(
-      res,
-      data,
-      block ? "User suspended" : "User reactivated"
-    );
+    const data = await Service.setMobileUserBlockStatus(req.params.user_id, block, reason, cadmin_name);
+    return success(res, data, block ? "User suspended" : "User reactivated");
   } catch (err) {
     console.error("[cadminMarketplace] blockUser:", err.message);
-
     const statusMap = {
       "User not found": 404,
       "Cannot modify a deleted account": 403,
       "User is already suspended": 409,
       "User is already active": 409,
     };
-
     return fail(res, err.message, statusMap[err.message] || 400);
   }
 };
@@ -249,15 +273,10 @@ export const blockUser = async (req, res) => {
 // PLACES PROXY
 // ─────────────────────────────────────────────
 
-// GET /cadmin/marketplace/places/search?query=...
 export const searchPlaces = async (req, res) => {
   try {
     const { query } = req.query;
-
-    if (!query || query.trim().length < 2) {
-      return fail(res, "Query must be at least 2 characters", 400);
-    }
-
+    if (!query || query.trim().length < 2) return fail(res, "Query must be at least 2 characters", 400);
     const results = await PlacesService.searchPlaces(query.trim());
     return success(res, results, "Places results");
   } catch (err) {
@@ -266,15 +285,10 @@ export const searchPlaces = async (req, res) => {
   }
 };
 
-// GET /cadmin/marketplace/places/details?place_id=...
 export const getPlaceDetails = async (req, res) => {
   try {
     const { place_id } = req.query;
-
-    if (!place_id) {
-      return fail(res, "place_id is required", 400);
-    }
-
+    if (!place_id) return fail(res, "place_id is required", 400);
     const result = await PlacesService.getPlaceDetails(place_id);
     return success(res, result, "Place details");
   } catch (err) {
