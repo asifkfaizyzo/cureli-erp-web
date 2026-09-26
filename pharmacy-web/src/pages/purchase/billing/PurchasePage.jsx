@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/billing/PurchasePage.jsx (do not remove this comment)
 // src/pages/purchase/billing/PurchasePage.jsx
 
 import { useRef, useCallback, useState, useEffect } from "react";

@@ -1,4 +1,4 @@
-// backend/src/modules/cadmin/marketplace-orders/cadminMarketplaceOrders.service.js
+// backend/src/modules/cadmin/marketplace-orders/cadminMarketplaceOrders.service.js (do not remove this comment)
 
 import prisma from "../../../config/prisma.js";
 
@@ -378,6 +378,8 @@ function formatOrderDetail(order) {
     rejection_reason_other: order.rejection_reason_other,
     cancelled_by: order.cancelled_by,
     auto_completed: order.auto_completed,
+    pickup_otp: order.pickup_otp ?? null,
+    delivery_otp: order.delivery_otp ?? null,
     placed_at: order.placed_at,
     accepted_at: order.accepted_at,
     ready_at: order.ready_at,

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260304115402_add_otp_daily_limits/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "otp_daily_limits" (
     "id" TEXT NOT NULL,

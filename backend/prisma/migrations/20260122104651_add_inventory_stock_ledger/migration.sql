@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260122104651_add_inventory_stock_ledger/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "StockMovementType" AS ENUM ('PURCHASE', 'PURCHASE_RETURN', 'SALE', 'SALE_RETURN', 'OPENING_STOCK', 'STOCK_ADJUSTMENT', 'DAMAGED', 'EXPIRED', 'TRANSFER_IN', 'TRANSFER_OUT');
 

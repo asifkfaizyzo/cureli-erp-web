@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260616070056_add_user_trusted_ips/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "user_trusted_ips" (
     "id" UUID NOT NULL,

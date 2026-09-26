@@ -1,3 +1,4 @@
+// pharmacy-web/src/guards/AuthGuard.jsx (do not remove this comment)
 // src/guards/AuthGuard.jsx
 
 import { useEffect } from "react";

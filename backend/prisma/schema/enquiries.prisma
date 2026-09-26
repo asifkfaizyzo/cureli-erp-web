@@ -1,3 +1,4 @@
+// backend/prisma/schema/enquiries.prisma (do not remove this comment)
 // Enquiries — Public enquiry form, replies
 
 model Enquiry {

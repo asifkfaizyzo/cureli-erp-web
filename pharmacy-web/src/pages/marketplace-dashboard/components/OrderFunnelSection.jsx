@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-dashboard/components/OrderFunnelSection.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/components/OrderFunnelSection.jsx
 
 import { motion } from 'framer-motion';

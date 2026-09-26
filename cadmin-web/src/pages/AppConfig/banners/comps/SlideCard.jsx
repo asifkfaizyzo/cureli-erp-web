@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/banners/comps/SlideCard.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/banners/comps/SlideCard.jsx
 
 import { useState } from "react";

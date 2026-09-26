@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/login/comps/ForgotPasswordPage.jsx (do not remove this comment)
 // src/pages/login/comps/ForgotPasswordPage.jsx
 
 import { useState } from "react";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/sales/invoice/SalesInvoicePage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/sales/invoice/SalesInvoicePage.jsx
 
 import React, {

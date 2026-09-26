@@ -1,3 +1,4 @@
+// backend/src/modules/files/files.controller.js (do not remove this comment)
 // backend/src/modules/files/files.controller.js
 // ============================================
 // FILE SERVING CONTROLLER — S3 STREAMING

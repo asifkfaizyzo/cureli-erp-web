@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/PurchaseTable.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/PurchaseTable.jsx
 
 import React from "react";

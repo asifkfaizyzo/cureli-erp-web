@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/inventory/StockAdjustmentReportPage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/inventory/StockAdjustmentReportPage.jsx
 
 import React, { useState, useEffect, useCallback } from "react";

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260603120000_restore_trgm_indexes_after_shop_image_drop/migration.sql (do not remove this comment)
 -- Restore trigram indexes that were dropped in
 -- 20260527090008_add_branch_shop_image_url.
 --

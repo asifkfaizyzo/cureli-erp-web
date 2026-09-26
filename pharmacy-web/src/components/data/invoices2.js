@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/invoices2.js (do not remove this comment)
 export const purchaseData = [
   {
     id: 1,

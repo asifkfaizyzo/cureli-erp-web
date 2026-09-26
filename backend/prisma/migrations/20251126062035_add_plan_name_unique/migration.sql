@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251126062035_add_plan_name_unique/migration.sql (do not remove this comment)
 /*
   Warnings:
 

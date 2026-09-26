@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/StorefrontMetrics.jsx (do not remove this comment)
 import { Globe, Building2, Truck, ShoppingBag } from "lucide-react";
 import MetricCard from "./primitives/MetricCard";
 

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/verification/comps/VerificationStepper.jsx (do not remove this comment)
 // src/components/verification/VerificationStepper.jsx
 import { Check, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
 

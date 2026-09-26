@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/prescription-requests/components/RequestCard.jsx (do not remove this comment)
 // pharmacy-web/src/pages/prescription-requests/components/RequestCard.jsx
 
 import { FileText, Volume2, VolumeX } from 'lucide-react';

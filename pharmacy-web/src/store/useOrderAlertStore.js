@@ -1,3 +1,4 @@
+// pharmacy-web/src/store/useOrderAlertStore.js (do not remove this comment)
 // pharmacy-web/src/store/useOrderAlertStore.js
 // Order alerts are fully independent from prescription alerts now.
 // Each has its own audio instance.

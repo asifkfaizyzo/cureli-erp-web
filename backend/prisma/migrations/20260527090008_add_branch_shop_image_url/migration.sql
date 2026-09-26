@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260527090008_add_branch_shop_image_url/migration.sql (do not remove this comment)
 -- DropIndex
 DROP INDEX "idx_mmv_brand_trgm";
 

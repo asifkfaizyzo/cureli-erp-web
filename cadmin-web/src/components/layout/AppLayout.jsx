@@ -1,3 +1,4 @@
+// cadmin-web/src/components/layout/AppLayout.jsx (do not remove this comment)
 // cadmin-web/src/components/layout/AppLayout.jsx
 import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/purchaseProductsMaster.js (do not remove this comment)
 export const purchaseProductsMaster = [
   {
     name: "Paracetamol 650mg",

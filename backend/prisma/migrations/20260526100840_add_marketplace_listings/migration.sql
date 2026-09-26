@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260526100840_add_marketplace_listings/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "MarketplaceStockStatus" AS ENUM ('IN_STOCK', 'OUT_OF_STOCK');
 

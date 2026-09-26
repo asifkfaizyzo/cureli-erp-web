@@ -1,3 +1,4 @@
+// backend/src/middleware/requireCAdmin.js (do not remove this comment)
 // backend/src/middleware/requireCAdmin.js
 
 import jwt from "jsonwebtoken";

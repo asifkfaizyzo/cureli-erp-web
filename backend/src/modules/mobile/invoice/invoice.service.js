@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/invoice/invoice.service.js (do not remove this comment)
 // backend/src/modules/mobile/invoice/invoice.service.js
 
 import prisma from "../../../config/prisma.js";
@@ -6,6 +7,10 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { buildInvoiceHtml } from "./invoice.html.js";
 import { htmlToPdf } from "./invoice.generator.js";
 import { getSignedUrl } from "../../../services/fileStorage.service.js";
+
+// Import Notification Module structures
+import { notify } from "../../notifications/notification.service.js";
+import { NOTIFICATION_EVENTS } from "../../notifications/notification.events.js";
 
 const INVOICE_FOLDER = "order_invoices";
 
@@ -78,7 +83,7 @@ export async function generateMarketplaceInvoice(
 
     if (!gstSummary[key]) gstSummary[key] = { taxable: 0, cgst: 0, sgst: 0 };
     gstSummary[key].taxable += Number(item.taxable_amount || 0);
-    gstSummary[key].cgst += Number(item.cgst_amount || 0);
+    gstSummary[key].grid_cgst = (gstSummary[key].cgst += Number(item.cgst_amount || 0));
     gstSummary[key].sgst += Number(item.sgst_amount || 0);
 
     let expiryDisplay = "—";
@@ -143,7 +148,7 @@ export async function generateMarketplaceInvoice(
 
   console.log(`[Invoice] PDF generated and stored: ${s3Key}`);
 
-  // ── 6. Email to customer (non-fatal) ────────────────────
+  // ── 6. Email to customer (Refactored to Notification Engine) ──
   try {
     const customer = await prisma.cureliMobileUser.findUnique({
       where: { id: order.customer_id },
@@ -151,21 +156,42 @@ export async function generateMarketplaceInvoice(
     });
 
     if (customer?.email) {
-      const { sendMail } = await import("../../../utils/email.js");
-      await sendMail(
-        customer.email,
-        `Your Invoice for Order ${order.order_number}`,
-        `
-        <p>Hi ${customer.full_name || "there"},</p>
-        <p>Your order <strong>${order.order_number}</strong> has been billed and is ready for dispatch.</p>
-        <p>Please find your invoice attached to this email.</p>
-        <p>Thank you for using Cureli!</p>
-      `,
-      );
-      console.log(`[Invoice] Email sent to ${customer.email}`);
+      // Generate a signed S3 URL for secure download link (valid for 7 days in the email body)
+      const signedDownloadUrl = await getSignedUrl({
+        folder: INVOICE_FOLDER,
+        filename: storageKey,
+        expiresIn: 604800, // 7 days (604800 seconds)
+      });
+
+      // Dispatch delivery via Notification System, passing S3 download URL & the PDF buffer
+      await notify({
+        type: NOTIFICATION_EVENTS.MARKETPLACE_ORDER_BILLED,
+        audience: [
+          {
+            email: customer.email,
+            name: customer.full_name || "Valued Customer",
+          },
+        ],
+        context: {
+          orderNumber: order.order_number,
+          pharmacyName: order.shop?.business_name || "Cureli Partner Pharmacy",
+          grandTotal: Number(invoice.grand_total || 0),
+          orderDate: order.created_at,
+          invoiceUrl: signedDownloadUrl,
+          attachments: [
+            {
+              filename: `${order.order_number}-invoice.pdf`,
+              content: pdfBuffer,
+              contentType: "application/pdf",
+            },
+          ],
+        },
+      });
+
+      console.log(`[Invoice] Delivery notification dispatched successfully for ${customer.email}`);
     }
   } catch (emailErr) {
-    console.error("[Invoice] Email send failed (non-fatal):", emailErr.message);
+    console.error("[Invoice] Refactored email dispatch failed (non-fatal):", emailErr.message);
   }
 
   return { storageKey };
@@ -203,7 +229,7 @@ export async function getInvoiceDownloadUrl(
     throw new Error("Order not found");
   }
 
-if (!order.invoice_pdf_key) {
+  if (!order.invoice_pdf_key) {
     // Check if a sales invoice exists — if so, PDF is still generating
     const fullOrder = await prisma.marketplaceOrder.findUnique({
       where: { order_id },

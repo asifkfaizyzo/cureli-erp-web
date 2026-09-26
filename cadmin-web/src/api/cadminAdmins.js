@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminAdmins.js (do not remove this comment)
 // pharmacy-web/src/api/cadminAdmins.js
 
 import CAdminAPI from "./axios";

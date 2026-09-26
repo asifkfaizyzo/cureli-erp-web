@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/home-screen/HomeScreenPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/home-screen/HomeScreenPage.jsx
 
 import { useState, useEffect, useCallback, useRef } from "react";

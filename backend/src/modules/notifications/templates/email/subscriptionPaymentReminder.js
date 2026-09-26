@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionPaymentReminder.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionPaymentReminder.js
 // ============================================
 // SUBSCRIPTION PAYMENT REMINDER EMAIL TEMPLATE

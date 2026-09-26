@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251223061143_add_cadmin_management/migration.sql (do not remove this comment)
 /*
   Warnings:
 

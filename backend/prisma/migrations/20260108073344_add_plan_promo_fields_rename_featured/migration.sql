@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260108073344_add_plan_promo_fields_rename_featured/migration.sql (do not remove this comment)
 /*
   Warnings:
 

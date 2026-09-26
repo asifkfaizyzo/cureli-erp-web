@@ -1,3 +1,4 @@
+// pharmacy-web/src/guards/MarketplaceOnboardingGuard.jsx (do not remove this comment)
 // src/guards/MarketplaceOnboardingGuard.jsx
 
 import { useEffect } from "react";

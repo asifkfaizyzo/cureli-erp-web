@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/StyledDateFilter.jsx (do not remove this comment)
 // cadmin-web/src/components/common/StyledDateFilter.jsx
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -28,20 +29,17 @@ const StyledDateFilter = ({ label, date, setDate }) => {
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
 
-      // Determine if we should position above or below
       const shouldPositionAbove =
         spaceBelow < DROPDOWN_HEIGHT && spaceAbove > spaceBelow;
       setPositionAbove(shouldPositionAbove);
 
       if (shouldPositionAbove) {
-        // Position above the trigger
         setDropdownPosition({
           bottom: window.innerHeight - rect.top + 4,
           left: rect.left,
           width: rect.width,
         });
       } else {
-        // Position below the trigger
         setDropdownPosition({
           top: rect.bottom + 4,
           left: rect.left,
@@ -51,12 +49,9 @@ const StyledDateFilter = ({ label, date, setDate }) => {
     }
   }, []);
 
-  // Handle opening - calculate position first, then open
   const handleToggle = () => {
-    if (!isOpen) {
-      updatePosition();
-    }
-    setIsOpen(!isOpen);
+    if (!isOpen) updatePosition();
+    setIsOpen((prev) => !prev);
   };
 
   // Close on outside click
@@ -74,7 +69,8 @@ const StyledDateFilter = ({ label, date, setDate }) => {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   // Close on scroll and update position on resize
@@ -93,7 +89,7 @@ const StyledDateFilter = ({ label, date, setDate }) => {
     };
   }, [isOpen, updatePosition]);
 
-  // Date Logic
+  // Date logic
   const daysInMonth = (d) =>
     new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (d) =>
@@ -129,8 +125,19 @@ const StyledDateFilter = ({ label, date, setDate }) => {
 
   const changeMonth = (offset) => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1),
+      new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + offset,
+        1,
+      ),
     );
+  };
+
+  // Jump to a specific year but keep current month
+  const handleYearChange = (year) => {
+    const y = parseInt(year, 10);
+    if (Number.isNaN(y)) return;
+    setCurrentMonth(new Date(y, currentMonth.getMonth(), 1));
   };
 
   const renderCalendar = () => {
@@ -166,7 +173,11 @@ const StyledDateFilter = ({ label, date, setDate }) => {
                 ? "bg-[#05015A] text-white shadow-md scale-105"
                 : "text-gray-700 hover:bg-indigo-50 hover:text-[#05015A]"
             }
-            ${!isSelected && isToday ? "border border-[#05015A] text-[#05015A] font-bold" : ""}
+            ${
+              !isSelected && isToday
+                ? "border border-[#05015A] text-[#05015A] font-bold"
+                : ""
+            }
           `}
         >
           {i}
@@ -178,62 +189,109 @@ const StyledDateFilter = ({ label, date, setDate }) => {
 
   const isActive = Boolean(date);
 
-  // Build position style based on whether above or below
   const getPositionStyle = () => {
     if (!dropdownPosition) return {};
-
     if (positionAbove) {
       return {
         bottom: dropdownPosition.bottom,
         left: dropdownPosition.left,
       };
-    } else {
-      return {
-        top: dropdownPosition.top,
-        left: dropdownPosition.left,
-      };
     }
+    return {
+      top: dropdownPosition.top,
+      left: dropdownPosition.left,
+    };
   };
 
-  // Only render dropdown when open AND position is calculated
+  // Year options: e.g. from 2000 to current year + 1
+  const currentYear = currentMonth.getFullYear();
+  const startYear = 1900;
+  const endYear = new Date().getFullYear() + 1;
+  const yearOptions = [];
+  for (let y = endYear; y >= startYear; y--) {
+    yearOptions.push(y);
+  }
+
   const dropdown =
     isOpen && dropdownPosition
       ? createPortal(
           <div
             ref={dropdownRef}
             className={`
-            fixed z-[9999] p-4 w-64 bg-white border border-gray-200 rounded-xl shadow-xl
-            animate-in fade-in duration-150
-            ${positionAbove ? "slide-in-from-bottom-2" : "slide-in-from-top-2"}
-          `}
+              fixed z-[9999] p-4 w-72 bg-white border border-gray-200 rounded-xl shadow-xl
+              animate-in fade-in duration-150
+              ${
+                positionAbove
+                  ? "slide-in-from-bottom-2"
+                  : "slide-in-from-top-2"
+              }
+            `}
             style={getPositionStyle()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => changeMonth(-1)}
-                className="p-1 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="text-sm font-semibold text-gray-800">
-                {currentMonth.toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </span>
-              <button
-                onClick={() => changeMonth(1)}
-                className="p-1 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition"
-              >
-                <ChevronRight size={18} />
-              </button>
+            {/* Header: month + year controls */}
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div className="flex items-center gap-1">
+                {/* Jump -1 year */}
+                <button
+                  onClick={() => changeMonth(-12)}
+                  className="px-1 py-0.5 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition"
+                >
+                  «
+                </button>
+
+                <button
+                  onClick={() => changeMonth(-1)}
+                  className="p-1 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-800">
+                  {currentMonth.toLocaleDateString("en-US", {
+                    month: "long",
+                  })}
+                </span>
+                {/* Year select */}
+                <select
+                  value={currentYear}
+                  onChange={(e) => handleYearChange(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => changeMonth(1)}
+                  className="p-1 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition"
+                >
+                  <ChevronRight size={18} />
+                </button>
+
+                {/* Jump +1 year */}
+                <button
+                  onClick={() => changeMonth(12)}
+                  className="px-1 py-0.5 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition"
+                >
+                  »
+                </button>
+              </div>
             </div>
 
             {/* Weekday Labels */}
             <div className="grid grid-cols-7 mb-2 text-center">
               {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                <span key={day} className="text-xs font-medium text-gray-400">
+                <span
+                  key={day}
+                  className="text-xs font-medium text-gray-400"
+                >
                   {day}
                 </span>
               ))}
@@ -254,6 +312,7 @@ const StyledDateFilter = ({ label, date, setDate }) => {
                     today.getTime() - offset * 60 * 1000,
                   );
                   setDate(adjustedDate.toISOString().split("T")[0]);
+                  setCurrentMonth(today);
                   setIsOpen(false);
                 }}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
@@ -296,35 +355,49 @@ const StyledDateFilter = ({ label, date, setDate }) => {
           }
         `}
       >
-        {/* Left side: Calendar Icon + Text */}
         <span
-          className={`flex-1 truncate flex items-center gap-2 ${isActive ? "" : "text-gray-400"}`}
+          className={`flex-1 truncate flex items-center gap-2 ${
+            isActive ? "" : "text-gray-400"
+          }`}
         >
           <CalendarIcon
             size={16}
-            className={`flex-shrink-0 transition-colors ${isActive ? "text-indigo-500" : "text-gray-400"}`}
+            className={`flex-shrink-0 transition-colors ${
+              isActive ? "text-indigo-500" : "text-gray-400"
+            }`}
           />
           <span>{isActive ? formatDateDisplay(date) : "Select Date"}</span>
         </span>
 
-        {/* Right side: Clear Button or Chevron */}
         {isActive ? (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="flex-shrink-0 p-0.5 rounded-full hover:bg-indigo-200 text-indigo-500 transition-colors"
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClear(e);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClear(e);
+              }
+            }}
+            className="flex-shrink-0 p-0.5 rounded-full hover:bg-indigo-200 text-indigo-500 transition-colors cursor-pointer inline-flex items-center justify-center"
           >
             <X size={14} strokeWidth={2.5} />
-          </button>
+          </span>
         ) : (
           <ChevronDown
             size={16}
-            className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""} ${isActive ? "text-indigo-500" : "text-gray-400"}`}
+            className={`flex-shrink-0 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            } text-gray-400`}
           />
         )}
       </button>
 
-      {/* Dropdown Portal */}
       {dropdown}
     </div>
   );

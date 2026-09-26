@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/components/GoLiveCelebration.jsx (do not remove this comment)
 // src/pages/marketplace-onboarding/components/GoLiveCelebration.jsx
 
 import { useState, useEffect, useMemo } from "react";

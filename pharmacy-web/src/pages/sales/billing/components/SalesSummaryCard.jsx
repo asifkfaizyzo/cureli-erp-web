@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/sales/billing/components/SalesSummaryCard.jsx (do not remove this comment)
 // src/pages/sales/billing/components/SalesSummaryCard.jsx
 
 import { Wallet, TrendingUp, Percent, Calculator, Receipt, IndianRupee } from "lucide-react";

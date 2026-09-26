@@ -1,3 +1,4 @@
+// pharmacy-web/src/config/planConfig.js (do not remove this comment)
 // pharmacy-web/src/config/planConfig.js
 
 // ============================================

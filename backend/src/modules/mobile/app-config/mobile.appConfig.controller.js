@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/app-config/mobile.appConfig.controller.js (do not remove this comment)
 // backend/src/modules/mobile/app-config/mobile.appConfig.controller.js
 //
 // Public mobile endpoint for top-level category display overrides.

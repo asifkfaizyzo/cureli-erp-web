@@ -1,3 +1,4 @@
+// pharmacy-web/src/store/useSubscriptionStore.js (do not remove this comment)
 // src/store/useSubscriptionStore.js
 
 import { create } from "zustand";

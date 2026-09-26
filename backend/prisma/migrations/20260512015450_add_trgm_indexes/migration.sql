@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260512015450_add_trgm_indexes/migration.sql (do not remove this comment)
 -- Migration: add_trgm_indexes
 -- Adds pg_trgm extension and GIN trigram indexes on
 -- master_medicine_variants for fast ILIKE search.

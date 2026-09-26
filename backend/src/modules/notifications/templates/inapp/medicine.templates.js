@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/medicine.templates.js (do not remove this comment)
 // backend/src/modules/notifications/templates/inapp/medicine.templates.js
 
 export const medicineTemplates = {

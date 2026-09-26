@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260731084423_add_rider_delivery_module/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "RiderStatus" AS ENUM ('PENDING_REVIEW', 'ACTIVE', 'SUSPENDED', 'BLOCKED', 'REJECTED');
 

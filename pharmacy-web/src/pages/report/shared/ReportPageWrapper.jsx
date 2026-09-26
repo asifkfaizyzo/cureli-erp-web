@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/shared/ReportPageWrapper.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/shared/ReportPageWrapper.jsx
 
 import { FileText } from "lucide-react";

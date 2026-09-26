@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionGraceEnding.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionGraceEnding.js
 // ============================================
 // SUBSCRIPTION GRACE ENDING EMAIL TEMPLATE

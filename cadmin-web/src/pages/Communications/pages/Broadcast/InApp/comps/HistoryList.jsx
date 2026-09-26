@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/HistoryList.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/InApp/comps/HistoryList.jsx
 
 import { useState, useEffect } from "react";

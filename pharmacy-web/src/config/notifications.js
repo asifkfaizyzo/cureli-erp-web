@@ -1,3 +1,4 @@
+// pharmacy-web/src/config/notifications.js (do not remove this comment)
 // pharmacy-web/src/config/notifications.js
 
 import {

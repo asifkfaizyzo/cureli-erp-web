@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/verification/comps/VerificationPending.jsx (do not remove this comment)
 // src/components/verification/VerificationPending.jsx
 
 import { motion } from "framer-motion";

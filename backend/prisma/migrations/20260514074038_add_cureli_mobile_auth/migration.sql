@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260514074038_add_cureli_mobile_auth/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "cureli_mobile_users" (
     "id" UUID NOT NULL,

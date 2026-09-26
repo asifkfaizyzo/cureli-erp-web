@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/InvoicePagination.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/InvoicePagination.jsx
 import React from "react";
 import {

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260407090340_add_image_source_and_linking_metadata/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "ImageSource" AS ENUM ('SCRAPED', 'UPLOADED');
 

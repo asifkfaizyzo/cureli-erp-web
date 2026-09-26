@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Cadmin-management/comps/RolePermissionsChecklist.jsx (do not remove this comment)
 // pharmacy-web/src/pages/Cadmin-management/comps/RolePermissionsChecklist.jsx
 
 import { useState } from "react";

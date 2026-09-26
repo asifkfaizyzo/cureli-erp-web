@@ -1,3 +1,4 @@
+// backend/src/utils/otp.js (do not remove this comment)
 //Q:\YourZeroesAndOnes\cureli\curely_erp\backend\src\utils\otp.js
 import bcrypt from "bcrypt";
 import crypto from "crypto";

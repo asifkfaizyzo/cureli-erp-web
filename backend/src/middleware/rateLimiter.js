@@ -1,3 +1,4 @@
+// backend/src/middleware/rateLimiter.js (do not remove this comment)
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import jwt from "jsonwebtoken";
 
@@ -22,6 +23,10 @@ const userOrIpKey = (req) => {
       const payload = jwt.decode(token);
       if (payload?.user_id) {
         return `user:${payload.user_id}`;
+      }
+      // Rider tokens use `sub` instead of `user_id`
+      if (payload?.sub) {
+        return `user:${payload.sub}`;
       }
     }
   } catch {

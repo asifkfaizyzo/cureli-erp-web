@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260605091848_add_prescription_expiry_fields/migration.sql (do not remove this comment)
 -- DropIndex
 DROP INDEX "idx_mmv_brand_trgm";
 

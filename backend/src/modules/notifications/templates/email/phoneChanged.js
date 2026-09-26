@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/phoneChanged.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/phoneChanged.js
 // ============================================
 // PHONE CHANGED NOTIFICATION TEMPLATE

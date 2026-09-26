@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-listings/components/BulkActionBar.jsx (do not remove this comment)
 // src/pages/marketplace-listings/components/BulkActionBar.jsx
 
 import { Eye, EyeOff, PackageX, PackageCheck, X, Layers, Loader2 } from "lucide-react";

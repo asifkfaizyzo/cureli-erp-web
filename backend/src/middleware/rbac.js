@@ -1,3 +1,4 @@
+// backend/src/middleware/rbac.js (do not remove this comment)
 // Q:\PROJECTS\YourZeroesAndOnes\cureli\curely_erp\backend\src\middleware\rbac.js
 
 import { fail } from "../utils/response.js";

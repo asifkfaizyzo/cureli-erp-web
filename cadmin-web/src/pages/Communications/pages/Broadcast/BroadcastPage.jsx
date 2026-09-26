@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/BroadcastPage.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/BroadcastPage.jsx
 
 import { useNavigate } from "react-router-dom";

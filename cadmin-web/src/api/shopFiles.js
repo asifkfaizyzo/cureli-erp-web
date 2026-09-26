@@ -1,3 +1,4 @@
+// cadmin-web/src/api/shopFiles.js (do not remove this comment)
 import API from "./axios";
 
 export const uploadShopFile = (formData) =>

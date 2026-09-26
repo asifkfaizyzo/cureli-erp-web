@@ -1,3 +1,4 @@
+<!-- backend/src/modules/notifications/README.md (do not remove this comment) -->
 # Notifications Module
 
 Centralized notification system for Cureli.

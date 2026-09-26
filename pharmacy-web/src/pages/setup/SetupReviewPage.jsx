@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/setup/SetupReviewPage.jsx (do not remove this comment)
 // src/pages/setup/SetupReviewPage.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";

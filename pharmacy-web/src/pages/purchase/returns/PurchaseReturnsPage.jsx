@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/returns/PurchaseReturnsPage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/returns/PurchaseReturnsPage.jsx
 
 import React, {

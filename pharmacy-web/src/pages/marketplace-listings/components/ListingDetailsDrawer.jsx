@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-listings/components/ListingDetailsDrawer.jsx (do not remove this comment)
 // src/pages/marketplace-listings/components/ListingDetailsDrawer.jsx
 
 import { useState, useEffect } from "react";

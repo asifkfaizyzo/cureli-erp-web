@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Fleet/Riders/RidersPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/Fleet/Riders/RidersPage.jsx
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import RidersTable from "./comps/RidersTable";
 import CreateTeamRiderModal from "./comps/CreateTeamRiderModal";
+import CreateRiderModal from "./comps/CreateRiderModal";
 import StyledSelect from "../../../components/common/StyledSelect";
 import { getRiders } from "../../../api/cadminRiders";
 import { useToast } from "../../../components/common/Toast";
@@ -41,7 +43,10 @@ const RidersPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [sortConfig, setSortConfig] = useState({ sortBy: "created_at", order: "desc" });
+  const [sortConfig, setSortConfig] = useState({
+    sortBy: "created_at",
+    order: "desc",
+  });
 
   const [riders, setRiders] = useState([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -51,7 +56,7 @@ const RidersPage = () => {
 
   const activeFiltersCount = useMemo(
     () => [statusFilter, typeFilter].filter(Boolean).length,
-    [statusFilter, typeFilter]
+    [statusFilter, typeFilter],
   );
 
   const fetchRiders = useCallback(async () => {
@@ -78,8 +83,12 @@ const RidersPage = () => {
     }
   }, [currentPage, rowsPerPage, searchText, statusFilter, typeFilter, toast]);
 
-  useEffect(() => { fetchRiders(); }, [fetchRiders]);
-  useEffect(() => { setCurrentPage(1); }, [searchText, statusFilter, typeFilter]);
+  useEffect(() => {
+    fetchRiders();
+  }, [fetchRiders]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, statusFilter, typeFilter]);
 
   const handleRefresh = () => {
     toast.info("Refreshing", "Loading latest rider data...", 2000);
@@ -108,8 +117,13 @@ const RidersPage = () => {
               <Users size={20} className="text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-gray-900 truncate">Rider Fleet Management</h1>
-              <p className="text-sm text-gray-500">{totalItems} active / verified rider{totalItems !== 1 ? "s" : ""}</p>
+              <h1 className="text-xl font-bold text-gray-900 truncate">
+                Rider Fleet Management
+              </h1>
+              <p className="text-sm text-gray-500">
+                {totalItems} active / verified rider
+                {totalItems !== 1 ? "s" : ""}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -117,7 +131,7 @@ const RidersPage = () => {
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 bg-[#05015A] text-white rounded-lg hover:bg-[#0a0280] transition-all shadow-sm flex items-center gap-2 text-sm font-medium"
             >
-              <UserPlus size={16} /> Add Team Rider
+              <UserPlus size={16} /> Add Rider
             </button>
             <button
               onClick={handleRefresh}
@@ -132,7 +146,10 @@ const RidersPage = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 space-y-3">
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="text"
                 placeholder="Search by name, phone, or email..."
@@ -141,7 +158,10 @@ const RidersPage = () => {
                 className="w-full h-10 sm:h-11 pl-10 pr-10 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#000060]/20 focus:border-[#000060] transition-all"
               />
               {searchText && (
-                <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded text-gray-400 hover:text-gray-600">
+                <button
+                  onClick={() => setSearchText("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded text-gray-400 hover:text-gray-600"
+                >
                   <X size={16} />
                 </button>
               )}
@@ -164,12 +184,25 @@ const RidersPage = () => {
           {showFilters && (
             <div className="pt-3 border-t border-gray-200">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <StyledSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
-                <StyledSelect label="Rider Type" value={typeFilter} onChange={setTypeFilter} options={TYPE_OPTIONS} />
+                <StyledSelect
+                  label="Status"
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={STATUS_OPTIONS}
+                />
+                <StyledSelect
+                  label="Rider Type"
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  options={TYPE_OPTIONS}
+                />
               </div>
               {(activeFiltersCount > 0 || searchText) && (
                 <div className="mt-3 flex justify-end">
-                  <button onClick={handleClearFilters} className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2">
+                  <button
+                    onClick={handleClearFilters}
+                    className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2"
+                  >
                     <X size={16} /> Clear all
                   </button>
                 </div>
@@ -180,8 +213,16 @@ const RidersPage = () => {
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
-            <div className="flex items-center gap-2"><AlertCircle size={18} /><span className="text-sm">{error}</span></div>
-            <button onClick={handleRefresh} className="text-red-700 underline text-sm">Retry</button>
+            <div className="flex items-center gap-2">
+              <AlertCircle size={18} />
+              <span className="text-sm">{error}</span>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="text-red-700 underline text-sm"
+            >
+              Retry
+            </button>
           </div>
         )}
       </div>
@@ -200,7 +241,7 @@ const RidersPage = () => {
         />
       </div>
 
-      <CreateTeamRiderModal
+      <CreateRiderModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleRefresh}

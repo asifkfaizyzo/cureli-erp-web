@@ -1,3 +1,4 @@
+// backend/src/modules/setup/setup.routes.js (do not remove this comment)
 // src/modules/setup/setup.routes.js
 import express from "express";
 import { requireAuth } from "../../middleware/auth.js";

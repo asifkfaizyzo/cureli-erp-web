@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/emailChangeOtp.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/emailChangeOtp.js
 // ============================================
 // EMAIL CHANGE OTP TEMPLATE

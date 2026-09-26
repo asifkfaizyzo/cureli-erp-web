@@ -1,3 +1,4 @@
+// backend/src/modules/auth/auth.controller.js (do not remove this comment)
 import { fail, success } from "../../utils/response.js";
 import { requestPasswordReset, resetPassword } from "./auth.service.js";
 import * as audit from "../audit/index.js";

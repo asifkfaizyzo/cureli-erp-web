@@ -1,3 +1,4 @@
+// cadmin-web/src/config/customerTicketConfigs.js (do not remove this comment)
 export const CUSTOMER_STATUS_CONFIG = {
   OPEN: {
     label: "Open",

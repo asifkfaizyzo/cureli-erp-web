@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Cadmin-Login/AdminLoginPage.jsx (do not remove this comment)
 // AdminLoginPage.jsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";

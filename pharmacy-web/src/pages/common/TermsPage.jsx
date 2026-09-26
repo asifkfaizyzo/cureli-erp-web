@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/common/TermsPage.jsx (do not remove this comment)
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";

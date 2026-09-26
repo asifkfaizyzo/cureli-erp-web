@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260122103146_add_purchase_invoice_tables/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "purchase_invoices" (
     "invoice_id" UUID NOT NULL,

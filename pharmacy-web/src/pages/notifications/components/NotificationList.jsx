@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/notifications/components/NotificationList.jsx (do not remove this comment)
 // pharmacy-web/src/pages/notifications/components/NotificationList.jsx
 
 import React from "react";

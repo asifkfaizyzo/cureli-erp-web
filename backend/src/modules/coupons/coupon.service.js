@@ -1,3 +1,4 @@
+// backend/src/modules/coupons/coupon.service.js (do not remove this comment)
 // backend/src/modules/coupons/coupon.service.js
 import prisma from "../../config/prisma.js";
 import { validateCouponEligibility, normaliseCoupon } from "./coupon.engine.js";

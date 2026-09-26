@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/systemBroadcast.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/systemBroadcast.js
 // ============================================
 // SYSTEM BROADCAST EMAIL TEMPLATE

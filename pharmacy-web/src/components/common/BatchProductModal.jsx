@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/BatchProductModal.jsx (do not remove this comment)
 // src/components/common/BatchProductModal.jsx
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";

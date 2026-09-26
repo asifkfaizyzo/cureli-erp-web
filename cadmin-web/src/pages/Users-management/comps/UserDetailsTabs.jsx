@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Users-management/comps/UserDetailsTabs.jsx (do not remove this comment)
 // components/User/UserDetailsTabs.jsx
 
 import { useState } from "react";

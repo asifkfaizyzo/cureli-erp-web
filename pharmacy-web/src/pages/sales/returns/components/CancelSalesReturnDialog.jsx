@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/sales/returns/components/CancelSalesReturnDialog.jsx (do not remove this comment)
 // pharmacy-web/src/pages/sales/returns/components/CancelSalesReturnDialog.jsx
 
 import React, { useState } from "react";

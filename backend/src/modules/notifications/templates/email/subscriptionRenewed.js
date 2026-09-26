@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionRenewed.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionRenewed.js
 // ============================================
 // SUBSCRIPTION RENEWED EMAIL TEMPLATE

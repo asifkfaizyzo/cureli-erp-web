@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251122094039_add_google_signup_to_pending/migration.sql (do not remove this comment)
 /*
   Warnings:
 

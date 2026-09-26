@@ -1,3 +1,4 @@
+// backend/prisma/schema/audit.prisma (do not remove this comment)
 // Audit — Audit logs, activity logs, cron locks, OTP limits
 
 model CronLock {

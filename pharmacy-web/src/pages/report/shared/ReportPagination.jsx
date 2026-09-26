@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/shared/ReportPagination.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/shared/ReportPagination.jsx
 
 import { ChevronLeft, ChevronRight } from "lucide-react";

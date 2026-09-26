@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/notifications/mobile.notifications.controller.js (do not remove this comment)
 // backend/src/modules/mobile/notifications/mobile.notifications.controller.js
 
 import { verifyMobileAccessToken } from '../../../config/mobile_jwt.js';

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/security.templates.js (do not remove this comment)
 // ============================================
 // SECURITY & ACCESS TEMPLATES
 // ============================================

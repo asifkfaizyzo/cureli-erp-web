@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/BranchCard.jsx (do not remove this comment)
 // src/pages/marketplace-storefront/components/BranchCard.jsx
 
 import { motion, AnimatePresence } from "framer-motion";

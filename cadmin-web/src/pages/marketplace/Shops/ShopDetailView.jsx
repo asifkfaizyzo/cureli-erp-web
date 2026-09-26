@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Shops/ShopDetailView.jsx (do not remove this comment)
 // cadmin-web/src/pages/marketplace/Shops/ShopDetailView.jsx
 
 import { useMemo, useState } from "react";

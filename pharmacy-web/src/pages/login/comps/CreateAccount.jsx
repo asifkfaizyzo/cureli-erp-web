@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/login/comps/CreateAccount.jsx (do not remove this comment)
 // src/pages/login/comps/CreateAccount.jsx
 
 import { useState, useRef } from "react";

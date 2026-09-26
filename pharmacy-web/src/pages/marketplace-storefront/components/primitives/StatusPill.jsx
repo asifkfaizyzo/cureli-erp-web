@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/primitives/StatusPill.jsx (do not remove this comment)
 import { motion } from "framer-motion";
 
 const STATUS_CONFIG = {

@@ -1,3 +1,4 @@
+// backend/src/modules/shop/shop.schema.js (do not remove this comment)
 import { z } from "zod";
 
 export const shopInfoSchema = z.object({

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/cadmin/cadminNotifications.schema.js (do not remove this comment)
 // ============================================
 // backend/src/modules/notifications/cadmin/cadminNotifications.schema.js
 // ============================================

@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/purchase/usePurchaseCalculation.js (do not remove this comment)
 // src/hooks/purchase/usePurchaseCalculation.js
 
 import { useMemo } from "react";

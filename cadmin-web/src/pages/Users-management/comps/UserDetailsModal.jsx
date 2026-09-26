@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Users-management/comps/UserDetailsModal.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
 import {
   X,

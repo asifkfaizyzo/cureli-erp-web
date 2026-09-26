@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/axios.js (do not remove this comment)
 import axios from "axios";
 import { useAuthStore } from "../store/useAuthStore";
 

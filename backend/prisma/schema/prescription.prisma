@@ -1,3 +1,4 @@
+// backend/prisma/schema/prescription.prisma (do not remove this comment)
 // Prescription Requests — Customer prescription marketplace flow
 
 model PrescriptionRequest {

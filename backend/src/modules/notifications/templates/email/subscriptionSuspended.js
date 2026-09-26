@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionSuspended.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionSuspended.js
 // ============================================
 // SUBSCRIPTION SUSPENDED EMAIL TEMPLATE

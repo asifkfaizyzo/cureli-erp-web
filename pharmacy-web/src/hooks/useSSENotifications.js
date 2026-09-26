@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/useSSENotifications.js (do not remove this comment)
 // pharmacy-web/src/hooks/useSSENotifications.js
 
 import { useEffect, useRef }            from 'react';

@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/shops/cadminShops.service.js (do not remove this comment)
 // ============================================
 // backend\src\modules\cadmin\shops\cadminShops.service.js
 // ============================================

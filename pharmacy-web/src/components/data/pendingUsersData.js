@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/pendingUsersData.js (do not remove this comment)
 // src/components/data/pendingUsersData.js
 // NOTE: using your uploaded image path as the url
 const PLACEHOLDER = "/mnt/data/bff3336f-7a46-4d48-a751-31101ba32e68.png";

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/_helpers.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/_helpers.js
 // ============================================
 // EMAIL TEMPLATE HELPERS

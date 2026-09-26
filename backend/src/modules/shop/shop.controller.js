@@ -1,3 +1,4 @@
+// backend/src/modules/shop/shop.controller.js (do not remove this comment)
 // backend/src/modules/shop/shop.controller.js
 
 import prisma from "../../config/prisma.js";

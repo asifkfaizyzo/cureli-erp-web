@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/categories/comps/ImageUploadModal.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/categories/comps/ImageUploadModal.jsx
 //
 // Modal for uploading or replacing a category image.

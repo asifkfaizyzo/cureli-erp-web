@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/Breadcrumb.jsx (do not remove this comment)
 // cadmin-web/src/components/common/Breadcrumb.jsx
 
 import { useMemo } from "react";
@@ -64,6 +65,12 @@ const FLEET_PATHS = {
   "Fleet Communications": "/fleet/communications",
   Pricing: "/fleet/pricing",
   "Fleet Pricing": "/fleet/pricing",
+  
+  // ── Fleet Pricing & Incentives (NEW) ───────────────────────────────────────
+  "Base Pay": "/fleet/pricing/base-pay",
+  "Base Pay & Surge": "/fleet/pricing/base-pay",
+  Incentives: "/fleet/pricing/incentives",
+  "Incentives & Quests": "/fleet/pricing/incentives",
 };
 
 const Breadcrumb = () => {

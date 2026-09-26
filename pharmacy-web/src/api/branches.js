@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/branches.js (do not remove this comment)
 // src/api/branches.js
 
 import api from "./axios";

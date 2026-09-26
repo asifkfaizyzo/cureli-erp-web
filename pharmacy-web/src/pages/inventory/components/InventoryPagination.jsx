@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/InventoryPagination.jsx (do not remove this comment)
 // components/InventoryPagination.jsx
 import React from "react";
 import { 

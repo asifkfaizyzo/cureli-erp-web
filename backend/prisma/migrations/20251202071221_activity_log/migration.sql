@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251202071221_activity_log/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "activity_logs" (
     "activity_id" UUID NOT NULL,

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/user/userNotifications.controller.js (do not remove this comment)
 // ============================================
 // backend\src\modules\notifications\user\userNotifications.controller.js
 // ============================================

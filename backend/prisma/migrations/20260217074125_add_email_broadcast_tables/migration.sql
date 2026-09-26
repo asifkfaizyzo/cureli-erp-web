@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260217074125_add_email_broadcast_tables/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "EmailCampaignStatus" AS ENUM ('DRAFT', 'SCHEDULED', 'SENDING', 'PAUSED', 'SENT', 'PARTIAL_FAILURE', 'FAILED', 'CANCELLED');
 

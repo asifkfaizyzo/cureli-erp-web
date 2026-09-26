@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/billing/components/PurchaseRowFixed.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/billing/components/PurchaseRowFixed.jsx
 
 import {

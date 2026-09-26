@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/purchase/usePurchaseAPI.js (do not remove this comment)
 // src/hooks/purchase/usePurchaseAPI.js
 import { useState, useCallback, useRef } from "react";
 import purchaseAPI from "../../api/purchase";

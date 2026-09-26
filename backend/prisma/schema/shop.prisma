@@ -1,3 +1,4 @@
+// backend/prisma/schema/shop.prisma (do not remove this comment)
 // Shop — Shops, branches, files, subscriptions
 
 model Shop {

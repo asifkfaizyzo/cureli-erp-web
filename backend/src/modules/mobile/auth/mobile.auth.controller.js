@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/auth/mobile.auth.controller.js (do not remove this comment)
 // src/modules/mobile/auth/mobile.auth.controller.js
 
 import { success, fail } from "../../../utils/response.js";

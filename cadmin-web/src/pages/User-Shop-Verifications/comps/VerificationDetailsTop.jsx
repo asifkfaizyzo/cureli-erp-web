@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/User-Shop-Verifications/comps/VerificationDetailsTop.jsx (do not remove this comment)
 // cadmin-web/src/components/Verification/VerificationDetailsTop.jsx
 
 import {

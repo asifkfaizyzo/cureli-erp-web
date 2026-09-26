@@ -1,3 +1,4 @@
+// backend/src/modules/medicines/medicine.schema.js (do not remove this comment)
 // backend/src/modules/medicines/medicine.schema.js
 
 import { z } from "zod";

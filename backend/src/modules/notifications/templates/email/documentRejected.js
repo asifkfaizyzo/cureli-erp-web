@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/documentRejected.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/documentRejected.js
 // ============================================
 // DOCUMENT REJECTED EMAIL TEMPLATE

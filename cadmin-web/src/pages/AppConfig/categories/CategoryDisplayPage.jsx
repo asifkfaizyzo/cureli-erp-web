@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/categories/CategoryDisplayPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/categories/CategoryDisplayPage.jsx
 //
 // CAdmin page for managing category display overrides.

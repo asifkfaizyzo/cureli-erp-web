@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/marketplace/useListingsPage.js (do not remove this comment)
 // src/hooks/marketplace/useListingsPage.js
 // Full file — replace entirely
 

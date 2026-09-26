@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/support/mobile.support.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 import * as fileStorage from "../../../services/fileStorage.service.js";
 import { isReopenTransition } from "../../../config/customerTicketStateMachine.js";

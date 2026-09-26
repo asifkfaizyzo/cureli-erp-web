@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Subscription-management/comps/risk/modals/ReactivateConfirmModal.jsx (do not remove this comment)
 // src/pages/Subscription-management/comps/risk/modals/ReactivateConfirmModal.jsx
 
 import { useState } from "react";

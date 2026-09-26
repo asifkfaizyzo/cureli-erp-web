@@ -1,3 +1,4 @@
+// backend/src/modules/reports/inventory/inventory.report.controller.js (do not remove this comment)
 // backend/src/modules/reports/inventory/inventory.report.controller.js
 
 import { success, fail } from "../../../utils/response.js";

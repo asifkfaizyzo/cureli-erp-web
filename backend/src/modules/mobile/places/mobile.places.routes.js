@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/places/mobile.places.routes.js (do not remove this comment)
 // src/modules/mobile/places/mobile.places.routes.js
 
 import { Router } from "express";

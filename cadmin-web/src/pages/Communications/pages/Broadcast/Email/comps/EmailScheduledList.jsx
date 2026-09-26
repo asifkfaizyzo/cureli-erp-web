@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/Email/comps/EmailScheduledList.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/Email/comps/EmailScheduledList.jsx
 
 import { useState, useEffect } from "react";

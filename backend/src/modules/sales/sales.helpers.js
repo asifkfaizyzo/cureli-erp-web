@@ -1,3 +1,4 @@
+// backend/src/modules/sales/sales.helpers.js (do not remove this comment)
 // backend/src/modules/sales/sales.helpers.js
 
 import prisma from "../../config/prisma.js";

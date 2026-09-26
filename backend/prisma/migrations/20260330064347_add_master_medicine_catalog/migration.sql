@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260330064347_add_master_medicine_catalog/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "MedicineType" AS ENUM ('DRUG', 'OTC');
 

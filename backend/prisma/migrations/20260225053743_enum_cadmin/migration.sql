@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260225053743_enum_cadmin/migration.sql (do not remove this comment)
 /*
   Warnings:
 

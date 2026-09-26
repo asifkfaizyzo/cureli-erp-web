@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/user.templates.js (do not remove this comment)
 // ============================================
 // USER MANAGEMENT TEMPLATES
 // ============================================

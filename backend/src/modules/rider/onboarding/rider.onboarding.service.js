@@ -1,3 +1,4 @@
+// backend/src/modules/rider/onboarding/rider.onboarding.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 import { uploadFile } from "../../../services/fileStorage.service.js";
 import { resolveAssetUrl } from "../../../services/assetUrl.service.js";
@@ -454,7 +455,7 @@ export async function uploadRiderDocument(
   }
 
   // Upload to S3
-  const uploadResult = await uploadFile({
+  const uploadedFile = await uploadFile({
     buffer: file.buffer,
     folder: RIDER_DOCS_FOLDER,
     originalName: file.originalname,
@@ -462,27 +463,34 @@ export async function uploadRiderDocument(
     size: file.size,
   });
 
+  const storageKey = uploadedFile.storage_key;
+
   const group = DOCUMENT_GROUPS.find((g) => g.dbType === documentType);
   const isBackUpload = !isFront && group?.hasBack;
   const storageField = isBackUpload ? "back_storage_key" : "storage_key";
 
+  // Perform database writes in a transaction
   const result = await prisma.$transaction(async (tx) => {
+    // 1. Create or update the RiderDocument entry
     const document = await tx.riderDocument.upsert({
       where: {
-        rider_id_type: { rider_id: riderId, type: documentType },
+        rider_id_type: {
+          rider_id: riderId,
+          type: documentType,
+        },
       },
       update: {
-        [storageField]: uploadResult.storage_key,
-        status: "PENDING",
+        [storageField]: storageKey,
+        status: "PENDING", // needs review
         rejection_reason: null,
-        was_rejected_this_cycle: false,  // Clear rejection flag on re-upload
+        was_rejected_this_cycle: false, // Clear rejection flag on re-upload
         uploaded_at: new Date(),
         resubmission_count: { increment: 1 },
       },
       create: {
         rider_id: riderId,
         type: documentType,
-        [storageField]: uploadResult.storage_key,
+        [storageField]: storageKey,
         status: "PENDING",
         was_rejected_this_cycle: false,
         uploaded_at: new Date(),
@@ -497,7 +505,15 @@ export async function uploadRiderDocument(
       },
     });
 
-    // Advance step based on which doc was uploaded
+    // 2. Sync to the Rider table directly if this is the PROFILE_PHOTO
+    if (documentType === "PROFILE_PHOTO") {
+      await tx.rider.update({
+        where: { rider_id: riderId },
+        data: { profile_photo_key: storageKey },
+      });
+    }
+
+    // 3. Advance step based on which doc was uploaded
     const completedStep = DOC_TYPE_TO_STEP[documentType];
     if (completedStep) {
       const rider = await tx.rider.findUnique({

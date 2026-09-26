@@ -1,3 +1,4 @@
+// backend/prisma/schema/medicine.prisma (do not remove this comment)
 // Medicine — Master catalog (global) + shop-level medicines
 
 model MasterMedicine {

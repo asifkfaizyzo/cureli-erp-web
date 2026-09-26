@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/auth/mobile.auth.service.js (do not remove this comment)
 // src/modules/mobile/auth/mobile.auth.service.js
 
 import crypto from "crypto";
@@ -633,6 +634,7 @@ async function _completeVerification(user, deviceInfo, requestMeta) {
     refreshToken: refreshTokenPlain,
     expiresIn:    ACCESS_TOKEN_EXPIRY_SECONDS,
     isNewUser,
+    requires_email: !updatedUser.email,
     user:         formatUserForResponse(updatedUser),
   };
 }

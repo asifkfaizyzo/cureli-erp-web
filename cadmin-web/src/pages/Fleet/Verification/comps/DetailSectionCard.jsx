@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Fleet/Verification/comps/DetailSectionCard.jsx (do not remove this comment)
 // cadmin-web/src/pages/Fleet/Verification/comps/DetailSectionCard.jsx
 
 import { Lock } from "lucide-react";

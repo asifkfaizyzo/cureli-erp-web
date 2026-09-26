@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/profile.js (do not remove this comment)
 // src/api/profile.js
 
 import API from "./axios";

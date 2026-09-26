@@ -1,3 +1,4 @@
+// backend/src/modules/inventory-import/inventoryImport.writer.js (do not remove this comment)
 // backend/src/modules/inventory-import/inventoryImport.writer.js
 
 import prisma from "../../config/prisma.js";

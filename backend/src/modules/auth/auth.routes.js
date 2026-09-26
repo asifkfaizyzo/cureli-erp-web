@@ -1,3 +1,4 @@
+// backend/src/modules/auth/auth.routes.js (do not remove this comment)
 import express from "express";
 import { validateBody } from "../../middleware/validate.js";
 import {

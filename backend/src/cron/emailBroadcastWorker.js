@@ -1,3 +1,4 @@
+// backend/src/cron/emailBroadcastWorker.js (do not remove this comment)
 // backend/src/cron/emailBroadcastWorker.js
 
 import cron from "node-cron";

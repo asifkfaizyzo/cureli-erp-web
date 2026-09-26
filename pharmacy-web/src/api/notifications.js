@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/notifications.js (do not remove this comment)
 // ============================================
 // NOTIFICATIONS API
 // ============================================

@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/push/mobile.push.controller.js (do not remove this comment)
 // backend/src/modules/mobile/push/mobile.push.controller.js
 
 import prisma from '../../../config/prisma.js';

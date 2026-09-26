@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/layout/AppLayout.jsx (do not remove this comment)
 // src/components/layout/AppLayout.jsx
 
 import React, { useEffect, useRef } from "react";

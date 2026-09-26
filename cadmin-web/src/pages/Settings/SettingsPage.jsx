@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Settings/SettingsPage.jsx (do not remove this comment)
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence }           from "framer-motion";
 import {

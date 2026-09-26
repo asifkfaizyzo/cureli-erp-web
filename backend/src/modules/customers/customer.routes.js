@@ -1,3 +1,4 @@
+// backend/src/modules/customers/customer.routes.js (do not remove this comment)
 // backend/src/modules/customers/customer.routes.js
 
 import express from "express";

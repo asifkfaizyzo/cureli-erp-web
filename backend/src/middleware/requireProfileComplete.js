@@ -1,3 +1,4 @@
+// backend/src/middleware/requireProfileComplete.js (do not remove this comment)
 // src/middleware/requireProfileComplete.js
 
 import { fail } from "../utils/response.js";

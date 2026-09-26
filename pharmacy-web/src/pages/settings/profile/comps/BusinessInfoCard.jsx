@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/profile/comps/BusinessInfoCard.jsx (do not remove this comment)
 // src/pages/settings/profile/comps/BusinessInfoCard.jsx
 
 import { useState } from "react";

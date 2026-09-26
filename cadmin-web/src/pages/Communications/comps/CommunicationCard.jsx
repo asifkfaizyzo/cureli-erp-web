@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/comps/CommunicationCard.jsx (do not remove this comment)
 // src/pages/Communications/comps/CommunicationCard.jsx
 
 import { useNavigate } from "react-router-dom";

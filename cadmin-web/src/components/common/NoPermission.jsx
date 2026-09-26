@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/NoPermission.jsx (do not remove this comment)
 // src/components/common/NoPermission.jsx
 
 import { Lock, ShieldOff, Eye, EyeOff } from "lucide-react";

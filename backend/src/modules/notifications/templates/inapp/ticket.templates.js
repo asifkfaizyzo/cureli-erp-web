@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/ticket.templates.js (do not remove this comment)
 // ============================================
 // TICKET TEMPLATES
 // ============================================

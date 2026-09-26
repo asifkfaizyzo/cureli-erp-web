@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/master-medicines/cadminMasterMedicines.routes.js (do not remove this comment)
 import { Router } from "express";
 import multer from "multer";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";

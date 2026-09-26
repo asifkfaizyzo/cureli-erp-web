@@ -1,3 +1,4 @@
+// backend/src/modules/users/users.service.js (do not remove this comment)
 // src/modules/users/users.service.js
 
 import prisma from "../../config/prisma.js";

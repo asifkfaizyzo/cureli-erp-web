@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/login/comps/ResetPasswordPage.jsx (do not remove this comment)
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";

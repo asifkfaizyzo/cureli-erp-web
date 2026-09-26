@@ -1,3 +1,4 @@
+// pharmacy-web/src/guards/PermissionGuard.jsx (do not remove this comment)
 // src/guards/PermissionGuard.jsx
 
 import { useState } from "react";

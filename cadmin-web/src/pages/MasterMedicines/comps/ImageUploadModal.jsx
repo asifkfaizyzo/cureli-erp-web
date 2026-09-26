@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/ImageUploadModal.jsx (do not remove this comment)
 // cadmin/src/pages/MasterMedicines/comps/ImageUploadModal.jsx
 
 import { useState, useEffect, useRef } from "react";

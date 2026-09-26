@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/profile/cadminProfile.routes.js (do not remove this comment)
 import express from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";
 import { requireCAdminPermission } from "../../../middleware/requireCAdminPermission.js";

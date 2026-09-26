@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251119184847_update_user_shop_nullable/migration.sql (do not remove this comment)
 -- DropForeignKey
 ALTER TABLE "users" DROP CONSTRAINT "users_shop_id_fkey";
 

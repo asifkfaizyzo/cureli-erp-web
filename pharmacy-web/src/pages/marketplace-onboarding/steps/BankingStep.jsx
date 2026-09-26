@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/steps/BankingStep.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/steps/BankingStep.jsx
 
 import React, { useState } from "react";

@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/app-config/categoryKeys.registry.js (do not remove this comment)
 // backend/src/modules/cadmin/app-config/categoryKeys.registry.js
 //
 // Single source of truth for all displayable category card keys.

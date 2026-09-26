@@ -1,4 +1,4 @@
-// backend/src/modules/marketplace-orders/marketplace.orders.service.js
+// backend/src/modules/marketplace-orders/marketplace.orders.service.js (do not remove this comment)
 import prisma from "../../config/prisma.js";
 import {
   fireOrderPlacedEvents,
@@ -76,6 +76,21 @@ function computePrescriptionExpiry(status, now = new Date()) {
   const days = PRESCRIPTION_EXPIRY_DAYS[status];
   if (!days) return null;
   return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Generate two distinct 4-digit OTPs for pickup and delivery verification.
+ * Guarantees pickup_otp !== delivery_otp.
+ *
+ * @returns {{ pickup_otp: string, delivery_otp: string }}
+ */
+export function generateDistinctOtps() {
+  const pickup = String(Math.floor(1000 + Math.random() * 9000));
+  let delivery = String(Math.floor(1000 + Math.random() * 9000));
+  while (delivery === pickup) {
+    delivery = String(Math.floor(1000 + Math.random() * 9000));
+  }
+  return { pickup_otp: pickup, delivery_otp: delivery };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -234,8 +249,9 @@ export async function placeOrder({
     recipient_phone: address.recipient_phone ?? null,
   };
 
-  // ── 8. Generate order number ──────────────────────────────────────────────
+  // ── 8. Generate order number & distinct OTPs ──────────────────────────────
   const order_number = await generateOrderNumber();
+  const { pickup_otp, delivery_otp } = generateDistinctOtps();
 
   // ── 9. Database transaction ───────────────────────────────────────────────
   const now = new Date();
@@ -259,6 +275,8 @@ export async function placeOrder({
         requires_prescription: requiresPrescription,
         notes: notes ?? null,
         placed_at: now,
+        pickup_otp,
+        delivery_otp,
       },
     });
 
@@ -289,7 +307,6 @@ export async function placeOrder({
           mime_type: file.mime_type,
           file_size: file.file_size,
           sequence: index,
-          // expires_at and deleted_at are null until order reaches terminal state
         })),
       });
     }
@@ -402,12 +419,21 @@ export async function transitionOrderStatus({
     updateData.auto_completed = true;
   }
 
-  // ── Atomic transaction: update order + history + prescription expiry ──────
+  // ── Atomic transaction: update order + history + delivery + prescription ──
   await prisma.$transaction(async (tx) => {
-    // Re-fetch inside transaction to guard against race conditions
+    // Re-fetch inside transaction with branch & delivery for delivery lifecycle
     const current = await tx.marketplaceOrder.findUnique({
       where: { order_id },
-      select: { status: true },
+      include: {
+        branch: {
+          select: {
+            marketplaceSettings: {
+              select: { latitude: true, longitude: true },
+            },
+          },
+        },
+        delivery: true,
+      },
     });
 
     if (current.status !== order.status) {
@@ -416,13 +442,13 @@ export async function transitionOrderStatus({
       );
     }
 
-    // Update order status
+    // 1. Update order status
     await tx.marketplaceOrder.update({
       where: { order_id },
       data: updateData,
     });
 
-    // Write status history
+    // 2. Write status history
     await tx.marketplaceOrderStatusHistory.create({
       data: {
         order_id,
@@ -441,7 +467,39 @@ export async function transitionOrderStatus({
       },
     });
 
-    // Set prescription expiry timestamp on terminal status
+    // 3. AUTO-CREATE DELIVERY on ACCEPTED
+    if (target_status === "ACCEPTED" && !current.delivery) {
+      const pickupLat = current.branch?.marketplaceSettings?.latitude ?? null;
+      const pickupLng = current.branch?.marketplaceSettings?.longitude ?? null;
+      const addressSnapshot = current.delivery_address_snapshot || {};
+      const dropLat = addressSnapshot.latitude ?? null;
+      const dropLng = addressSnapshot.longitude ?? null;
+
+      await tx.delivery.create({
+        data: {
+          order_id: current.order_id,
+          status: "PENDING_ASSIGNMENT",
+          pickup_lat: pickupLat,
+          pickup_lng: pickupLng,
+          drop_lat: dropLat,
+          drop_lng: dropLng,
+        },
+      });
+    }
+
+    // 4. CANCEL DELIVERY IF ORDER IS CANCELLED
+    if (target_status === "CANCELLED" && current.delivery) {
+      await tx.delivery.update({
+        where: { order_id },
+        data: {
+          status: "CANCELLED",
+          failed_at: now,
+          failure_note: `Order cancelled by ${actor_type}`,
+        },
+      });
+    }
+
+    // 5. Set prescription expiry timestamp on terminal status
     const expiresAt = computePrescriptionExpiry(target_status, now);
     if (expiresAt) {
       await tx.marketplaceOrderPrescription.updateMany({
@@ -450,6 +508,23 @@ export async function transitionOrderStatus({
       });
     }
   });
+
+  // ── Post-commit: If READY_FOR_PICKUP, notify assigned rider via SSE ──────
+  if (target_status === "READY_FOR_PICKUP") {
+    const delivery = await prisma.delivery.findUnique({
+      where: { order_id },
+      select: { delivery_id: true, rider_id: true },
+    });
+
+    if (delivery?.rider_id) {
+      const { sseService } = await import("../../services/sse.service.js");
+      sseService.notifyRider(delivery.rider_id, "order_ready_for_pickup", {
+        delivery_id: delivery.delivery_id,
+        order_id,
+        order_number: order.order_number,
+      });
+    }
+  }
 
   // ── Fire events post-commit ───────────────────────────────────────────────
   await fireOrderStatusChangedEvents({
@@ -480,7 +555,6 @@ export async function transitionOrderStatus({
  * @param {string} customer_id
  */
 export async function cancelOrder(order_id, customer_id) {
-  // Ownership verified inside transitionOrderStatus via actor_type + actor_id
   return transitionOrderStatus({
     order_id,
     target_status: "CANCELLED",
@@ -681,6 +755,7 @@ export async function getMobileOrderDetail(order_id, customer_id) {
       },
       shop: { select: { business_name: true } },
       branch: { select: { branch_name: true } },
+      delivery: { select: { status: true } },
     },
   });
 
@@ -695,13 +770,6 @@ export async function getMobileOrderDetail(order_id, customer_id) {
 // GET PRESCRIPTION SIGNED URL
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Generate a time-limited signed URL for a prescription file.
- *
- * @param {string} prescription_id
- * @param {string} accessor_type   - 'pharmacy' | 'customer'
- * @param {string} accessor_id     - shop_id for pharmacy, customer_id for customer
- */
 export async function getPrescriptionSignedUrl(
   prescription_id,
   accessor_type,
@@ -718,7 +786,6 @@ export async function getPrescriptionSignedUrl(
 
   if (!prescription) throw new Error("Prescription not found");
 
-  // Access control
   if (
     accessor_type === "pharmacy" &&
     prescription.order.shop_id !== accessor_id
@@ -733,7 +800,6 @@ export async function getPrescriptionSignedUrl(
     throw new Error("Prescription not found");
   }
 
-  // Expired check — soft deleted from S3
   if (prescription.deleted_at !== null) {
     throw new Error("Prescription expired");
   }
@@ -744,7 +810,7 @@ export async function getPrescriptionSignedUrl(
   const url = await getSignedUrl({
     folder: PRESCRIPTION_FOLDER,
     filename: prescription.storage_key,
-    expiresIn: 900, // 15 minutes
+    expiresIn: 900,
   });
 
   return { url, expires_in: 900 };
@@ -754,14 +820,6 @@ export async function getPrescriptionSignedUrl(
 // REORDER ITEMS VALIDATION (Mobile Customer)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Validate which items from a previous order can be re-added to cart.
- * Returns current listing data (not original snapshots) for available items.
- *
- * @param {string} order_id
- * @param {string} customer_id
- * @returns {{ branch_id, branch_name, shop_id, shop_name, available, unavailable }}
- */
 export async function getReorderItems(order_id, customer_id) {
   const order = await prisma.marketplaceOrder.findUnique({
     where: { order_id },
@@ -801,7 +859,6 @@ export async function getReorderItems(order_id, customer_id) {
   const unavailable = [];
 
   for (const item of order.items) {
-    // Check current listing at the original branch
     const listing = await prisma.marketplaceListing.findFirst({
       where: {
         linked_variant_id: item.variant_id,
@@ -831,7 +888,6 @@ export async function getReorderItems(order_id, customer_id) {
       },
     });
 
-    // Determine unavailability reason
     if (!listing || !listing.is_visible) {
       unavailable.push({
         medicine_name: item.medicine_name_snapshot,
@@ -856,7 +912,6 @@ export async function getReorderItems(order_id, customer_id) {
       continue;
     }
 
-    // Resolve image URL
     const images = listing.linkedVariant?.images ?? [];
     const firstImage = Array.isArray(images) ? images[0] : null;
     let imageUrl = null;
@@ -877,7 +932,7 @@ export async function getReorderItems(order_id, customer_id) {
       pricePerUnit: Number(listing.marketplace_price),
       requiresPrescription: listing.requires_prescription,
       category: listing.linkedVariant.master?.primary_category ?? null,
-      quantity: item.quantity, // original quantity as suggestion
+      quantity: item.quantity,
       shopId: order.shop_id,
       shopName: order.shop?.business_name ?? "",
       branchId: order.branch_id,
@@ -930,11 +985,10 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
   });
 
   if (!order || order.shop_id !== shop_id) throw new Error("Order not found");
-   if (order.sales_invoice_id) throw new Error("Order has already been billed");
+  if (order.sales_invoice_id) throw new Error("Order has already been billed");
   if (!["PLACED", "ACCEPTED"].includes(order.status))
     throw new Error("Only PLACED or ACCEPTED orders can be billed");
 
-  // Fetch available batches for each medicine
   const itemsWithBatches = await Promise.all(
     order.items.map(async (item) => {
       const today = new Date();
@@ -1015,18 +1069,11 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
     items: itemsWithBatches,
   };
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
-// REGENERATE INVOICE PDF (Manual retry for failed background generation)
+// REGENERATE INVOICE PDF
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Manually trigger invoice PDF generation for a marketplace order.
- * Used when the background generation failed after all retries.
- *
- * @param {string} order_id
- * @param {string} shop_id
- * @returns {{ storageKey: string }}
- */
 export async function regenerateInvoicePdf(order_id, shop_id) {
   const order = await prisma.marketplaceOrder.findUnique({
     where: { order_id },
@@ -1049,14 +1096,11 @@ export async function regenerateInvoicePdf(order_id, shop_id) {
   }
 
   if (order.invoice_pdf_key) {
-    // PDF already exists — return existing key
     return { storageKey: order.invoice_pdf_key, already_exists: true };
   }
 
-  // Generate the PDF
-  const { generateMarketplaceInvoice } = await import(
-    "../mobile/invoice/invoice.service.js"
-  );
+  const { generateMarketplaceInvoice } =
+    await import("../mobile/invoice/invoice.service.js");
 
   const result = await generateMarketplaceInvoice(
     order.order_id,
@@ -1065,6 +1109,7 @@ export async function regenerateInvoicePdf(order_id, shop_id) {
 
   return { storageKey: result.storageKey, already_exists: false };
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FORMATTERS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1089,8 +1134,6 @@ function formatErpOrderSummary(order) {
     completed_at: order.completed_at,
     rejected_at: order.rejected_at,
     cancelled_at: order.cancelled_at,
-
-    // ── Patient ───────────────────────────────────────────
     patient: {
       is_self: order.patient_is_self,
       name: order.patient_name_snapshot ?? null,
@@ -1119,6 +1162,7 @@ function formatErpOrderDetail(order) {
     payment_method: order.payment_method,
     payment_status: order.payment_status,
     notes: order.notes,
+    pickup_otp: order.pickup_otp ?? null,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
     placed_at: order.placed_at,
@@ -1127,15 +1171,12 @@ function formatErpOrderDetail(order) {
     completed_at: order.completed_at,
     rejected_at: order.rejected_at,
     cancelled_at: order.cancelled_at,
-
-    // ── Patient (who the medicine is for) ─────────────────
     patient: {
       is_self: order.patient_is_self,
       name: order.patient_name_snapshot ?? null,
       age: order.patient_age_snapshot ?? null,
       sex: order.patient_sex_snapshot ?? null,
     },
-
     items: order.items.map(formatOrderItem),
     prescriptions: order.prescriptions.map((p) => ({
       prescription_id: p.prescription_id,
@@ -1185,8 +1226,6 @@ function formatMobileOrderDetail(order) {
     delivery_address: order.delivery_address_snapshot,
     total_amount: Number(order.total_amount),
     subtotal: Number(order.subtotal),
-
-    // ── NEW: Expose detailed charges and payment status ──────
     payment_method: order.payment_method,
     payment_status: order.payment_status,
     service_charge: Number(order.service_charge ?? 0),
@@ -1195,12 +1234,14 @@ function formatMobileOrderDetail(order) {
     tip: Number(order.tip ?? 0),
     grand_total: Number(order.grand_total ?? order.total_amount),
     invoice_generated_at: order.invoice_generated_at ?? null,
-    // ────────────────────────────────────────────────────────
-
     requires_prescription: order.requires_prescription,
     notes: order.notes,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
+    delivery_otp:
+      order.delivery?.status === "ARRIVED_AT_CUSTOMER"
+        ? (order.delivery_otp ?? null)
+        : null,
     placed_at: order.placed_at,
     accepted_at: order.accepted_at,
     ready_at: order.ready_at,
@@ -1225,10 +1266,6 @@ function formatMobileOrderDetail(order) {
   };
 }
 
-/**
- * Format a single order item.
- * Resolves primary image URL from joined variant relation.
- */
 function formatOrderItem(item) {
   return {
     item_id: item.item_id,

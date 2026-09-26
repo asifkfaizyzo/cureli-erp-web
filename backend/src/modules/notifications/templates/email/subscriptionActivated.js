@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionActivated.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionActivated.js
 // ============================================
 // SUBSCRIPTION ACTIVATED EMAIL TEMPLATE

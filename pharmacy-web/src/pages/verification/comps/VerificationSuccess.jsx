@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/verification/comps/VerificationSuccess.jsx (do not remove this comment)
 // src/components/verification/VerificationSuccess.jsx
 
 import { useState, useEffect } from "react";

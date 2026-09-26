@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-dashboard/components/RecentOrdersPanel.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/components/RecentOrdersPanel.jsx
 
 import { motion } from 'framer-motion';

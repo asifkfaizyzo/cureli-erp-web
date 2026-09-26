@@ -1,3 +1,4 @@
+// cadmin-web/src/config/modules/auditConfig.js (do not remove this comment)
 // ============================================
 // AUDIT CONFIGURATION
 // ============================================

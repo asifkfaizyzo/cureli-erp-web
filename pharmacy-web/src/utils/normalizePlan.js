@@ -1,3 +1,4 @@
+// pharmacy-web/src/utils/normalizePlan.js (do not remove this comment)
 // pharmacy-web/src/utils/normalizePlan.js
 
 /**

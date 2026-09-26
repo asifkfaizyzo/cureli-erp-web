@@ -1,3 +1,4 @@
+// pharmacy-web/src/store/useAuthStore.js (do not remove this comment)
 // src/store/useAuthStore.js
 
 import { create } from "zustand";

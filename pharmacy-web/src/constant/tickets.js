@@ -1,3 +1,4 @@
+// pharmacy-web/src/constant/tickets.js (do not remove this comment)
 // pharmacy-web/src/constant/tickets.js
 
 /**

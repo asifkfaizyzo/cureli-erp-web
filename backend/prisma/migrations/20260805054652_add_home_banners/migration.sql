@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260805054652_add_home_banners/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "BannerCtaAction" AS ENUM ('NONE', 'ROUTE', 'CATEGORY', 'EXTERNAL_URL');
 

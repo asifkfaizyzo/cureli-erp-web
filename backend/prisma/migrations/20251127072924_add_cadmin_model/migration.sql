@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251127072924_add_cadmin_model/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "cadmins" (
     "cadmin_id" UUID NOT NULL,

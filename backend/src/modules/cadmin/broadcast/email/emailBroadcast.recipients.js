@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/broadcast/email/emailBroadcast.recipients.js (do not remove this comment)
 // backend/src/modules/cadmin/broadcast/email/emailBroadcast.recipients.js
 
 import prisma from "../../../../config/prisma.js";

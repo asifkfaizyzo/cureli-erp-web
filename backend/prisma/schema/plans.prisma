@@ -1,3 +1,4 @@
+// backend/prisma/schema/plans.prisma (do not remove this comment)
 // Plans — Subscription plans, payment transactions
 
 model Plan {

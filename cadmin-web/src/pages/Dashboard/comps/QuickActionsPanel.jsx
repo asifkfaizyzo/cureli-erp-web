@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Dashboard/comps/QuickActionsPanel.jsx (do not remove this comment)
 // src/pages/Dashboard/comps/QuickActionsPanel.jsx
 
 import { useNavigate } from "react-router-dom";

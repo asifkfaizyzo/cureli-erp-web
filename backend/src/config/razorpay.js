@@ -1,3 +1,4 @@
+// backend/src/config/razorpay.js (do not remove this comment)
 import Razorpay from "razorpay";
 import crypto from "crypto";
 

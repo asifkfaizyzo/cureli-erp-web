@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/bill.js (do not remove this comment)
 export const billProductsMaster = [
   {
     batch: "E7656T",

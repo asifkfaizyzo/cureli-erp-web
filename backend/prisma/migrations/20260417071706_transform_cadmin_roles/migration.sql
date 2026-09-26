@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260417071706_transform_cadmin_roles/migration.sql (do not remove this comment)
 -- 1. Add the new column first (with default false)
 ALTER TABLE "cadmins" ADD COLUMN "is_super_cadmin" BOOLEAN NOT NULL DEFAULT false;
 

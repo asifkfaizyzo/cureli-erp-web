@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/SupplierPage.jsx (do not remove this comment)
 // src/pages/suppliers/SupplierPage.jsx
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "../../components/common/Toast";

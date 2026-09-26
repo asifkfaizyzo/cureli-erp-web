@@ -1,3 +1,4 @@
+// backend/scripts/seedPlans.js (do not remove this comment)
 // backend/src/scripts/seedPlans.js
 //
 // Run:  node src/scripts/seedPlans.js

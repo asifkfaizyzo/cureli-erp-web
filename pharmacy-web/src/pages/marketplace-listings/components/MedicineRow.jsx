@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-listings/components/MedicineRow.jsx (do not remove this comment)
 // src/pages/marketplace-listings/components/MedicineRow.jsx
 
 import { useState, useRef } from "react";

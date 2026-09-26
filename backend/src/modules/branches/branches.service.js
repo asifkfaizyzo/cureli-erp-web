@@ -1,3 +1,4 @@
+// backend/src/modules/branches/branches.service.js (do not remove this comment)
 // src/modules/branches/branches.service.js
 
 import prisma from "../../config/prisma.js";

@@ -1,3 +1,4 @@
+// backend/src/modules/shopFiles/shopFiles.routes.js (do not remove this comment)
 // backend/src/modules/shopFiles/shopFiles.routes.js
 
 import express from "express";

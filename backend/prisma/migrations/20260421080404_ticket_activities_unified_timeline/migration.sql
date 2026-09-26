@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260421080404_ticket_activities_unified_timeline/migration.sql (do not remove this comment)
 /*
   Warnings:
 

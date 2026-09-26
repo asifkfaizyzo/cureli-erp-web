@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Fleet/Communications/FleetCommunicationsPage.jsx (do not remove this comment)
 import { MessageSquare } from "lucide-react";
 
 export default function FleetCommunicationsPage() {

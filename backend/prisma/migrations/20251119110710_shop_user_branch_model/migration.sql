@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251119110710_shop_user_branch_model/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "users" (
     "user_id" UUID NOT NULL,

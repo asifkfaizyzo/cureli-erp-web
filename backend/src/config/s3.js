@@ -1,3 +1,4 @@
+// backend/src/config/s3.js (do not remove this comment)
 // backend/src/config/s3.js
 // ============================================
 // AWS S3 CLIENT CONFIGURATION

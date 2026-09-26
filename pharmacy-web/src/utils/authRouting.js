@@ -1,3 +1,4 @@
+// pharmacy-web/src/utils/authRouting.js (do not remove this comment)
 // src/utils/authRouting.js
 //
 // Centralized auth-based routing logic.

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/OnboardingPage.jsx (do not remove this comment)
 // src/pages/OnboardingPage.jsx
 
 import { useEffect, useState } from "react";

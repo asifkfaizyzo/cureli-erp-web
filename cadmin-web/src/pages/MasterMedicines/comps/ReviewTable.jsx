@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/ReviewTable.jsx (do not remove this comment)
 import { useEffect, useState } from "react";
 import {
   X,

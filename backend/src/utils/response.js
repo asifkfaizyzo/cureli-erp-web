@@ -1,3 +1,4 @@
+// backend/src/utils/response.js (do not remove this comment)
 //Q:\PROJECTS\YourZeroesAndOnes\cureli\curely_erp\backend\src\utils\response.js
 export function success(res, data = {}, message = "Success", status = 200) {
   return res.status(status).json({

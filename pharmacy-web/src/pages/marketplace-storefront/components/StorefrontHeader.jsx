@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/StorefrontHeader.jsx (do not remove this comment)
 import { Loader2, PowerOff } from "lucide-react";
 import StatusPill from "./primitives/StatusPill";
 

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/import/ImportLogDetailModal.jsx (do not remove this comment)
 // src/pages/inventory/components/import/ImportLogDetailModal.jsx
 
 import React, { useEffect, useState } from "react";

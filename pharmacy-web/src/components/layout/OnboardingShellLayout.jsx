@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/layout/OnboardingShellLayout.jsx (do not remove this comment)
 // src/components/layout/OnboardingShellLayout.jsx
 
 import { motion } from "framer-motion";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/marketplace/AcceptanceRatePage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/marketplace/AcceptanceRatePage.jsx
 
 import React, { useState, useEffect, useCallback } from "react";

@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminProfile.js (do not remove this comment)
 import CAdminAPI from "./axios";
 
 /** Full profile + pending counts — called by AuthContext on every mount */

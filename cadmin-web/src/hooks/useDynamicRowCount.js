@@ -1,3 +1,4 @@
+// cadmin-web/src/hooks/useDynamicRowCount.js (do not remove this comment)
 // src/hooks/useDynamicRowCount.js
 import { useState, useEffect, useMemo } from 'react';
 import { TABLE_CONFIG } from '../config/tableConfig';

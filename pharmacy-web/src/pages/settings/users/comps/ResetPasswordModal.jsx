@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/users/comps/ResetPasswordModal.jsx (do not remove this comment)
 // src/pages/settings/components/ResetPasswordModal.jsx
 
 import { useState } from "react";

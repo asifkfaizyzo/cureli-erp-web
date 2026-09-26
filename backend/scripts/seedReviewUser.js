@@ -1,3 +1,4 @@
+// backend/scripts/seedReviewUser.js (do not remove this comment)
 // prisma/seedReviewUser.js
 
 import { PrismaClient } from "@prisma/client";
