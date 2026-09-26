@@ -786,3 +786,27 @@ export async function revertReturnToPendingController(req, res) {
     return fail(res, error.message || "Failed to revert return", statusCode);
   }
 }
+
+
+export async function revertPurchaseInvoiceToDraftController(req, res) {
+  try {
+    const userId = req.user.user_id;
+    const shopId = req.user.shop_id;
+    const { invoiceId } = req.params;
+    const auditContext = audit.extractRequestContext(req);
+
+    const invoice = await purchaseService.revertPurchaseInvoiceToDraft(
+      userId,
+      shopId,
+      req.user.branch_id,
+      invoiceId,
+      auditContext
+    );
+
+    return success(res, invoice, "Invoice reverted to Draft successfully. Stock has been adjusted.");
+  } catch (error) {
+    console.error("purchase.revertToDraft ERROR:", error);
+    const statusCode = error.code === "NOT_FOUND" ? 404 : error.code === "PERMISSION_DENIED" ? 403 : 400;
+    return fail(res, error.message || "Failed to revert invoice to Draft", statusCode);
+  }
+}

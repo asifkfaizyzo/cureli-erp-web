@@ -6,6 +6,7 @@ import {
   verifyMobilePaymentSignature,
 } from "../../../config/razorpay.js";
 import { computePricing, normaliseConfig } from "./pricing.engine.js";
+import { getDrivingDistance } from "../../../services/distance.service.js";
 import { fireOrderPlacedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
 import { generateDistinctOtps } from "../../marketplace-orders/marketplace.orders.service.js";
 import { markConverted } from "../../prescription-requests/prescription.requests.service.js";
@@ -222,6 +223,27 @@ export async function createCheckoutSession({
 
   const shop_id = branchSettings.branch.shop_id;
 
+  // ── 3b. Server-side distance validation ─────────────────
+  const branchLat = branchSettings.branch.marketplaceSettings?.latitude ?? null;
+  const branchLng = branchSettings.branch.marketplaceSettings?.longitude ?? null;
+  const addrLat = address.latitude ? Number(address.latitude) : null;
+  const addrLng = address.longitude ? Number(address.longitude) : null;
+
+  let validatedDistanceKm = distance_km;
+
+  if (branchLat && branchLng && addrLat && addrLng) {
+    const serverDist = await getDrivingDistance(branchLat, branchLng, addrLat, addrLng);
+    const clientDist = Number(distance_km) || 0;
+    const tolerance = serverDist.distanceKm * 0.2;
+
+    if (Math.abs(clientDist - serverDist.distanceKm) > tolerance) {
+      console.warn(
+        `[Checkout] Distance mismatch: client=${clientDist}km, server=${serverDist.distanceKm}km. Using server value.`
+      );
+      validatedDistanceKm = serverDist.distanceKm;
+    }
+  }
+
   // ── 4. Validate and snapshot items ───────────────────────
   const { resolvedItems, subtotal, requiresPrescription } =
     await validateAndSnapshotItems(cartItems, branch_id);
@@ -234,7 +256,7 @@ export async function createCheckoutSession({
   }
 
   // ── 6. Base pricing calculation ──────────────────────────
-  const pricing = computePricing({ subtotal, distance_km, tip, config });
+  const pricing = computePricing({ subtotal, distance_km: validatedDistanceKm, tip, config });
 
   if (!pricing.delivery_available) {
     throw new Error(pricing.unavailable_reason);
@@ -344,7 +366,7 @@ export async function createCheckoutSession({
       loyalty_points_redeemed: points_to_redeem,
       loyalty_discount_amount,
       grand_total,
-      distance_km,
+      distance_km: validatedDistanceKm,
       prescription_files,
       patient_is_self: patient.is_self,
       patient_name_snapshot: patient.name,

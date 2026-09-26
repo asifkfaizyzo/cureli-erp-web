@@ -1,6 +1,22 @@
 // backend/src/modules/rider/presence/rider.presence.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
+import { sseService } from "../../../services/sse.service.js";
 
+// ── In-memory cache for active delivery broadcasting ─────────
+// Maps riderId → { customerId, orderId }
+// Populated on assignment, cleared on delivery completion.
+// Avoids DB queries on every 5-second location update.
+const activeDeliveryCache = new Map();
+
+export function registerActiveDelivery(riderId, customerId, orderId) {
+  activeDeliveryCache.set(riderId, { customerId, orderId });
+}
+
+export function unregisterActiveDelivery(riderId) {
+  activeDeliveryCache.delete(riderId);
+}
+
+// ── Constants ────────────────────────────────────────────────
 // ── Constants ────────────────────────────────────────────────
 const MIN_LOCATION_INTERVAL_MS = 5 * 1000; // 5 seconds between uploads
 const MAX_ACCURACY_METERS = 100; // reject GPS fixes worse than 100m
@@ -40,7 +56,11 @@ function getCurrentShiftDate(now = new Date()) {
     shiftDate.setDate(shiftDate.getDate() - 1);
   }
   return new Date(
-    Date.UTC(shiftDate.getFullYear(), shiftDate.getMonth(), shiftDate.getDate()),
+    Date.UTC(
+      shiftDate.getFullYear(),
+      shiftDate.getMonth(),
+      shiftDate.getDate(),
+    ),
   );
 }
 
@@ -62,7 +82,9 @@ export async function updateLocation(riderId, data) {
 
   // 1. Accuracy gate (if provided)
   if (accuracy != null && accuracy > MAX_ACCURACY_METERS) {
-    const err = new Error("GPS accuracy too low. Please wait for a better fix.");
+    const err = new Error(
+      "GPS accuracy too low. Please wait for a better fix.",
+    );
     err.code = "LOW_ACCURACY";
     throw err;
   }
@@ -94,7 +116,11 @@ export async function updateLocation(riderId, data) {
   }
 
   // 4. Speed sanity check (if we have a previous location)
-  if (rider.current_lat != null && rider.current_lng != null && rider.last_location_at) {
+  if (
+    rider.current_lat != null &&
+    rider.current_lng != null &&
+    rider.last_location_at
+  ) {
     const prevLat = Number(rider.current_lat);
     const prevLng = Number(rider.current_lng);
     const timeDiffMs = Date.now() - new Date(rider.last_location_at).getTime();
@@ -122,6 +148,25 @@ export async function updateLocation(riderId, data) {
       last_seen_at: new Date(),
     },
   });
+
+  // 6. Broadcast location to customer + CAdmin if on active delivery
+  const activeDelivery = activeDeliveryCache.get(riderId);
+  if (activeDelivery) {
+    const payload = {
+      rider_id: riderId,
+      order_id: activeDelivery.orderId,
+      lat,
+      lng,
+      timestamp: Date.now(),
+    };
+
+    sseService.notifyMobile(
+      activeDelivery.customerId,
+      "rider_location_update",
+      payload,
+    );
+    sseService.notifyAllCAdmins("rider_location_update", payload);
+  }
 }
 
 // ── toggleAvailability ───────────────────────────────────────
@@ -271,7 +316,8 @@ export async function toggleAvailability(riderId, data) {
       });
 
       for (const session of openSessions) {
-        const durationMs = now.getTime() - new Date(session.went_online_at).getTime();
+        const durationMs =
+          now.getTime() - new Date(session.went_online_at).getTime();
         const durationMinutes = Math.round((durationMs / 60_000) * 100) / 100;
 
         await tx.riderOnlineSession.update({

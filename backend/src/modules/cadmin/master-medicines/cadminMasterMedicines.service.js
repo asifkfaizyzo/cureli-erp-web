@@ -1807,11 +1807,55 @@ export async function createMasterMedicine(data, cadminId, auditContext = {}) {
       .replace(/\s+/g, "_")
       .trim() + (form ? `_${form.toLowerCase()}` : "");
 
+  // Check for existing master medicine with this key
   const existing = await prisma.masterMedicine.findUnique({
     where: { master_key: finalKey },
+    include: {
+      variants: {
+        orderBy: { mrp: "asc" },
+        select: {
+          variant_id: true,
+          sku_id: true,
+          name: true,
+          brand: true,
+          manufacturer: true,
+          pack_size: true,
+          mrp: true,
+          selling_price: true,
+        },
+      },
+      images: {
+        where: { type: "PRIMARY" },
+        take: 1,
+        select: { url: true },
+      },
+    },
   });
+
   if (existing) {
-    throw new Error(`A master medicine with key "${finalKey}" already exists`);
+    const error = new Error(`A master medicine with key "${finalKey}" already exists`);
+    error.code = "DUPLICATE_MASTER_KEY";
+    error.statusCode = 409;
+    error.existingMaster = {
+      id: existing.master_medicine_id,
+      masterKey: existing.master_key,
+      genericName: existing.generic_name,
+      type: existing.type,
+      form: existing.form,
+      variantCount: existing.variant_count,
+      primaryImage: resolveAssetUrl(existing.images?.[0]?.url || null),
+      variants: existing.variants.map((v) => ({
+        id: v.variant_id,
+        skuId: v.sku_id,
+        name: v.name,
+        brand: v.brand,
+        manufacturer: v.manufacturer,
+        packSize: v.pack_size,
+        mrp: v.mrp ? parseFloat(v.mrp) : null,
+        sellingPrice: v.selling_price ? parseFloat(v.selling_price) : null,
+      })),
+    };
+    throw error;
   }
 
   const compositionJson =
@@ -1911,6 +1955,128 @@ export async function createMasterMedicine(data, cadminId, auditContext = {}) {
   };
 }
 
+// ══════════════════════════════════════════════════════════════
+// CREATE VARIANT FOR EXISTING MASTER MEDICINE
+// ══════════════════════════════════════════════════════════════
+
+export async function createVariantForMasterMedicine(
+  masterMedicineId,
+  variantData,
+  cadminId,
+  auditContext = {},
+) {
+  const master = await prisma.masterMedicine.findUnique({
+    where: { master_medicine_id: masterMedicineId },
+  });
+
+  if (!master) {
+    throw new Error("Master medicine not found");
+  }
+
+  const {
+    name,
+    brand = null,
+    composition = [],
+    manufacturer,
+    marketer = null,
+    packSize = null,
+    mrp = null,
+    sellingPrice = null,
+    discountPercent = null,
+    description = null,
+  } = variantData;
+
+  if (!name || !manufacturer) {
+    throw new Error("Variant name and manufacturer are required");
+  }
+
+  const skuId = `MM${Date.now().toString(36).toUpperCase()}`;
+
+  const compositionJson =
+    Array.isArray(composition) && composition.length > 0
+      ? composition
+          .filter((c) => c.name && c.name.trim())
+          .map((c) => ({
+            name: c.name.trim(),
+            strength: c.strength?.trim() || null,
+          }))
+      : [];
+
+  let strengthValue = null;
+  let strengthUnit = null;
+  if (compositionJson.length > 0 && compositionJson[0].strength) {
+    const match = compositionJson[0].strength.match(/^([\d.]+)\s*(.*)$/);
+    if (match) {
+      strengthValue = parseFloat(match[1]);
+      strengthUnit = match[2] || null;
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const variant = await tx.masterMedicineVariant.create({
+      data: {
+        master_medicine_id: masterMedicineId,
+        sku_id: skuId,
+        name: name.trim(),
+        brand: brand ? brand.trim() : null,
+        composition: compositionJson.length > 0 ? compositionJson : (master.composition || []),
+        strength_value: strengthValue,
+        strength_unit: strengthUnit,
+        manufacturer: manufacturer.trim(),
+        marketer: marketer?.trim() || manufacturer.trim(),
+        pack_size: packSize || null,
+        mrp: mrp ? parseFloat(mrp) : null,
+        selling_price: sellingPrice ? parseFloat(sellingPrice) : null,
+        discount_percent: discountPercent ? parseFloat(discountPercent) : null,
+        description: description || null,
+        images: [],
+      },
+    });
+
+    await tx.masterMedicine.update({
+      where: { master_medicine_id: masterMedicineId },
+      data: {
+        variant_count: { increment: 1 },
+      },
+    });
+
+    await audit.log(
+      {
+        action: audit.AuditAction.MASTER_MEDICINE_CREATED,
+        entity_type: audit.EntityType.MASTER_MEDICINE,
+        entity_id: variant.variant_id,
+        ...auditContext,
+        reason_code: audit.AuditReasonCode.ADMIN_ACTION,
+        metadata: {
+          master_medicine_id: masterMedicineId,
+          master_key: master.master_key,
+          variant_id: variant.variant_id,
+          variant_name: variant.name,
+          sku_id: skuId,
+          created_by_cadmin_id: cadminId,
+        },
+      },
+      { tx },
+    );
+
+    return { variant, skuId };
+  });
+
+  return {
+    success: true,
+    master: {
+      id: master.master_medicine_id,
+      masterKey: master.master_key,
+      genericName: master.generic_name,
+    },
+    variant: {
+      id: result.variant.variant_id,
+      skuId: result.skuId,
+      name: result.variant.name,
+      manufacturer: result.variant.manufacturer,
+    },
+  };
+}
 
 // ══════════════════════════════════════════════════════════════
 // GET MAPPING HISTORY — WITH EXACT SCHEMA RESOLUTION

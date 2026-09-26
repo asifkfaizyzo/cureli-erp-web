@@ -2,21 +2,8 @@
 
 import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";
-
-function calculateDistanceKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const R = 6371;
-  const dLat = (Number(lat2) - Number(lat1)) * (Math.PI / 180);
-  const dLon = (Number(lon2) - Number(lon1)) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(Number(lat1) * (Math.PI / 180)) *
-      Math.cos(Number(lat2) * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 100) / 100;
-}
+import { getDrivingDistance, estimateDrivingDistance } from "../../../services/distance.service.js";
+import { registerActiveDelivery } from "../../rider/presence/rider.presence.service.js";
 
 export async function getAvailableRidersForOrder({ order_id, rider_type, search }) {
   const order = await prisma.marketplaceOrder.findUnique({
@@ -97,7 +84,7 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
     const activeDelivery = rider.deliveries[0] || null;
     const distanceKm =
       rider.current_lat && rider.current_lng && pharmacyLat && pharmacyLng
-        ? calculateDistanceKm(
+        ? estimateDrivingDistance(
             rider.current_lat,
             rider.current_lng,
             pharmacyLat,
@@ -206,11 +193,25 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     throw new Error("Rider is already handling another active delivery.");
   }
 
-  const now = new Date();
+    const now = new Date();
   const pharmacyLat = order.branch?.marketplaceSettings?.latitude ?? null;
   const pharmacyLng = order.branch?.marketplaceSettings?.longitude ?? null;
   const dropLat = order.delivery_address_snapshot?.latitude ?? null;
   const dropLng = order.delivery_address_snapshot?.longitude ?? null;
+
+  // ── Calculate real driving distances (Leg 1 + Leg 2) ──────────────
+  const [leg1, leg2] = await Promise.all([
+    rider.current_lat && rider.current_lng && pharmacyLat && pharmacyLng
+      ? getDrivingDistance(rider.current_lat, rider.current_lng, pharmacyLat, pharmacyLng)
+      : Promise.resolve({ distanceKm: 0, durationSecs: 0, isEstimate: true }),
+    pharmacyLat && pharmacyLng && dropLat && dropLng
+      ? getDrivingDistance(pharmacyLat, pharmacyLng, dropLat, dropLng)
+      : Promise.resolve({ distanceKm: 0, durationSecs: 0, isEstimate: true }),
+  ]);
+
+  const pickupDistKm = leg1.distanceKm;
+  const dropDistKm = leg2.distanceKm;
+  const totalDistKm = parseFloat((pickupDistKm + dropDistKm).toFixed(2));
 
   const result = await prisma.$transaction(async (tx) => {
     let deliveryRecord = order.delivery;
@@ -227,6 +228,9 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
           pickup_lng: pharmacyLng,
           drop_lat: dropLat,
           drop_lng: dropLng,
+          pickup_distance_km: pickupDistKm,
+          drop_distance_km: dropDistKm,
+          total_distance_km: totalDistKm,
         },
       });
     } else {
@@ -241,6 +245,9 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
           pickup_lng: pharmacyLng ?? deliveryRecord.pickup_lng,
           drop_lat: dropLat ?? deliveryRecord.drop_lat,
           drop_lng: dropLng ?? deliveryRecord.drop_lng,
+          pickup_distance_km: pickupDistKm,
+          drop_distance_km: dropDistKm,
+          total_distance_km: totalDistKm,
         },
       });
     }
@@ -257,22 +264,15 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     return deliveryRecord;
   });
 
-  const estimatedDist =
-    rider.current_lat && rider.current_lng && pharmacyLat && pharmacyLng
-      ? calculateDistanceKm(
-          rider.current_lat,
-          rider.current_lng,
-          pharmacyLat,
-          pharmacyLng,
-        )
-      : null;
+  // ── Register active delivery for SSE location broadcasting ────────
+  registerActiveDelivery(rider.rider_id, order.customer_id, order.order_id);
 
   const pharmacyAddress =
     order.branch?.marketplaceSettings?.formatted_address ||
     order.branch?.address_line_1 ||
     "Pharmacy Location";
 
-  // Fire SSE to Rider with separate shop_name and branch_name
+  // Fire SSE to Rider
   sseService.notifyRider(rider.rider_id, "delivery_assigned", {
     delivery_id: result.delivery_id,
     order_id: order.order_id,
@@ -282,7 +282,10 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     pharmacy_address: pharmacyAddress,
     pickup_lat: pharmacyLat ? Number(pharmacyLat) : null,
     pickup_lng: pharmacyLng ? Number(pharmacyLng) : null,
-    estimated_distance_km: estimatedDist,
+    estimated_distance_km: pickupDistKm,
+    drop_distance_km: dropDistKm,
+    total_distance_km: totalDistKm,
+    is_estimate: leg1.isEstimate || leg2.isEstimate,
     timestamp: now.toISOString(),
   });
 

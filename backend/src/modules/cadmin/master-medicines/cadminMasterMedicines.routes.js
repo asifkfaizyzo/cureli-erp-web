@@ -25,6 +25,7 @@ import {
   handleImageUpload,
   handleImageDelete,
   createMasterMed,
+  createVariantUnderMaster,
   listMappingHistory,
   unignoreMedicine,
 } from "./cadminMasterMedicines.controller.js";
@@ -155,6 +156,12 @@ router.post(
   "/master-medicines",
   requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_CREATE),
   createMasterMed
+);
+
+router.post(
+  "/master-medicines/:id/variants",
+  requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_CREATE),
+  createVariantUnderMaster
 );
 
 // ── MAIN READ ROUTES (MUST BE LAST) ──────────────────────────────────────────

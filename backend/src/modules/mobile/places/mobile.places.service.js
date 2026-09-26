@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/places/mobile.places.service.js (do not remove this comment)
-// src/modules/mobile/places/mobile.places.service.js
 //
 // Places service for mobile users.
 // Proxies Google Places API calls — keeps the API key server-side.
@@ -242,5 +241,42 @@ export async function getDrivingDistance(originLat, originLng, destLat, destLng)
     durationSecs,
     distanceText: element.distance.text,
     durationText: element.duration.text,
+  };
+}
+
+/**
+ * Calculate driving route with full polyline coordinates.
+ * Uses Directions API.
+ *
+ * ⚠️  Requires "Directions API" to be enabled in Google Cloud Console.
+ *
+ * @returns {Promise<{ distanceKm: number, durationSecs: number, polyline: string, legs: Array }>}
+ */
+export async function getDrivingDirections(originLat, originLng, destLat, destLng) {
+  const params = new URLSearchParams({
+    origin: `${originLat},${originLng}`,
+    destination: `${destLat},${destLng}`,
+    mode: "driving",
+    units: "metric",
+    key: getApiKey(),
+  });
+
+  const url = `${PLACES_BASE}/directions/json?${params}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+
+  if (!res.ok) throw new Error(`Directions request failed: ${res.status}`);
+
+  const data = await res.json();
+  if (data.status !== "OK") throw new Error(`Directions API error: ${data.status}`);
+
+  const route = data.routes[0];
+  const leg = route.legs[0];
+
+  return {
+    distanceKm: parseFloat((leg.distance.value / 1000).toFixed(2)),
+    durationSecs: leg.duration.value,
+    polyline: route.overview_polyline.points,
+    startAddress: leg.start_address,
+    endAddress: leg.end_address,
   };
 }

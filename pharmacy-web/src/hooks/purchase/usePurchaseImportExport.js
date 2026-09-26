@@ -10,15 +10,17 @@ import medicinesAPI from "../../api/medicines";
 const generateRowId = () =>
   `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// ── Header mapping ────────────────────────────────────────────
+// ── Enhanced Header mapping ──────────────────────────────────
 const mapHeaderToKey = (h) => {
   if (!h) return null;
   const key = String(h)
     .replace(/[\n\r\t]/g, " ")
     .replace(/\s+/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9%_]/g, "");
+    .replace(/[^a-z0-9%_.]/g, ""); // Allow dots to match "p.rate", "s.rate", "exp.dt"
+
   const map = {
+    // Product details
     mfac: "mfac",
     manufacturer: "mfac",
     mfr: "mfac",
@@ -26,51 +28,83 @@ const mapHeaderToKey = (h) => {
     mfgcomp: "mfac",
     mktgcomp: "mfac",
     manfacturer: "mfac",
+    brand: "mfac",
+    mfgby: "mfac",
+    manufacturedby: "mfac",
+    marketedby: "mfac",
+
     rack: "rack",
     location: "rack",
     shelf: "rack",
     rackno: "rack",
+    racklocation: "rack",
+    bin: "rack",
+
     description: "name",
     product: "name",
     name: "name",
     itemname: "name",
     itemdescription: "name",
-    itemname2: "name2",
     particulars: "name",
     productname: "name",
     item: "name",
     productdesc: "name",
     desc: "name",
+    medicinename: "name",
+    drugname: "name",
+    itemname2: "name2",
+
     hsn: "hsn",
     hsnsac: "hsn",
     hsncode: "hsn",
     hsnsaccode: "hsn",
     saccode: "hsn",
     hsnno: "hsn",
+
     pack: "pack",
     packing: "pack",
     unit: "pack",
     packname: "pack",
     packsize: "pack",
     uom: "pack",
+    unitofmeasure: "pack",
+
+    // Batch & Expiry
     batch: "batch",
     batchno: "batch",
     lot: "batch",
     lotno: "batch",
     batchnumber: "batch",
+    batchcode: "batch",
+
     exp: "exp",
     expiry: "exp",
     expirydate: "exp",
     expdate: "exp",
     expirydt: "exp",
+    expdt: "exp",
+    "exp.dt": "exp",
+    expirymonth: "exp",
+
+    // Quantities
     qty: "qty",
     quantity: "qty",
     units: "qty",
     invqty: "qty",
+    stockqty: "qty",
+    currentstock: "qty",
+    stock: "qty",
+    closing: "qty",
+    closingstock: "qty",
+    balance: "qty",
+    balanceqty: "qty",
+
     pqty: "pQty",
     prevqty: "pQty",
     previousqty: "pQty",
     purchaseqty: "pQty",
+
+    // Schemes & Discounts
     sch: "sch",
     scheme: "sch",
     free: "sch",
@@ -82,56 +116,86 @@ const mapHeaderToKey = (h) => {
     freescheme: "sch",
     invscdis: "schemePercent",
     schper: "schemePercent",
-    isfreeitem: "isFreeItem",
-    freeitem: "isFreeItem",
-    isfree: "isFreeItem",
-    mrp: "mrp",
-    itemmrp: "mrp",
-    maximumretailprice: "mrp",
-    vatmrp: "mrp",
-    price: "price",
-    rate: "price",
-    purchaserate: "price",
-    ptr: "price",
-    purrate: "price",
-    srate: "sRate",
-    sellingrate: "sRate",
-    selrate: "sRate",
-    salerate: "sRate",
-    netrate: "netRate",
-    net: "netRate",
-    nrate: "netRate",
     "sch%": "schemePercent",
     schemepercent: "schemePercent",
     schpercent: "schemePercent",
+    isfreeitem: "isFreeItem",
+    freeitem: "isFreeItem",
+    isfree: "isFreeItem",
+
     "disc%": "discountPercent",
     "dis%": "discountPercent",
     discountpercent: "discountPercent",
     discount: "discountPercent",
     invdisc: "discountPercent",
     tradedisc: "discountPercent",
+
+    // Rates & Prices
+    mrp: "mrp",
+    itemmrp: "mrp",
+    maximumretailprice: "mrp",
+    vatmrp: "mrp",
+    retailprice: "mrp",
+
+    price: "price",
+    rate: "price",
+    purchaserate: "price",
+    ptr: "price",
+    purrate: "price",
+    prate: "price",
+    "p.rate": "price",
+    costprice: "price",
+    cp: "price",
+    buyprice: "price",
+
+    srate: "sRate",
+    sellingrate: "sRate",
+    selrate: "sRate",
+    salerate: "sRate",
+    "s.rate": "sRate",
+    sp: "sRate",
+    sellprice: "sRate",
+    sellingprice: "sRate",
+
+    netrate: "netRate",
+    net: "netRate",
+    nrate: "netRate",
+
+    // Taxes & GST
+    "gst%": "gst",
+    gst: "gst",
+    gstrate: "gst",
+    gstper: "gst",
+    "tax%": "gst",
+    taxrate: "gst",
+    taxper: "gst",
+    vatper: "gst",
+
     "cgst%": "cgstPercent",
     cgstpercent: "cgstPercent",
     cgst: "cgstPercent",
     cgstper: "cgstPercent",
     cgstrate: "cgstPercent",
+
     "sgst%": "sgstPercent",
     sgstpercent: "sgstPercent",
     sgst: "sgstPercent",
     sgstper: "sgstPercent",
     sgstrate: "sgstPercent",
+
     "igst%": "igstPercent",
     igstpercent: "igstPercent",
     igst: "igstPercent",
     igstper: "igstPercent",
-    vatper: "cgstPercent",
-    vat: "cgstPercent",
+
     amount: "amount",
     total: "amount",
     invamt: "amount",
     lineamt: "amount",
     value: "amount",
     netamt: "amount",
+    purchaseamount: "amount",
+
     crdays: "creditDays",
     creditdays: "creditDays",
     convfact: "conversionFactor",
@@ -141,7 +205,111 @@ const mapHeaderToKey = (h) => {
   return map[key] || null;
 };
 
-// ── Enhanced Expiry parsing helper ────────────────────────────
+// ── Known software fingerprints & presets ─────────────────────
+const SOFTWARE_FINGERPRINTS = [
+  {
+    name: "MargERP",
+    markers: ["p.rate", "s.rate", "exp.dt", "pr. amt", "qty", "mrp"],
+  },
+  {
+    name: "Busy",
+    markers: ["godown", "alt. unit", "altunit", "altqty"],
+  },
+  {
+    name: "PharmaSoft",
+    markers: ["selling rate", "purchase rate", "rack no"],
+  },
+  {
+    name: "Vyapar",
+    markers: ["batch no.", "mfg date", "purchase price"],
+  },
+];
+
+const SOFTWARE_COLUMN_PRESETS = {
+  MargERP: {
+    "Product Name": "name",
+    "Company": "mfac",
+    "Batch": "batch",
+    "Exp.Dt": "exp",
+    "Qty": "qty",
+    "P.Rate": "price",
+    "MRP": "mrp",
+    "S.Rate": "sRate",
+    "HSN Code": "hsn",
+    "Pack": "pack",
+    "Rack": "rack",
+    "GST": "gst",
+  },
+  Busy: {
+    "Item Name": "name",
+    "Company": "mfac",
+    "Batch No.": "batch",
+    "Expiry Date": "exp",
+    "Quantity": "qty",
+    "Purchase Rate": "price",
+    "MRP": "mrp",
+    "Sale Rate": "sRate",
+    "HSN/SAC Code": "hsn",
+    "Pack Size": "pack",
+    "Location": "rack",
+  },
+  PharmaSoft: {
+    "Product Name": "name",
+    "Manufacturer": "mfac",
+    "Batch Number": "batch",
+    "Expiry Date": "exp",
+    "Quantity": "qty",
+    "Purchase Rate": "price",
+    "MRP": "mrp",
+    "Selling Rate": "sRate",
+    "HSN Code": "hsn",
+    "Pack Size": "pack",
+    "Rack No": "rack",
+  },
+  Vyapar: {
+    "Item": "name",
+    "Brand": "mfac",
+    "Batch No.": "batch",
+    "Expiry Date": "exp",
+    "Qty": "qty",
+    "Purchase Price": "price",
+    "MRP": "mrp",
+    "Sale Price": "sRate",
+    "HSN": "hsn",
+    "Unit": "pack",
+  },
+};
+
+const detectSoftware = (headers) => {
+  const normalizedHeaders = headers.map((h) =>
+    String(h || "").toLowerCase().trim()
+  );
+
+  for (const fingerprint of SOFTWARE_FINGERPRINTS) {
+    const matchCount = fingerprint.markers.filter((marker) =>
+      normalizedHeaders.some((h) => h.includes(marker))
+    ).length;
+
+    if (matchCount >= Math.ceil(fingerprint.markers.length / 2)) {
+      return fingerprint.name;
+    }
+  }
+  return "Unknown";
+};
+
+// ── Robust Expiry Parsing Helper ─────────────────────────────
+const MONTH_NAMES = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+const formatDateToMMYY = (d) => {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = String(d.getFullYear()).slice(-2);
+  return `${month}/${year}`;
+};
+
 const parseExpiryFromData = (row, headers, values) => {
   const getColValue = (colName) => {
     const idx = headers.findIndex((h) => {
@@ -150,49 +318,122 @@ const parseExpiryFromData = (row, headers, values) => {
         .replace(/[^a-z0-9]/g, "");
       return cleaned === colName;
     });
-    return idx !== -1 ? String(values[idx] || "").trim() : "";
+    return idx !== -1 ? values[idx] : "";
   };
 
-  const expMonth = getColValue("expmonth");
-  const expYear = getColValue("expyear");
+  const expMonth = getColValue("expmonth") || getColValue("expirymonth");
+  const expYear = getColValue("expyear") || getColValue("expiryyear");
   if (expMonth && expYear) {
-    const month = String(expMonth).padStart(2, "0");
-    let year = String(expYear);
+    const month = String(expMonth).trim().padStart(2, "0");
+    let year = String(expYear).trim();
     if (year.length === 4) year = year.slice(-2);
     return `${month}/${year}`;
   }
 
-  if (row.exp) {
-    const exp = String(row.exp).trim();
+  const rawExp = row.exp;
+  if (!rawExp && rawExp !== 0) return "";
 
-    // Excel Date object
-    if (row.exp instanceof Date) {
-      const month = String(row.exp.getMonth() + 1).padStart(2, "0");
-      const year = String(row.exp.getFullYear()).slice(-2);
-      return `${month}/${year}`;
-    }
-
-    // Format YYYY-MM-DD or YYYY/MM/DD (e.g., 2027-07-01 from Paragon Excel)
-    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(exp)) {
-      const parts = exp.split(/[-/]/);
-      const month = parts[1].padStart(2, "0");
-      const year = parts[0].slice(-2);
-      return `${month}/${year}`;
-    }
-
-    // Format DD-MM-YYYY or DD/MM/YYYY (e.g., 01-07-2027)
-    if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(exp)) {
-      const parts = exp.split(/[-/]/);
-      const month = parts[1].padStart(2, "0");
-      let year = parts[2];
-      if (year.length === 4) year = year.slice(-2);
-      return `${month}/${year}`;
-    }
-
-    // Format MM/YY
-    if (/^\d{2}\/\d{2}$/.test(exp)) return exp;
+  // 1. Direct JavaScript Date object
+  if (rawExp instanceof Date) {
+    return formatDateToMMYY(rawExp);
   }
-  return row.exp || "";
+
+  const str = String(rawExp).trim();
+  if (!str || str === "-") return "";
+
+  // 2. Full Date String (e.g. "Thu Jun 01 2028 05:30:00 GMT+0530 (India Standard Time)" or ISO "2028-06-01T...")
+  if (
+    str.includes("GMT") ||
+    str.includes("T00:") ||
+    /^[A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/.test(str)
+  ) {
+    const parsedDate = new Date(str);
+    if (!isNaN(parsedDate.getTime())) {
+      return formatDateToMMYY(parsedDate);
+    }
+  }
+
+  // 3. Excel serial numbers (e.g. "46904")
+  if (/^\d{5}$/.test(str)) {
+    try {
+      const serial = parseInt(str, 10);
+      const date = new Date((serial - 25569) * 86400 * 1000);
+      if (!isNaN(date.getTime())) {
+        return formatDateToMMYY(date);
+      }
+    } catch { /* fall through */ }
+  }
+
+  // 4. Alpha formats: e.g., "Jun-28", "Jun-2028", "Jun/28", "Jun 28"
+  const alphaMatch1 = str.match(/^([A-Za-z]{3,})[-\/\s](\d{2,4})$/);
+  if (alphaMatch1) {
+    const monthNum = MONTH_NAMES[alphaMatch1[1].toLowerCase().slice(0, 3)];
+    let yearStr = alphaMatch1[2];
+    if (yearStr.length === 4) yearStr = yearStr.slice(-2);
+    if (monthNum) return `${String(monthNum).padStart(2, "0")}/${yearStr}`;
+  }
+
+  // 5. Reverse Alpha formats: e.g., "2028-Jun" or "28-Jun"
+  const alphaMatch2 = str.match(/^(\d{2,4})[-\/\s]([A-Za-z]{3,})$/);
+  if (alphaMatch2) {
+    const monthNum = MONTH_NAMES[alphaMatch2[2].toLowerCase().slice(0, 3)];
+    let yearStr = alphaMatch2[1];
+    if (yearStr.length === 4) yearStr = yearStr.slice(-2);
+    if (monthNum) return `${String(monthNum).padStart(2, "0")}/${yearStr}`;
+  }
+
+  // 6. YYYY-MM or YYYY/MM
+  const numericYyMm = str.match(/^(\d{4})[-\/\s](\d{1,2})$/);
+  if (numericYyMm) {
+    const year = numericYyMm[1].slice(-2);
+    const month = numericYyMm[2].padStart(2, "0");
+    return `${month}/${year}`;
+  }
+
+  // 7. MM/YY or MM-YY or YY/MM
+  const numericTwoParts = str.match(/^(\d{1,2})[-\/\s](\d{2}|\d{4})$/);
+  if (numericTwoParts) {
+    const part1 = parseInt(numericTwoParts[1], 10);
+    const part2 = parseInt(numericTwoParts[2], 10);
+    const part2Str = numericTwoParts[2];
+
+    if (part1 >= 1 && part1 <= 12) {
+      const yearStr = part2Str.length === 4 ? part2Str.slice(-2) : String(part2).padStart(2, "0");
+      return `${String(part1).padStart(2, "0")}/${yearStr}`;
+    } else if (part2 >= 1 && part2 <= 12) {
+      const part1Str = numericTwoParts[1];
+      const yearStr = part1Str.length === 4 ? part1Str.slice(-2) : String(part1).padStart(2, "0");
+      return `${String(part2).padStart(2, "0")}/${yearStr}`;
+    }
+  }
+
+  // 8. YYYY-MM-DD or YYYY/MM/DD
+  if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(str)) {
+    const parts = str.split(/[-/]/);
+    const month = parts[1].padStart(2, "0");
+    const year = parts[0].slice(-2);
+    return `${month}/${year}`;
+  }
+
+  // 9. DD-MM-YYYY or DD/MM/YYYY
+  if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(str)) {
+    const parts = str.split(/[-/]/);
+    const month = parts[1].padStart(2, "0");
+    let year = parts[2];
+    if (year.length === 4) year = year.slice(-2);
+    return `${month}/${year}`;
+  }
+
+  // 10. Direct MM/YY format
+  if (/^\d{2}\/\d{2}$/.test(str)) return str;
+
+  // Fallback to native date parsing
+  const fallbackDate = new Date(str);
+  if (!isNaN(fallbackDate.getTime())) {
+    return formatDateToMMYY(fallbackDate);
+  }
+
+  return str;
 };
 
 const checkIsFreeItem = (row) => {
@@ -217,45 +458,62 @@ const checkIsFreeItem = (row) => {
   return false;
 };
 
-const parseRowData = (headers, values, debugMode = false) => {
+const parseRowData = (headers, values, mappedKeys, debugMode = false) => {
   const row = makeEmptyPurchaseRow();
   row.rowId = generateRowId();
-  headers.forEach((h, i) => {
-    const key = mapHeaderToKey(h);
+
+  mappedKeys.forEach((key, i) => {
     if (key && values[i] !== undefined && values[i] !== null) {
-      let value = String(values[i]).trim();
-      if (
-        [
-          "qty",
-          "pQty",
-          "sch",
-          "mrp",
-          "price",
-          "sRate",
-          "netRate",
-          "amount",
-          "schemePercent",
-          "discountPercent",
-          "cgstPercent",
-          "sgstPercent",
-          "igstPercent",
-        ].includes(key)
-      ) {
-        if (value.toUpperCase() !== "FREE")
-          value = value.replace(/[^\d.-]/g, "");
+      if (values[i] instanceof Date) {
+        row[key] = values[i];
+      } else {
+        let value = String(values[i]).trim();
+        if (
+          [
+            "qty",
+            "pQty",
+            "sch",
+            "mrp",
+            "price",
+            "sRate",
+            "netRate",
+            "amount",
+            "schemePercent",
+            "discountPercent",
+            "cgstPercent",
+            "sgstPercent",
+            "igstPercent",
+            "gst",
+          ].includes(key)
+        ) {
+          if (value.toUpperCase() !== "FREE")
+            value = value.replace(/[^\d.-]/g, "");
+        }
+        if (value) row[key] = value;
       }
-      if (value) row[key] = value;
     }
   });
 
   if (!row.name && row.name2) row.name = row.name2;
   delete row.name2;
 
+  // Convert expiry to MM/YY
   row.exp = parseExpiryFromData(row, headers, values);
 
-  //  AUTO-SET SELLING RATE: If sRate is empty, default to MRP
+  // AUTO-SET SELLING RATE: If sRate is empty, default to MRP
   if (!row.sRate && row.mrp) {
     row.sRate = row.mrp;
+  }
+
+  // Handle GST conversion (split total GST equally into CGST & SGST)
+  if (row.gst) {
+    const totalGst = parseFloat(row.gst) || 0;
+    if (totalGst > 0) {
+      const halfGst = String(totalGst / 2);
+      row.cgstPercent = halfGst;
+      row.sgstPercent = halfGst;
+    }
+    delete row.gst;
   }
 
   row.isFreeItem = checkIsFreeItem(row);
@@ -285,14 +543,14 @@ const extractCellValue = (cell) => {
   if (value === null || value === undefined) return "";
   if (typeof value === "object" && "result" in value) {
     const result = value.result;
-    if (result instanceof Date) return result.toLocaleDateString();
+    if (result instanceof Date) return result;
     return result !== null && result !== undefined ? result : "";
   }
   if (typeof value === "object" && value.richText)
     return value.richText.map((rt) => rt.text).join("");
   if (typeof value === "object" && value.text) return value.text;
   if (typeof value === "object" && value.error) return "";
-  if (value instanceof Date) return value.toLocaleDateString();
+  if (value instanceof Date) return value;
   return value;
 };
 
@@ -333,7 +591,7 @@ const readXlsWithSheetJS = (arrayBuffer, filename) => {
     }
   }
   const headers = data[headerRowIndex].map((h) =>
-    h instanceof Date ? h.toLocaleDateString() : String(h || "").trim(),
+    h instanceof Date ? formatDateToMMYY(h) : String(h || "").trim(),
   );
   const dataRows = [];
   for (let i = headerRowIndex + 1; i < data.length; i++) {
@@ -346,7 +604,7 @@ const readXlsWithSheetJS = (arrayBuffer, filename) => {
     dataRows.push(
       row.map((c) => {
         if (c === null || c === undefined) return "";
-        if (c instanceof Date) return c.toLocaleDateString();
+        if (c instanceof Date) return c;
         return String(c).trim();
       }),
     );
@@ -388,7 +646,7 @@ const readXlsxWithExcelJS = async (arrayBuffer, filename) => {
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.every((c) => !c || String(c).trim() === "")) continue;
-    dataRows.push(row.map((c) => String(c || "").trim()));
+    dataRows.push(row.map((c) => (c instanceof Date ? c : String(c || "").trim())));
   }
   return { headers, dataRows };
 };
@@ -610,13 +868,21 @@ export const usePurchaseImportExport = (
           const headers = lines[0]
             .split(delimiter)
             .map((h) => h.trim().replace(/^\"|\"$/g, ""));
+
+          const software = detectSoftware(headers);
+          const preset = SOFTWARE_COLUMN_PRESETS[software];
+          const mappedKeys = headers.map((h) => {
+            if (preset && preset[h]) return preset[h];
+            return mapHeaderToKey(h);
+          });
+
           const parsed = [];
           for (let i = 1; i < lines.length; i++) {
             const values = lines[i]
               .split(delimiter)
               .map((v) => v.trim().replace(/^\"|\"$/g, ""));
             if (values.some((v) => v))
-              parsed.push(parseRowData(headers, values, i <= 2));
+              parsed.push(parseRowData(headers, values, mappedKeys, i <= 2));
           }
           const { existingRows, newProducts, catalogResults } =
             await detectNewProducts(parsed);
@@ -627,7 +893,7 @@ export const usePurchaseImportExport = (
           const freeCount = existingRows.filter((r) => r.isFreeItem).length;
           toast.success(
             "CSV Imported",
-            `${matchedCount} matched, ${newProducts.length} new, ${freeCount} free items`,
+            `${matchedCount} matched, ${newProducts.length} new, ${freeCount} free items. Style: ${software}`,
           );
         } catch (error) {
           console.error("CSV import error:", error);
@@ -661,11 +927,20 @@ export const usePurchaseImportExport = (
             "Unsupported file format. Please use .xls or .xlsx files.",
           );
         }
+
+        const software = detectSoftware(headers);
+        const preset = SOFTWARE_COLUMN_PRESETS[software];
+        const mappedKeys = headers.map((h) => {
+          if (preset && preset[h]) return preset[h];
+          return mapHeaderToKey(h);
+        });
+
         const parsed = [];
         for (let i = 0; i < dataRows.length; i++) {
           const parsedRow = parseRowData(
             headers,
             dataRows[i],
+            mappedKeys,
             parsed.length < 2,
           );
           if (
@@ -695,7 +970,7 @@ export const usePurchaseImportExport = (
         const freeCount = existingRows.filter((r) => r.isFreeItem).length;
         toast.success(
           "Import Successful",
-          `${matchedCount} matched, ${newProducts.length} new, ${freeCount} free items`,
+          `${matchedCount} matched, ${newProducts.length} new, ${freeCount} free items. Format: ${software}`,
         );
       } catch (error) {
         console.error("Excel import error:", error);

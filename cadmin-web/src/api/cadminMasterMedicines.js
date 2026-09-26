@@ -220,3 +220,6 @@ export function getMappingHistory(params = {}) {
 export function unignoreMedicine(medicineId) {
   return CAdminAPI.post(`/master-medicines/unignore/${medicineId}`);
 }
+
+export const createVariantUnderMaster = (masterId, variantData) =>
+  cadminApi.post(`/master-medicines/${masterId}/variants`, variantData);

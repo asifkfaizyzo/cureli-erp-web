@@ -8,6 +8,7 @@ export {
   getPurchaseInvoices,
   getInvoiceDetails,
   getPurchaseStats,
+  revertPurchaseInvoiceToDraft,
 } from "./purchase.service.js";
 
 // Import from purchase1.service.js (Part 2)

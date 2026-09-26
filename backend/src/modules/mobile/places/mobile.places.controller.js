@@ -6,7 +6,8 @@ import {
   searchPlaces,
   getPlaceDetails,
   reverseGeocode,
-  getDrivingDistance,   
+  getDrivingDistance,
+  getDrivingDirections,
 } from "./mobile.places.service.js";
 
 /**
@@ -82,18 +83,56 @@ export async function handleReverseGeocode(req, res) {
 export async function handleGetDrivingDistance(req, res) {
   const originLat = parseFloat(req.query.originLat);
   const originLng = parseFloat(req.query.originLng);
-  const destLat   = parseFloat(req.query.destLat);
-  const destLng   = parseFloat(req.query.destLng);
+  const destLat = parseFloat(req.query.destLat);
+  const destLng = parseFloat(req.query.destLng);
 
-  if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
-    return fail(res, "Valid originLat, originLng, destLat, destLng are required", 400);
+  if (
+    isNaN(originLat) ||
+    isNaN(originLng) ||
+    isNaN(destLat) ||
+    isNaN(destLng)
+  ) {
+    return fail(
+      res,
+      "Valid originLat, originLng, destLat, destLng are required",
+      400,
+    );
   }
 
   try {
-    const result = await getDrivingDistance(originLat, originLng, destLat, destLng);
+    const result = await getDrivingDistance(
+      originLat,
+      originLng,
+      destLat,
+      destLng,
+    );
     return success(res, result, "Distance calculated");
   } catch (err) {
     console.error("[mobile/places/distance]", err.message);
     return fail(res, "Failed to calculate distance", 502);
+  }
+}
+
+export async function directionsHandler(req, res) {
+  try {
+    const { originLat, originLng, destLat, destLng } = req.query;
+
+    if (!originLat || !originLng || !destLat || !destLng) {
+      return res
+        .status(400)
+        .json({ success: false, message: "All four coordinates required" });
+    }
+
+    const result = await getDrivingDirections(
+      Number(originLat),
+      Number(originLng),
+      Number(destLat),
+      Number(destLng),
+    );
+
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("[Places] directions error:", err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 }

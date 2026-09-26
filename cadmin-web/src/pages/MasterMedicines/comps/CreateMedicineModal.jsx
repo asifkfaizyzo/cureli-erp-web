@@ -19,7 +19,9 @@ import {
   Upload,
   Image as ImageIcon,
   Star,
-  ImageOff,
+  AlertTriangle,
+  Link2,
+  Edit3,
 } from "lucide-react";
 import StyledSelect from "../../../components/common/StyledSelect";
 
@@ -73,7 +75,14 @@ const generateMasterKey = (genericName, form) => {
   return key;
 };
 
-const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
+const CreateMedicineModal = ({
+  isOpen,
+  item,
+  onClose,
+  onConfirm,
+  onLinkExistingVariant,
+  onAddVariantToExisting,
+}) => {
   const [formData, setFormData] = useState({
     name: "",
     genericName: "",
@@ -100,6 +109,10 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
   const [touched, setTouched] = useState({});
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Duplicate conflict state
+  const [conflictData, setConflictData] = useState(null);
+  const [isResolvingConflict, setIsResolvingConflict] = useState(false);
+
   // Reset on open
   useEffect(() => {
     if (isOpen && item) {
@@ -125,6 +138,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
       setErrors({});
       setTouched({});
       setIsSubmitting(false);
+      setConflictData(null);
       setShowAdvanced(
         !!(
           item.schedules?.length ||
@@ -143,7 +157,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
     };
   }, [images]);
 
-  // ESC
+  // ESC key handler
   useEffect(() => {
     if (!isOpen) return;
     const handleEsc = (e) => {
@@ -293,6 +307,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
       composition: f.composition.filter((_, i) => i !== idx),
     }));
 
+  // ── Submit logic ──
   const handleSubmit = async () => {
     setTouched({
       name: true,
@@ -302,6 +317,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
     });
     if (!validate()) return;
     setIsSubmitting(true);
+    setConflictData(null);
 
     const payload = {
       ...formData,
@@ -310,12 +326,41 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
       images: images.map((img) => ({ file: img.file, type: img.type })),
     };
 
-    // Let the parent handle the actual API call
     try {
       await onConfirm(payload);
     } catch (err) {
-      // If parent throws, keep modal open
       setIsSubmitting(false);
+      const resData = err.response?.data;
+      if (resData?.code === "DUPLICATE_MASTER_KEY" && resData?.data?.existingMaster) {
+        setConflictData(resData.data.existingMaster);
+      }
+    }
+  };
+
+  // ── Option C handlers ──
+  const handleLinkVariant = async (variantId) => {
+    if (!onLinkExistingVariant) return;
+    try {
+      setIsResolvingConflict(true);
+      await onLinkExistingVariant(variantId);
+    } finally {
+      setIsResolvingConflict(false);
+    }
+  };
+
+  const handleAddAsVariant = async () => {
+    if (!onAddVariantToExisting || !conflictData) return;
+    try {
+      setIsResolvingConflict(true);
+      await onAddVariantToExisting(conflictData.id, {
+        name: formData.name,
+        manufacturer: formData.manufacturer,
+        marketer: formData.marketer,
+        packSize: formData.packSize,
+        composition: formData.composition.filter((c) => c.name.trim()),
+      });
+    } finally {
+      setIsResolvingConflict(false);
     }
   };
 
@@ -356,13 +401,111 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
           </div>
         </div>
 
+        {/* ══ Conflict Banner (Option C) ══ */}
+        {conflictData && (
+          <div className="bg-amber-50 border-b border-amber-200 p-4 flex-shrink-0 animate-in fade-in duration-200">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg text-amber-700 flex-shrink-0 mt-0.5">
+                <AlertTriangle size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-amber-900">
+                  Master Medicine Formulation Already Exists
+                </h4>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  A master record with key <code className="font-mono font-bold bg-amber-100 px-1 py-0.5 rounded">{conflictData.masterKey}</code> already exists. Choose how you want to resolve this:
+                </p>
+
+                {/* Existing master details preview */}
+                <div className="mt-3 p-3 bg-white rounded-xl border border-amber-200 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-semibold text-gray-900">
+                      {conflictData.genericName}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">
+                        {conflictData.type}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {conflictData.form || "N/A"}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        • {conflictData.variants?.length || 0} existing variant(s)
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddAsVariant}
+                    disabled={isResolvingConflict}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {isResolvingConflict ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Plus size={13} />
+                    )}
+                    Add as Variant under this Master
+                  </button>
+                </div>
+
+                {/* Existing Variants to Link directly */}
+                {conflictData.variants?.length > 0 && (
+                  <div className="mt-2.5">
+                    <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider mb-1.5">
+                      Or link directly to an existing variant:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                      {conflictData.variants.map((v) => (
+                        <div
+                          key={v.id}
+                          className="p-2 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-800 truncate">
+                              {v.name}
+                            </p>
+                            <p className="text-[10px] text-gray-400 truncate">
+                              {v.manufacturer} {v.packSize ? `• ${v.packSize}` : ""}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleLinkVariant(v.id)}
+                            disabled={isResolvingConflict}
+                            className="px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 text-[11px] font-semibold rounded flex items-center gap-1 transition-colors flex-shrink-0"
+                          >
+                            <Link2 size={11} />
+                            Link
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dismiss button / Edit mode */}
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setConflictData(null)}
+                    className="text-xs text-amber-800 hover:text-amber-900 font-medium flex items-center gap-1"
+                  >
+                    <Edit3 size={11} />
+                    Edit Generic Name / Form to use a different key
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ══ Source Info ══ */}
         <div className="px-6 py-2.5 bg-green-50 border-b border-green-100 flex-shrink-0">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-green-600 font-medium">
-                Source:
-              </span>
+              <span className="text-xs text-green-600 font-medium">Source:</span>
               <span className="px-2.5 py-0.5 bg-white rounded-md text-sm font-semibold text-gray-800 shadow-sm">
                 {item.normalizedName}
               </span>
@@ -411,15 +554,9 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
           )}
         </div>
 
-        {/* ══ FORM BODY — two-column layout ══ */}
-        {/* 
-          KEY LAYOUT CHANGE:
-          - Outer wrapper: flex row, fixed height (fills remaining space)
-          - Left col: fixed width, does NOT scroll (sticky image panel)
-          - Right col: fills rest, scrolls independently
-        */}
+        {/* ══ FORM BODY ══ */}
         <div className="flex flex-1 min-h-0">
-          {/* ── LEFT COLUMN: Image Upload — sticky, no scroll ── */}
+          {/* LEFT COLUMN: Image Upload */}
           <div className="w-64 flex-shrink-0 border-r border-gray-100 p-5 flex flex-col gap-4 bg-gray-50/30 overflow-y-auto">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
@@ -431,7 +568,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               </p>
             </div>
 
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -441,7 +577,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               className="hidden"
             />
 
-            {/* Primary image preview */}
             <div
               className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50
                          overflow-hidden flex items-center justify-center cursor-pointer
@@ -455,7 +590,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                     alt="Primary"
                     className="w-full h-full object-contain p-2"
                   />
-                  {/* Overlay */}
                   <div
                     className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors
                                   flex items-center justify-center opacity-0 group-hover:opacity-100"
@@ -471,7 +605,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                       <Trash2 size={16} />
                     </button>
                   </div>
-                  {/* Primary badge */}
                   <div className="absolute top-2 left-2 px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded-md flex items-center gap-1">
                     <Star size={9} fill="white" />
                     PRIMARY
@@ -480,17 +613,12 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               ) : (
                 <div className="flex flex-col items-center gap-2 text-gray-400 p-4 text-center">
                   <Upload size={28} />
-                  <span className="text-sm font-medium">
-                    Upload Primary Image
-                  </span>
-                  <span className="text-xs">
-                    JPG, PNG, WebP · Max {MAX_FILE_SIZE_MB}MB
-                  </span>
+                  <span className="text-sm font-medium">Upload Primary Image</span>
+                  <span className="text-xs">JPG, PNG, WebP · Max {MAX_FILE_SIZE_MB}MB</span>
                 </div>
               )}
             </div>
 
-            {/* Gallery thumbnails */}
             {images.length > 0 && (
               <div className="grid grid-cols-4 gap-2">
                 {images.map((img) => {
@@ -507,7 +635,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                         alt=""
                         className="w-full h-full object-contain p-0.5"
                       />
-                      {/* Hover overlay */}
                       <div
                         className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors
                                       flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100"
@@ -540,7 +667,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                   );
                 })}
 
-                {/* Add more */}
                 {images.length < MAX_IMAGES && (
                   <button
                     type="button"
@@ -556,27 +682,10 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               </div>
             )}
 
-            {images.length === 0 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2.5 border border-dashed border-gray-300 rounded-lg text-xs text-gray-400
-                           hover:border-green-400 hover:text-green-600 transition-colors
-                           flex items-center justify-center gap-2"
-              >
-                <Plus size={14} />
-                Add gallery images
-              </button>
-            )}
-
-            {/* Image errors */}
             {imageErrors.length > 0 && (
               <div className="space-y-1">
                 {imageErrors.map((err, i) => (
-                  <p
-                    key={i}
-                    className="text-xs text-red-600 flex items-start gap-1"
-                  >
+                  <p key={i} className="text-xs text-red-600 flex items-start gap-1">
                     <AlertCircle size={11} className="flex-shrink-0 mt-0.5" />
                     {err}
                   </p>
@@ -585,12 +694,11 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
             )}
 
             <p className="text-[10px] text-gray-400 mt-auto">
-              {images.length}/{MAX_IMAGES} images · Hover thumbnails to star or
-              remove
+              {images.length}/{MAX_IMAGES} images · Hover thumbnails to star or remove
             </p>
           </div>
 
-          {/* ── RIGHT COLUMN: Form Fields — scrollable ── */}
+          {/* RIGHT COLUMN: Form Fields */}
           <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
             {/* Section 1: Identity */}
             <div className="bg-gray-50 rounded-xl p-4">
@@ -610,13 +718,13 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                     error={errors.name}
                     touched={touched.name}
                     placeholder='e.g., "Dolo 650 Tablet"'
-                    hint="The specific product name as sold"
+                    hint="The specific branded product name"
                   />
                 </div>
 
                 <div>
                   <FormField
-                    label="Generic Name"
+                    label="Generic Formulation Name"
                     required
                     autoFilled={autoFilledFields.genericName}
                     value={formData.genericName}
@@ -624,8 +732,8 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                     onBlur={() => handleBlur("genericName")}
                     error={errors.genericName}
                     touched={touched.genericName}
-                    placeholder='e.g., "Paracetamol Tablet"'
-                    hint="Canonical group name"
+                    placeholder='e.g., "Paracetamol"'
+                    hint="Canonical generic molecule name"
                     alternatives={item.genericNames?.filter(
                       (n) => n !== formData.genericName,
                     )}
@@ -633,7 +741,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                   />
                 </div>
 
-                {/* Form — StyledSelect */}
+                {/* Form */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Form <span className="text-red-500">*</span>
@@ -651,9 +759,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                     }}
                     options={FORM_OPTIONS}
                     placeholder="Select form..."
-                    error={
-                      errors.form && touched.form ? errors.form : undefined
-                    }
+                    error={errors.form && touched.form ? errors.form : undefined}
                   />
                   {errors.form && touched.form && (
                     <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -663,7 +769,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                   )}
                 </div>
 
-                {/* Type — StyledSelect */}
+                {/* Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Type <span className="text-red-500">*</span>
@@ -676,7 +782,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                   />
                 </div>
 
-                {/* Rx checkbox */}
+                {/* Rx */}
                 <div className="flex items-center col-span-2">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -688,17 +794,16 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                       className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                     />
                     <span className="text-sm text-gray-700">
-                      Prescription Required
+                      Prescription Required (Rx)
                     </span>
                   </label>
                 </div>
               </div>
 
-              {/* Master key preview */}
               {masterKeyPreview && (
                 <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-gray-200">
                   <Key size={13} className="text-gray-400" />
-                  <span className="text-xs text-gray-400">Master Key:</span>
+                  <span className="text-xs text-gray-400">Generated Master Key:</span>
                   <code className="text-xs text-indigo-600 font-mono font-medium">
                     {masterKeyPreview}
                   </code>
@@ -741,9 +846,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                       <input
                         type="text"
                         value={comp.name}
-                        onChange={(e) =>
-                          updateComp(idx, "name", e.target.value)
-                        }
+                        onChange={(e) => updateComp(idx, "name", e.target.value)}
                         placeholder="e.g., Paracetamol"
                         className="flex-1 h-9 px-3 border border-gray-300 rounded-lg text-sm
                                    focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
@@ -751,9 +854,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                       <input
                         type="text"
                         value={comp.strength}
-                        onChange={(e) =>
-                          updateComp(idx, "strength", e.target.value)
-                        }
+                        onChange={(e) => updateComp(idx, "strength", e.target.value)}
                         placeholder="e.g., 500mg"
                         className="w-24 h-9 px-3 border border-gray-300 rounded-lg text-sm
                                    focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
@@ -815,9 +916,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                   value={formData.packSize}
                   onChange={(v) => handleChange("packSize", v)}
                   placeholder="e.g., 10 tablets"
-                  alternatives={item.packSizes?.filter(
-                    (p) => p !== formData.packSize,
-                  )}
+                  alternatives={item.packSizes?.filter((p) => p !== formData.packSize)}
                   onPickAlternative={(v) => handleChange("packSize", v)}
                 />
                 <FormField
@@ -831,7 +930,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               </div>
             </div>
 
-            {/* Section 5: Classification (collapsible) */}
+            {/* Section 5: Classification */}
             <div className="bg-gray-50 rounded-xl overflow-hidden">
               <button
                 type="button"
@@ -857,7 +956,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               {showAdvanced && (
                 <div className="px-4 pb-4">
                   <div className="grid grid-cols-3 gap-3">
-                    {/* Schedule — StyledSelect */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Schedule
@@ -885,8 +983,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
                 </div>
               )}
             </div>
-
-            {/* Bottom spacer so last section isn't glued to footer */}
             <div className="h-2" />
           </div>
         </div>
@@ -914,7 +1010,7 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!conflictData}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold
                            flex items-center gap-2 hover:bg-green-700 transition-colors
                            disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
@@ -938,10 +1034,6 @@ const CreateMedicineModal = ({ isOpen, item, onClose, onConfirm }) => {
     </div>
   );
 };
-
-// ═══════════════════════════════════════════════════════════════
-// REUSABLE FORM FIELD
-// ═══════════════════════════════════════════════════════════════
 
 const FormField = ({
   label,

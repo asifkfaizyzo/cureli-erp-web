@@ -108,7 +108,7 @@ const purchaseAPI = {
     }
   },
 
-  //  NEW: Update payment status (Super Admin only)
+  // Update payment status (Super Admin only)
   updatePaymentStatus: async (invoiceId, data) => {
     try {
       const response = await API.patch(
@@ -125,7 +125,7 @@ const purchaseAPI = {
     }
   },
 
-  //  NEW: Record payment
+  // Record payment
   recordPayment: async (invoiceId, data) => {
     try {
       const response = await API.post(`/purchase/${invoiceId}/payments`, data, {
@@ -138,12 +138,12 @@ const purchaseAPI = {
     }
   },
 
-  //  NEW: Revert to draft (for super admin)
+  // FIXED: Aligned with backend router: router.post("/:invoiceId/revert", ...)
   revertToDraft: async (invoiceId) => {
     try {
-      const response = await API.patch(
-        `/purchase/${invoiceId}`,
-        { status: "DRAFT" },
+      const response = await API.post(
+        `/purchase/${invoiceId}/revert`,
+        {},
         {
           headers: getBranchHeaders(),
         },
@@ -253,7 +253,6 @@ const purchaseAPI = {
     }
   },
 
-  // Make sure these match the schema exactly:
   cancelApprovedReturn: async (returnId, data) => {
     try {
       const response = await API.patch(
