@@ -3,7 +3,7 @@
 import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";
 import { fireOrderStatusChangedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
-
+import { unregisterActiveDelivery } from "../presence/rider.presence.service.js";
 /**
  * Fetch the active ongoing delivery task for a rider.
  */
@@ -391,6 +391,8 @@ export async function completeDeliveryWithOtp(
       },
     });
   });
+
+  unregisterActiveDelivery(rider_id);
 
   // Fire loyalty, push notifications, and ERP status change
   await fireOrderStatusChangedEvents({

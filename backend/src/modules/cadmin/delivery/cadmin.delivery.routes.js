@@ -1,3 +1,4 @@
+//backend\src\modules\cadmin\delivery\cadmin.delivery.routes.js
 import { Router } from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";
 import * as controller from "./cadmin.delivery.controller.js";

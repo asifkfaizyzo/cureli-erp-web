@@ -8,6 +8,7 @@ import {
   handleGetPlaceDetails,
   handleReverseGeocode,
   handleGetDrivingDistance,
+  directionsHandler,
 } from "./mobile.places.controller.js";
 
 const router = Router();
@@ -39,5 +40,7 @@ router.get("/reverse", handleReverseGeocode);
  * Driving distance + duration between two coordinate pairs
  */
 router.get("/distance", handleGetDrivingDistance);
+
+router.get('/directions', directionsHandler);
 
 export default router;
