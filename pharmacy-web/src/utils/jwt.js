@@ -1,3 +1,4 @@
+// pharmacy-web/src/utils/jwt.js (do not remove this comment)
 // src/utils/jwt.js
 
 /**

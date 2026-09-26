@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/subscriptionExpiring.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/subscriptionExpiring.js
 // ============================================
 // SUBSCRIPTION EXPIRING EMAIL TEMPLATE

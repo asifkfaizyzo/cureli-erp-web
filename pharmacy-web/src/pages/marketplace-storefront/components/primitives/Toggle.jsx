@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/primitives/Toggle.jsx (do not remove this comment)
 const Toggle = ({ enabled, onChange, disabled = false, size = "md" }) => {
   const dims = {
     lg: { track: "h-6 w-11",  knob: "h-4 w-4",     on: "translate-x-6",   off: "translate-x-1"   },

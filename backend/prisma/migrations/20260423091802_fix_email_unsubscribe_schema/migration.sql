@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260423091802_fix_email_unsubscribe_schema/migration.sql (do not remove this comment)
 /*
   Warnings:
 

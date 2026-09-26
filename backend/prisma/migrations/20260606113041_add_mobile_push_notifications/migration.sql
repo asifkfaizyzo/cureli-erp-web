@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260606113041_add_mobile_push_notifications/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "cureli_mobile_push_preferences" (
     "id" UUID NOT NULL,

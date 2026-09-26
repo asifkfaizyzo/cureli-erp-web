@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/shops/mobile.shops.routes.js (do not remove this comment)
 // src/modules/mobile/shops/mobile.shops.routes.js
 //
 // PUBLIC mobile shop discovery routes.

@@ -1,3 +1,4 @@
+// backend/src/modules/enquiries/enquiries.routes.js (do not remove this comment)
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { validate } from "../../middleware/validate.js";

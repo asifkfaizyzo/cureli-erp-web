@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/pending/PhoneDetails.jsx (do not remove this comment)
 import { useState, useRef, useEffect } from "react";
 import { sendSmsOtp } from "../../../../api/otp";
 import { Loader2 } from "lucide-react";

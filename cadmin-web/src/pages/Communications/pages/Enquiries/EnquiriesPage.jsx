@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Enquiries/EnquiriesPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/Communications/pages/Enquiries/EnquiriesPage.jsx
 
 import { useState, useEffect, useCallback, useMemo } from "react";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/returns/components/ReturnStatusBadge.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/returns/components/ReturnStatusBadge.jsx
 
 import React from "react";

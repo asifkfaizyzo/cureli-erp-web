@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/branches/comps/BranchListTable.jsx (do not remove this comment)
 // src/pages/settings/branches/comps/BranchListTable.jsx
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";

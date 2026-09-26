@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/invoice/invoice.generator.js (do not remove this comment)
 // backend/src/modules/mobile/invoice/invoice.generator.js
 
 import puppeteer from 'puppeteer';

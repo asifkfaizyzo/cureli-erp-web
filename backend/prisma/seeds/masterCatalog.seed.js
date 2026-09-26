@@ -1,3 +1,4 @@
+// backend/prisma/seeds/masterCatalog.seed.js (do not remove this comment)
 /**
  * ═══════════════════════════════════════════════════════════════
  * MASTER CATALOG — SEED SCRIPT

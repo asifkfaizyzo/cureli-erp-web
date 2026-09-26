@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/ShopsHeader.jsx (do not remove this comment)
 // src/components/Shops/ShopsHeader.jsx
 
 import { Search, X, Download, FileSpreadsheet } from "lucide-react";

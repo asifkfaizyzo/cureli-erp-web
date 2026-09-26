@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminAppConfig.js (do not remove this comment)
 // cadmin-web/src/api/cadminAppConfig.js
 //
 // CAdmin API calls for App Config — category display overrides.

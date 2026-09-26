@@ -1,3 +1,4 @@
+// pharmacy-web/src/store/useMarketplaceStore.js (do not remove this comment)
 // pharmacy-web/src/store/useMarketplaceStore.js
 
 import { create } from "zustand";

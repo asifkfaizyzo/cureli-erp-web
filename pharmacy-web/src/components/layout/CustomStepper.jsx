@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/layout/CustomStepper.jsx (do not remove this comment)
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 

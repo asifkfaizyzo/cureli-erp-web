@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/channels/inapp.channel.js (do not remove this comment)
 // ============================================
 // backend/src/modules/notifications/channels/inapp.channel.js
 // ============================================

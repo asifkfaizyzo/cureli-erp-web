@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251223061518_add_cadmin_management/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "pending_users" (
     "pending_id" UUID NOT NULL,

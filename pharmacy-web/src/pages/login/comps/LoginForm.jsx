@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/login/comps/LoginForm.jsx (do not remove this comment)
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaUser, FaLock } from "react-icons/fa";

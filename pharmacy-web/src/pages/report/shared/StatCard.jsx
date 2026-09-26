@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/shared/StatCard.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/shared/StatCard.jsx
 
 const StatCard = ({

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260203064148_add_cadmin_notifications/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "notifications" ADD COLUMN     "cadmin_id" UUID,
 ALTER COLUMN "user_id" DROP NOT NULL;

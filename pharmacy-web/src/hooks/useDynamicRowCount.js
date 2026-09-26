@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/useDynamicRowCount.js (do not remove this comment)
 // pharmacy-web/src/hooks/useDynamicRowCount.js
 import { useState, useEffect } from "react";
 import { TABLE_CONFIG } from "../config/tableConfig";

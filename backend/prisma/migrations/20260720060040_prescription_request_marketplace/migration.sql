@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260720060040_prescription_request_marketplace/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "PrescriptionRequestStatus" AS ENUM ('PENDING', 'PARTIALLY_RESPONDED', 'FULLY_RESPONDED', 'ACCEPTED', 'COMPLETED', 'CANCELLED', 'EXPIRED');
 

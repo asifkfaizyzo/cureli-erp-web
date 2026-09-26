@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260828062644_add_banking_and_delivery_mode/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "DeliveryMode" AS ENUM ('CURELI', 'SELF');
 

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/components/SupplierHeader.jsx (do not remove this comment)
 // src/pages/suppliers/components/SupplierHeader.jsx
 import React from "react";
 import { 

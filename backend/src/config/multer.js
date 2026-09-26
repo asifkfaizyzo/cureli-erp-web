@@ -1,3 +1,4 @@
+// backend/src/config/multer.js (do not remove this comment)
 // backend/src/config/multer.js
 // ============================================
 // UNIVERSAL MULTER CONFIGURATION

@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/usePermission.js (do not remove this comment)
 // src/hooks/usePermission.js
 
 import { useMemo } from "react";

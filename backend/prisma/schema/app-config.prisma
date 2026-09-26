@@ -1,3 +1,4 @@
+// backend/prisma/schema/app-config.prisma (do not remove this comment)
 // App Config — Home banners, feed sections, screen config
 
 model HomeBannerSlide {

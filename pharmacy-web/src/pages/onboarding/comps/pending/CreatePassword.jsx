@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/pending/CreatePassword.jsx (do not remove this comment)
 import { useState, useRef } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { googleSetPassword } from "../../../../api/auth";

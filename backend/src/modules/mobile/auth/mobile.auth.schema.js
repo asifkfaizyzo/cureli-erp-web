@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/auth/mobile.auth.schema.js (do not remove this comment)
 // src/modules/mobile/auth/mobile.auth.schema.js
 
 import { z } from "zod";

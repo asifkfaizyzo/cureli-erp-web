@@ -1,3 +1,4 @@
+// backend/src/modules/enquiries/enquiries.controller.js (do not remove this comment)
 // backend/src/modules/enquiries/enquiries.controller.js
 import { success, fail } from "../../utils/response.js";
 import { verifyRecaptcha } from "../../utils/recaptcha.js";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/components/SupplierTable.jsx (do not remove this comment)
 // src/pages/suppliers/components/SupplierTable.jsx
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import SupplierRow from "./SupplierRow";

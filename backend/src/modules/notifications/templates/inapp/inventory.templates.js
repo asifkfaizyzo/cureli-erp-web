@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/inventory.templates.js (do not remove this comment)
 // ============================================
 // INVENTORY ALERT TEMPLATES
 // ============================================

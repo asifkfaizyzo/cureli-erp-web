@@ -1,3 +1,4 @@
+// backend/prisma/schema/erp-sales.prisma (do not remove this comment)
 // ERP Sales — Customers, sales invoices, payments, credits
 
 model Customer {

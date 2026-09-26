@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/setup/SetupBranchesPage.jsx (do not remove this comment)
 // src/pages/setup/SetupBranchesPage.jsx
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";

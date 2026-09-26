@@ -1,3 +1,4 @@
+// backend/src/modules/purchase/purchase1.service.js (do not remove this comment)
 // backend/src/modules/purchase/purchase1.service.js
 
 import prisma from "../../config/prisma.js";

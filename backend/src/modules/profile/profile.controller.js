@@ -1,3 +1,4 @@
+// backend/src/modules/profile/profile.controller.js (do not remove this comment)
 // src/modules/profile/profile.controller.js
 
 import { success, fail } from "../../utils/response.js";

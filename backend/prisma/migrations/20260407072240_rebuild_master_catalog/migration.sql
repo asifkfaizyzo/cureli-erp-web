@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260407072240_rebuild_master_catalog/migration.sql (do not remove this comment)
 -- ══════════════════════════════════════════════════════════════
 -- MASTER CATALOG REBUILD MIGRATION
 -- ══════════════════════════════════════════════════════════════

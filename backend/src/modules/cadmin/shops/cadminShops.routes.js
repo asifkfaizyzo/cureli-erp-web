@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/shops/cadminShops.routes.js (do not remove this comment)
 // cadminShops.routes.js
 
 import express from "express";

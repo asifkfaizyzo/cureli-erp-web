@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/components/AddExistingSupplierModal.jsx (do not remove this comment)
 // src/pages/suppliers/components/AddExistingSupplierModal.jsx
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";

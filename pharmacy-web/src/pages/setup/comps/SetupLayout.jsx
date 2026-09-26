@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/setup/comps/SetupLayout.jsx (do not remove this comment)
 // src/components/setup/SetupLayout.jsx
 import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";

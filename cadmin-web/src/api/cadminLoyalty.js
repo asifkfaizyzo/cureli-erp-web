@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminLoyalty.js (do not remove this comment)
 // cadmin-web/src/api/cadminLoyalty.js
 import CAdminAPI from "./axios";
 

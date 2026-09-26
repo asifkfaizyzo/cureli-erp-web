@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/medicines/mobile.medicines.controller.js (do not remove this comment)
 // src/modules/mobile/medicines/mobile.medicines.controller.js
 //
 // PUBLIC mobile medicine discovery — controllers.

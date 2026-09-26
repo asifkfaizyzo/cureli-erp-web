@@ -1,3 +1,4 @@
+// cadmin-web/src/store/useMenuStore.js (do not remove this comment)
 // src/store/useMenuStore.js
 
 import { create } from "zustand";

@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/medicines/mobile.medicines.schema.js (do not remove this comment)
 // src/modules/mobile/medicines/mobile.medicines.schema.js
 //
 // Validation schemas for the PUBLIC mobile medicine discovery endpoints.

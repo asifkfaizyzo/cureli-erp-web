@@ -1,13 +1,14 @@
-// Delivery & Rider — Zones, riders, deliveries, earnings, payouts
+// backend/prisma/schema/delivery.prisma (do not remove this comment)
+// Delivery & Rider — Zones, riders, deliveries, earnings, payouts, pricing & incentives
 
 model DeliveryZone {
-  zone_id    String   @id @default(uuid()) @db.Uuid
-  name       String   @db.VarChar(100)
-  city       String   @db.VarChar(100)
-  state      String   @db.VarChar(100)
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  zone_id            String                 @id @default(uuid()) @db.Uuid
+  name               String                 @db.VarChar(100)
+  city               String                 @db.VarChar(100)
+  state              String                 @db.VarChar(100)
+  is_active          Boolean                @default(true)
+  created_at         DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime               @updatedAt @db.Timestamptz(6)
 
   zoneChangeRequests ZoneChangeRequest[]
   trainingContent    RiderTrainingContent[]
@@ -17,152 +18,229 @@ model DeliveryZone {
   @@map("delivery_zones")
 }
 
-model DeliveryConfig {
-  config_id                String   @id @default(uuid()) @db.Uuid
-  base_fee_per_delivery    Decimal  @default(30) @db.Decimal(10, 2)
-  per_km_rate              Decimal  @default(5)  @db.Decimal(10, 2)
-  accept_timeout_seconds   Int      @default(30)
-  max_cascade_attempts     Int      @default(5)
-  min_payout_amount        Decimal  @default(100) @db.Decimal(10, 2)
-  payout_day_of_week       Int      @default(1)
-  low_rating_threshold     Decimal  @default(3.5) @db.Decimal(3, 2)
-  updated_at               DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  updated_by               String?  @db.Uuid
+// ── 1. Base Pay & Slabs Configuration ────────────────────────────────────────
+model RiderPricingConfig {
+  config_id          String                 @id @default(uuid()) @db.Uuid
+  version            Int                    @default(1)
+  name               String                 @db.VarChar(100)
+  status             PricingConfigStatus    @default(DRAFT)
 
-  @@map("delivery_config")
+  // Minimum floor payout guarantee (e.g., no delivery pays less than ₹25)
+  min_floor_payout   Decimal                @default(25.00) @db.Decimal(10, 2)
+
+  // Leg 1: Rider -> Pharmacy Base Fee
+  pickup_base_fee    Decimal                @default(10.00) @db.Decimal(10, 2)
+
+  // Leg 2: Pharmacy -> Customer Base Fee
+  drop_base_fee      Decimal                @default(15.00) @db.Decimal(10, 2)
+
+  // Scheduling & Lifecycle
+  effective_from     DateTime               @db.Timestamptz(6)
+  effective_until    DateTime?              @db.Timestamptz(6)
+
+  created_at         DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime               @updatedAt @db.Timestamptz(6)
+  created_by         String?                @db.Uuid
+
+  slabs              PricingDistanceSlab[]
+  deliveries         Delivery[]
+
+  @@index([status, effective_from])
+  @@map("rider_pricing_configs")
 }
 
-model DeliveryShift {
-  shift_id        String   @id @default(uuid()) @db.Uuid
-  name            String   @db.VarChar(100)
-  start_time      String   @db.VarChar(5)
-  end_time        String   @db.VarChar(5)
-  min_deliveries  Int
-  bonus_amount    Decimal  @db.Decimal(10, 2)
-  is_active       Boolean  @default(true)
-  created_at      DateTime @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime @updatedAt @db.Timestamptz(6)
+model PricingDistanceSlab {
+  slab_id            String                 @id @default(uuid()) @db.Uuid
+  config_id          String                 @db.Uuid
+  leg_type           DistanceLegType
+
+  from_km            Decimal                @db.Decimal(6, 2)
+  to_km              Decimal?               @db.Decimal(6, 2) // null = unbounded / infinity
+  rate_type          SlabRateType           @default(PER_KM)
+  rate               Decimal                @db.Decimal(10, 2) // ₹ flat amount OR ₹/km
+
+  created_at         DateTime               @default(now()) @db.Timestamptz(6)
+
+  config             RiderPricingConfig     @relation(fields: [config_id], references: [config_id], onDelete: Cascade)
+
+  @@index([config_id, leg_type])
+  @@map("pricing_distance_slabs")
+}
+
+// ── 2. Surge Pricing Rules (Manual Control) ──────────────────────────────────
+model RiderSurgeRule {
+  rule_id            String                 @id @default(uuid()) @db.Uuid
+  name               String                 @db.VarChar(100)
+  description        String?                @db.VarChar(255)
+  is_active          Boolean                @default(false)
+
+  calc_type          SurgeCalculationType   @default(MULTIPLIER)
+  value              Decimal                @db.Decimal(10, 2) // Multiplier (e.g. 1.50) or Flat Addition (e.g. 25.00)
+
+  // Optional auto-expiry safety net
+  expires_at         DateTime?              @db.Timestamptz(6)
+
+  activated_at       DateTime?              @db.Timestamptz(6)
+  activated_by       String?                @db.Uuid
+  created_at         DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime               @updatedAt @db.Timestamptz(6)
+
+  deliveries         Delivery[]
 
   @@index([is_active])
-  @@map("delivery_shifts")
+  @@map("rider_surge_rules")
 }
 
-model DeliverySurgeRule {
-  rule_id       String   @id @default(uuid()) @db.Uuid
-  name          String   @db.VarChar(100)
-  start_time    String   @db.VarChar(5)
-  end_time      String   @db.VarChar(5)
-  days_of_week  String[]
-  multiplier    Decimal  @db.Decimal(4, 2)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+// ── 3. Incentive Templates (Reusable Blueprints) ─────────────────────────────
+model IncentiveTemplate {
+  template_id            String              @id @default(uuid()) @db.Uuid
+  title                  String              @db.VarChar(150)
+  description            String?             @db.VarChar(500)
+  period_type            IncentivePeriodType @default(DAILY)
+  metric_type            IncentiveMetricType @default(ORDER_COUNT)
 
-  @@index([is_active])
-  @@map("delivery_surge_rules")
+  // Gating Conditions
+  min_online_hours       Decimal?            @db.Decimal(4, 2)
+  max_denial_count       Int?
+  max_cancellation_count Int?
+  min_acceptance_rate    Decimal?            @db.Decimal(5, 2)
+  min_completion_rate    Decimal?            @db.Decimal(5, 2)
+
+  is_active              Boolean             @default(true)
+  created_at             DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime            @updatedAt @db.Timestamptz(6)
+  created_by             String?             @db.Uuid
+
+  tiers                  IncentiveTier[]
+  schedules              IncentiveSchedule[]
+
+  @@index([is_active, period_type])
+  @@map("incentive_templates")
 }
 
-model DeliveryIncentive {
-  incentive_id  String          @id @default(uuid()) @db.Uuid
-  type          IncentiveType
-  target_count  Int
-  reward_amount Decimal         @db.Decimal(10, 2)
-  period        IncentivePeriod
-  is_active     Boolean         @default(true)
-  expires_at    DateTime?       @db.Timestamptz(6)
-  created_at    DateTime        @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime        @updatedAt @db.Timestamptz(6)
+model IncentiveTier {
+  tier_id            String                 @id @default(uuid()) @db.Uuid
+  template_id        String                 @db.Uuid
+  tier_level         Int                    // 1 to 6
+  target_value       Decimal                @db.Decimal(10, 2) // Order count or ₹ base earnings
+  reward_amount      Decimal                @db.Decimal(10, 2) // ₹ incentive reward
 
-  @@index([is_active])
-  @@map("delivery_incentives")
+  template           IncentiveTemplate      @relation(fields: [template_id], references: [template_id], onDelete: Cascade)
+
+  @@unique([template_id, tier_level])
+  @@index([template_id])
+  @@map("incentive_tiers")
 }
 
+// ── 4. Calendar & Campaign Schedules ─────────────────────────────────────────
+model IncentiveSchedule {
+  schedule_id        String                 @id @default(uuid()) @db.Uuid
+  template_id        String                 @db.Uuid
+
+  // Date window (6:00 AM start on start_date to 6:00 AM end on end_date)
+  start_date         DateTime               @db.Date
+  end_date           DateTime               @db.Date
+
+  is_featured        Boolean                @default(false)
+  custom_tag         String?                @db.VarChar(50)
+
+  is_active          Boolean                @default(true)
+  created_at         DateTime               @default(now()) @db.Timestamptz(6)
+  created_by         String?                @db.Uuid
+
+  template           IncentiveTemplate      @relation(fields: [template_id], references: [template_id], onDelete: Restrict)
+
+  @@index([start_date, end_date, is_active])
+  @@map("incentive_schedules")
+}
+
+// ── Rider Account ────────────────────────────────────────────────────────────
 model Rider {
-  rider_id                 String         @id @default(uuid()) @db.Uuid
-  phone                    String         @unique @db.VarChar(15)
-  password_hash            String?        @db.VarChar(255)
-  rider_type               RiderType      @default(INDEPENDENT)
+  rider_id                 String                  @id @default(uuid()) @db.Uuid
+  phone                    String                  @unique @db.VarChar(15)
+  password_hash            String?                 @db.VarChar(255)
+  rider_type               RiderType               @default(INDEPENDENT)
 
   // ── Personal Details ──────────────────────────────────────
-  full_name                String?        @db.VarChar(200)
-  email                    String?        @unique @db.VarChar(255)
-  date_of_birth            DateTime?      @db.Date
+  full_name                String?                 @db.VarChar(200)
+  email                    String?                 @unique @db.VarChar(255)
+  date_of_birth            DateTime?               @db.Date
   sex                      UserSex?
-  profile_photo_key        String?        @db.VarChar(500)
+  profile_photo_key        String?                 @db.VarChar(500)
 
   // ── Location ──────────────────────────────────────────────
-  current_city             String?        @db.VarChar(100)
-  residential_address      String?        @db.VarChar(500)
-  preferred_lat            Decimal?       @db.Decimal(10, 8)
-  preferred_lng            Decimal?       @db.Decimal(11, 8)
-  preferred_address        String?        @db.VarChar(500)
+  current_city             String?                 @db.VarChar(100)
+  residential_address      String?                 @db.VarChar(500)
+  preferred_lat            Decimal?                @db.Decimal(10, 8)
+  preferred_lng            Decimal?                @db.Decimal(11, 8)
+  preferred_address        String?                 @db.VarChar(500)
 
   // ── Vehicle ───────────────────────────────────────────────
-  vehicle_type             String?        @db.VarChar(20)
-  vehicle_number           String?        @db.VarChar(20)
-  vehicle_make_model       String?        @db.VarChar(100)
+  vehicle_type             String?                 @db.VarChar(20)
+  vehicle_number           String?                 @db.VarChar(20)
+  vehicle_make_model       String?                 @db.VarChar(100)
 
   // ── Status ────────────────────────────────────────────────
-  status                   RiderStatus    @default(DRAFT)   // ← CHANGED from PENDING_REVIEW
+  status                   RiderStatus             @default(DRAFT)
 
-  // ── Onboarding Progress ─────────────────────────────
-  onboarding_step          OnboardingStep @default(PERSONAL_DETAILS)
-  submitted_for_review     Boolean        @default(false)
-  first_submitted_at       DateTime?      @db.Timestamptz(6)
-  last_resubmitted_at      DateTime?      @db.Timestamptz(6)
-  is_resubmission          Boolean        @default(false)
+  // ── Onboarding Progress ───────────────────────────────────
+  onboarding_step          OnboardingStep          @default(PERSONAL_DETAILS)
+  submitted_for_review     Boolean                 @default(false)
+  first_submitted_at       DateTime?               @db.Timestamptz(6)
+  last_resubmitted_at      DateTime?               @db.Timestamptz(6)
+  is_resubmission          Boolean                 @default(false)
 
   // ── Real-time telemetry ───────────────────────────────────
-  is_online                Boolean        @default(false)
-  current_lat              Decimal?       @db.Decimal(10, 8)
-  current_lng              Decimal?       @db.Decimal(11, 8)
-  last_location_at         DateTime?      @db.Timestamptz(6)
+  is_online                Boolean                 @default(false)
+  current_lat              Decimal?                @db.Decimal(10, 8)
+  current_lng              Decimal?                @db.Decimal(11, 8)
+  last_location_at         DateTime?               @db.Timestamptz(6)
 
   // ── Bank details ──────────────────────────────────────────
-  bank_account_number      String?        @db.VarChar(30)
-  bank_ifsc                String?        @db.VarChar(15)
-  bank_holder_name         String?        @db.VarChar(200)
-  bank_name                String?        @db.VarChar(100)
-  bank_verified            Boolean        @default(false)
+  bank_account_number      String?                 @db.VarChar(30)
+  bank_ifsc                String?                 @db.VarChar(15)
+  bank_holder_name         String?                 @db.VarChar(200)
+  bank_name                String?                 @db.VarChar(100)
+  bank_verified            Boolean                 @default(false)
 
   // ── Compliance ────────────────────────────────────────────
-  terms_accepted_at        DateTime?      @db.Timestamptz(6)
+  terms_accepted_at        DateTime?               @db.Timestamptz(6)
 
   // ── Emergency contact ─────────────────────────────────────
-  emergency_contact_name   String?        @db.VarChar(200)
-  emergency_contact_phone  String?        @db.VarChar(15)
+  emergency_contact_name   String?                 @db.VarChar(200)
+  emergency_contact_phone  String?                 @db.VarChar(15)
 
   // ── Ratings ───────────────────────────────────────────────
-  rating                   Float          @default(0)
-  total_ratings            Int            @default(0)
-  total_deliveries         Int            @default(0)
+  rating                   Float                   @default(0)
+  total_ratings            Int                     @default(0)
+  total_deliveries         Int                     @default(0)
 
   // ── Referral ──────────────────────────────────────────────
-  referral_code            String?        @unique @db.VarChar(20)
-  referred_by_code         String?        @db.VarChar(20)
+  referral_code            String?                 @unique @db.VarChar(20)
+  referred_by_code         String?                 @db.VarChar(20)
 
   // ── Suspension ────────────────────────────────────────────
-  suspension_reason        String?        @db.VarChar(500)
-  suspended_at             DateTime?      @db.Timestamptz(6)
-  suspended_by             String?        @db.Uuid
+  suspension_reason        String?                 @db.VarChar(500)
+  suspended_at             DateTime?               @db.Timestamptz(6)
+  suspended_by             String?                 @db.Uuid
 
   // ── Auth OTP fields ───────────────────────────────────────
   login_otp_hash           String?
-  login_otp_expires        DateTime?      @db.Timestamptz(6)
-  login_otp_attempts       Int            @default(0)
-  otp_cycle_failures       Int            @default(0)
-  otp_locked_until         DateTime?      @db.Timestamptz(6)
+  login_otp_expires        DateTime?               @db.Timestamptz(6)
+  login_otp_attempts       Int                     @default(0)
+  otp_cycle_failures       Int                     @default(0)
+  otp_locked_until         DateTime?               @db.Timestamptz(6)
 
   // ── Session control ───────────────────────────────────────
-  logout_all_issued_at     DateTime?      @db.Timestamptz(6)
+  logout_all_issued_at     DateTime?               @db.Timestamptz(6)
 
   // ── Soft delete ───────────────────────────────────────────
-  deleted_at               DateTime?      @db.Timestamptz(6)
-  deletion_reason          String?        @db.VarChar(500)
+  deleted_at               DateTime?               @db.Timestamptz(6)
+  deletion_reason          String?                 @db.VarChar(500)
 
-  created_at               DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime       @updatedAt @db.Timestamptz(6)
-  last_seen_at             DateTime?      @db.Timestamptz(6)
+  created_at               DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                @updatedAt @db.Timestamptz(6)
+  last_seen_at             DateTime?               @db.Timestamptz(6)
 
   // ── Relations ─────────────────────────────────────────────
   sessions                 RiderSession[]
@@ -178,7 +256,7 @@ model Rider {
   tickets                  RiderTicket[]
   notifications            RiderNotification[]
   assignmentLogs           DeliveryAssignmentLog[]
-
+  onlineSessions         RiderOnlineSession[]
   @@index([phone])
   @@index([status])
   @@index([is_online, status])
@@ -186,28 +264,28 @@ model Rider {
   @@index([referral_code])
   @@index([deleted_at])
   @@index([created_at(sort: Desc)])
-  @@index([onboarding_step])              // ← NEW
-  @@index([submitted_for_review])         // ← NEW
+  @@index([onboarding_step])
+  @@index([submitted_for_review])
   @@map("riders")
 }
 
 model RiderDocument {
-  document_id              String              @id @default(uuid()) @db.Uuid
-  rider_id                 String              @db.Uuid
+  document_id              String                  @id @default(uuid()) @db.Uuid
+  rider_id                 String                  @db.Uuid
   type                     RiderDocumentType
-  storage_key              String?             @db.VarChar(500)
-  back_storage_key         String?             @db.VarChar(500)
-  status                   RiderDocumentStatus @default(PENDING)
-  rejection_reason         String?             @db.VarChar(500)
-  reviewed_by              String?             @db.Uuid
-  reviewed_at              DateTime?           @db.Timestamptz(6)
-  resubmission_count       Int                 @default(0)
-  was_rejected_this_cycle  Boolean             @default(false)   
-  uploaded_at              DateTime?           @db.Timestamptz(6)
-  created_at               DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime            @updatedAt @db.Timestamptz(6)
+  storage_key              String?                 @db.VarChar(500)
+  back_storage_key         String?                 @db.VarChar(500)
+  status                   RiderDocumentStatus     @default(PENDING)
+  rejection_reason         String?                 @db.VarChar(500)
+  reviewed_by              String?                 @db.Uuid
+  reviewed_at              DateTime?               @db.Timestamptz(6)
+  resubmission_count       Int                     @default(0)
+  was_rejected_this_cycle  Boolean                 @default(false)
+  uploaded_at              DateTime?               @db.Timestamptz(6)
+  created_at               DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                @updatedAt @db.Timestamptz(6)
 
-  rider                    Rider               @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
+  rider                    Rider                   @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
 
   @@unique([rider_id, type])
   @@index([rider_id])
@@ -217,27 +295,27 @@ model RiderDocument {
 }
 
 model RiderSession {
-  id                   String    @id @default(uuid()) @db.Uuid
-  rider_id             String    @db.Uuid
-  refresh_token_hash   String    @unique @db.VarChar(500)
-  device_id            String?   @db.VarChar(255)
-  device_name          String?   @db.VarChar(200)
-  device_platform      String?   @db.VarChar(20)
-  device_os_version    String?   @db.VarChar(50)
-  app_version          String?   @db.VarChar(20)
-  push_token           String?   @db.VarChar(500)
-  push_token_type      String?   @db.VarChar(20)
-  push_token_updated_at DateTime? @db.Timestamptz(6)
-  ip_address           String?   @db.VarChar(45)
-  user_agent           String?   @db.VarChar(500)
-  is_active            Boolean   @default(true)
-  created_at           DateTime  @default(now()) @db.Timestamptz(6)
-  last_active_at       DateTime  @default(now()) @db.Timestamptz(6)
-  expires_at           DateTime  @db.Timestamptz(6)
-  revoked_at           DateTime? @db.Timestamptz(6)
-  revoked_reason       String?   @db.VarChar(50)
+  id                    String                  @id @default(uuid()) @db.Uuid
+  rider_id              String                  @db.Uuid
+  refresh_token_hash    String                  @unique @db.VarChar(500)
+  device_id             String?                 @db.VarChar(255)
+  device_name           String?                 @db.VarChar(200)
+  device_platform       String?                 @db.VarChar(20)
+  device_os_version     String?                 @db.VarChar(50)
+  app_version           String?                 @db.VarChar(20)
+  push_token            String?                 @db.VarChar(500)
+  push_token_type       String?                 @db.VarChar(20)
+  push_token_updated_at DateTime?               @db.Timestamptz(6)
+  ip_address            String?                 @db.VarChar(45)
+  user_agent            String?                 @db.VarChar(500)
+  is_active             Boolean                 @default(true)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  last_active_at        DateTime                @default(now()) @db.Timestamptz(6)
+  expires_at            DateTime                @db.Timestamptz(6)
+  revoked_at            DateTime?               @db.Timestamptz(6)
+  revoked_reason        String?                 @db.VarChar(50)
 
-  rider                Rider     @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
+  rider                 Rider                   @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
 
   @@index([rider_id])
   @@index([refresh_token_hash])
@@ -246,80 +324,92 @@ model RiderSession {
   @@map("rider_sessions")
 }
 
-
-
 model ZoneChangeRequest {
-  request_id   String           @id @default(uuid()) @db.Uuid
-  rider_id     String           @db.Uuid
-  from_zone_id String?          @db.Uuid
-  to_zone_id   String           @db.Uuid
-  reason       String?          @db.VarChar(500)
-  status       ZoneChangeStatus @default(PENDING)
-  reviewed_by  String?          @db.Uuid
-  reviewed_at  DateTime?        @db.Timestamptz(6)
-  review_note  String?          @db.VarChar(500)
-  created_at   DateTime         @default(now()) @db.Timestamptz(6)
+  request_id            String                  @id @default(uuid()) @db.Uuid
+  rider_id              String                  @db.Uuid
+  from_zone_id          String?                 @db.Uuid
+  to_zone_id            String                  @db.Uuid
+  reason                String?                 @db.VarChar(500)
+  status                ZoneChangeStatus        @default(PENDING)
+  reviewed_by           String?                 @db.Uuid
+  reviewed_at           DateTime?               @db.Timestamptz(6)
+  review_note           String?                 @db.VarChar(500)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
 
-  rider        Rider            @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
-  toZone       DeliveryZone     @relation(fields: [to_zone_id], references: [zone_id])
+  rider                 Rider                   @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
+  toZone                DeliveryZone            @relation(fields: [to_zone_id], references: [zone_id])
 
   @@index([rider_id])
   @@index([status, created_at(sort: Desc)])
   @@map("zone_change_requests")
 }
 
+// ── Delivery Lifecycle with Granular Earnings Snapshots ──────────────────────
 model Delivery {
-  delivery_id                String              @id @default(uuid()) @db.Uuid
-  order_id                   String              @unique @db.Uuid
-  rider_id                   String?             @db.Uuid
-  zone_id                    String?             @db.Uuid
-  status                     DeliveryStatus      @default(PENDING_ASSIGNMENT)
+  delivery_id            String                  @id @default(uuid()) @db.Uuid
+  order_id               String                  @unique @db.Uuid
+  rider_id               String?                 @db.Uuid
+  zone_id                String?                 @db.Uuid
+  status                 DeliveryStatus          @default(PENDING_ASSIGNMENT)
 
   // Assignment tracking
-  assigned_at                DateTime?           @db.Timestamptz(6)
-  accepted_at                DateTime?           @db.Timestamptz(6)
-  assignment_attempts        Int                 @default(0)
+  assigned_at            DateTime?               @db.Timestamptz(6)
+  accepted_at            DateTime?               @db.Timestamptz(6)
+  assignment_attempts    Int                     @default(0)
 
   // Pharmacy step
-  arrived_at_pharmacy_at     DateTime?           @db.Timestamptz(6)
-  pharmacy_confirmed_at      DateTime?           @db.Timestamptz(6)
-  pharmacy_confirmed_by      String?             @db.Uuid
-  picked_up_at               DateTime?           @db.Timestamptz(6)
+  arrived_at_pharmacy_at DateTime?               @db.Timestamptz(6)
+  pharmacy_confirmed_at  DateTime?               @db.Timestamptz(6)
+  pharmacy_confirmed_by  String?                 @db.Uuid
+  picked_up_at           DateTime?               @db.Timestamptz(6)
 
   // Customer step
-  arrived_at_customer_at     DateTime?           @db.Timestamptz(6)
-  delivered_at               DateTime?           @db.Timestamptz(6)
+  arrived_at_customer_at DateTime?               @db.Timestamptz(6)
+  delivered_at           DateTime?               @db.Timestamptz(6)
 
   // Failed delivery
-  failed_at                  DateTime?           @db.Timestamptz(6)
-  failure_reason             DeliveryFailureReason?
-  failure_note               String?             @db.VarChar(500)
+  failed_at              DateTime?               @db.Timestamptz(6)
+  failure_reason         DeliveryFailureReason?
+  failure_note           String?                 @db.VarChar(500)
 
   // Masked call gate
-  masked_call_enabled        Boolean             @default(false)
+  masked_call_enabled    Boolean                 @default(false)
 
   // Location snapshots (captured at delivery creation)
-  pickup_lat                 Decimal?            @db.Decimal(10, 8)
-  pickup_lng                 Decimal?            @db.Decimal(11, 8)
-  drop_lat                   Decimal?            @db.Decimal(10, 8)
-  drop_lng                   Decimal?            @db.Decimal(11, 8)
-  total_distance_km          Decimal?            @db.Decimal(10, 2)
+  pickup_lat             Decimal?                @db.Decimal(10, 8)
+  pickup_lng             Decimal?                @db.Decimal(11, 8)
+  drop_lat               Decimal?                @db.Decimal(10, 8)
+  drop_lng               Decimal?                @db.Decimal(11, 8)
 
-  // Earnings snapshot (immutable after delivery completes)
-  base_fee                   Decimal?            @db.Decimal(10, 2)
-  distance_fee               Decimal?            @db.Decimal(10, 2)
-  surge_fee                  Decimal?            @db.Decimal(10, 2)
-  bonus_fee                  Decimal?            @db.Decimal(10, 2)
-  total_rider_earning        Decimal?            @db.Decimal(10, 2)
+  // Granular Two-Leg Distances
+  pickup_distance_km     Decimal?                @db.Decimal(10, 2) // Leg 1: Rider -> Pharmacy
+  drop_distance_km       Decimal?                @db.Decimal(10, 2) // Leg 2: Pharmacy -> Customer
+  total_distance_km      Decimal?                @db.Decimal(10, 2) // Leg 1 + Leg 2
 
-  created_at                 DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at                 DateTime            @updatedAt @db.Timestamptz(6)
+  // Granular Earnings Breakdown (Immutable once marked DELIVERED)
+  pickup_fee             Decimal?                @db.Decimal(10, 2) // Base + Slabs for Leg 1
+  drop_fee               Decimal?                @db.Decimal(10, 2) // Base + Slabs for Leg 2
+  surge_fee              Decimal?                @db.Decimal(10, 2) // Surge increment applied
+  floor_topup_fee        Decimal?                @db.Decimal(10, 2) // Amount added to hit min floor payout
+  total_rider_earning    Decimal?                @db.Decimal(10, 2) // pickup_fee + drop_fee + surge_fee + floor_topup_fee
+  tip_amount             Decimal?                @db.Decimal(10, 2)
 
-  rider                      Rider?              @relation(fields: [rider_id], references: [rider_id])
-  assignmentLogs             DeliveryAssignmentLog[]
-  chatMessages               DeliveryChat[]
-  riderRating                RiderRating?
-  customerRating             RiderGivesRating?
+  // Reference snapshots
+  pricing_config_id      String?                 @db.Uuid
+  surge_rule_id          String?                 @db.Uuid
+
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  order                  MarketplaceOrder        @relation("OrderDelivery", fields: [order_id], references: [order_id], onDelete: Cascade)
+  rider                  Rider?                  @relation(fields: [rider_id], references: [rider_id])
+  pricingConfig          RiderPricingConfig?     @relation(fields: [pricing_config_id], references: [config_id])
+  surgeRule              RiderSurgeRule?         @relation(fields: [surge_rule_id], references: [rule_id])
+  assignmentLogs         DeliveryAssignmentLog[]
+  chatMessages           DeliveryChat[]
+  riderRating            RiderRating?
+  customerRating         RiderGivesRating?
 
   @@index([order_id])
   @@index([rider_id, status])
@@ -328,16 +418,34 @@ model Delivery {
   @@map("deliveries")
 }
 
-model DeliveryAssignmentLog {
-  log_id      String          @id @default(uuid()) @db.Uuid
-  delivery_id String          @db.Uuid
-  rider_id    String          @db.Uuid
-  action      AssignmentAction
-  reason      String?         @db.VarChar(200)
-  created_at  DateTime        @default(now()) @db.Timestamptz(6)
+model RiderOnlineSession {
+  session_id       String    @id @default(uuid()) @db.Uuid
+  rider_id         String    @db.Uuid
+  went_online_at   DateTime  @db.Timestamptz(6)
+  went_offline_at  DateTime? @db.Timestamptz(6)
+  duration_minutes Decimal?  @db.Decimal(8, 2)
+  shift_date       DateTime  @db.Date
+  closed_by        String?   @db.VarChar(20)   // "rider" | "stale_cron" | "system"
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
 
-  delivery    Delivery        @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
-  rider       Rider           @relation(fields: [rider_id], references: [rider_id])
+  rider            Rider     @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
+
+  @@index([rider_id, shift_date])
+  @@index([rider_id, went_online_at(sort: Desc)])
+  @@index([went_offline_at])
+  @@map("rider_online_sessions")
+}
+
+model DeliveryAssignmentLog {
+  log_id                 String                  @id @default(uuid()) @db.Uuid
+  delivery_id            String                  @db.Uuid
+  rider_id               String                  @db.Uuid
+  action                 AssignmentAction
+  reason                 String?                 @db.VarChar(200)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+
+  delivery               Delivery                @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
 
   @@index([delivery_id])
   @@index([rider_id])
@@ -345,35 +453,35 @@ model DeliveryAssignmentLog {
 }
 
 model DeliveryChat {
-  message_id   String         @id @default(uuid()) @db.Uuid
-  delivery_id  String         @db.Uuid
-  sender_id    String         @db.Uuid
-  sender_type  ChatSenderType
-  message      String         @db.VarChar(1000)
-  is_preset    Boolean        @default(false)
-  read_at      DateTime?      @db.Timestamptz(6)
-  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  message_id             String                  @id @default(uuid()) @db.Uuid
+  delivery_id            String                  @db.Uuid
+  sender_id              String                  @db.Uuid
+  sender_type            ChatSenderType
+  message                String                  @db.VarChar(1000)
+  is_preset              Boolean                 @default(false)
+  read_at                DateTime?               @db.Timestamptz(6)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  delivery     Delivery       @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
+  delivery               Delivery                @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
 
   @@index([delivery_id, created_at(sort: Asc)])
   @@map("delivery_chats")
 }
 
 model RiderEarningLedger {
-  ledger_id   String      @id @default(uuid()) @db.Uuid
-  rider_id    String      @db.Uuid
-  delivery_id String?     @db.Uuid
-  payout_id   String?     @db.Uuid
-  type        EarningType
-  amount      Decimal     @db.Decimal(10, 2)
-  description String?     @db.VarChar(300)
-  week_start  DateTime    @db.Date
-  is_paid     Boolean     @default(false)
-  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  ledger_id              String                  @id @default(uuid()) @db.Uuid
+  rider_id               String                  @db.Uuid
+  delivery_id            String?                 @db.Uuid
+  payout_id              String?                 @db.Uuid
+  type                   EarningType
+  amount                 Decimal                 @db.Decimal(10, 2)
+  description            String?                 @db.VarChar(300)
+  week_start             DateTime                @db.Date
+  is_paid                Boolean                 @default(false)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  rider       Rider       @relation(fields: [rider_id], references: [rider_id])
-  payout      RiderPayout? @relation(fields: [payout_id], references: [payout_id])
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
+  payout                 RiderPayout?            @relation(fields: [payout_id], references: [payout_id])
 
   @@index([rider_id, is_paid])
   @@index([rider_id, week_start])
@@ -382,35 +490,35 @@ model RiderEarningLedger {
 }
 
 model RiderPayout {
-  payout_id          String        @id @default(uuid()) @db.Uuid
-  rider_id           String        @db.Uuid
-  week_start         DateTime      @db.Date
-  week_end           DateTime      @db.Date
-  gross_amount       Decimal       @db.Decimal(10, 2)
-  status             PayoutStatus  @default(PENDING)
-  payment_method     PayoutMethod  @default(MANUAL)
+  payout_id              String                  @id @default(uuid()) @db.Uuid
+  rider_id               String                  @db.Uuid
+  week_start             DateTime                @db.Date
+  week_end               DateTime                @db.Date
+  gross_amount           Decimal                 @db.Decimal(10, 2)
+  status                 PayoutStatus            @default(PENDING)
+  payment_method         PayoutMethod            @default(MANUAL)
 
   // Manual payout fields
-  manual_reference   String?       @db.VarChar(100)
-  manual_notes       String?       @db.VarChar(500)
-  manual_payment_date DateTime?    @db.Date
-  manual_bank_used   String?       @db.VarChar(100)
+  manual_reference       String?                 @db.VarChar(100)
+  manual_notes           String?                 @db.VarChar(500)
+  manual_payment_date    DateTime?               @db.Date
+  manual_bank_used       String?                 @db.VarChar(100)
 
-  // Provider payload — null for MANUAL, populated for RAZORPAY_X in future
-  provider_payload   Json?
+  // Provider payload
+  provider_payload       Json?
 
-  // Bank details snapshot at time of payout (immutable audit trail)
-  bank_snapshot      Json
+  // Bank details snapshot at time of payout
+  bank_snapshot          Json
 
-  processed_by       String?       @db.Uuid
-  processed_at       DateTime?     @db.Timestamptz(6)
-  failed_reason      String?       @db.VarChar(500)
+  processed_by           String?                 @db.Uuid
+  processed_at           DateTime?               @db.Timestamptz(6)
+  failed_reason          String?                 @db.VarChar(500)
 
-  created_at         DateTime      @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime      @updatedAt @db.Timestamptz(6)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                @updatedAt @db.Timestamptz(6)
 
-  rider              Rider         @relation(fields: [rider_id], references: [rider_id])
-  ledgerEntries      RiderEarningLedger[]
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
+  ledgerEntries          RiderEarningLedger[]
 
   @@index([rider_id, status])
   @@index([status, created_at(sort: Desc)])
@@ -419,51 +527,51 @@ model RiderPayout {
 }
 
 model RiderRating {
-  rating_id   String   @id @default(uuid()) @db.Uuid
-  delivery_id String   @unique @db.Uuid
-  rider_id    String   @db.Uuid
-  customer_id String   @db.Uuid
-  stars       Int
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  rating_id              String                  @id @default(uuid()) @db.Uuid
+  delivery_id            String                  @unique @db.Uuid
+  rider_id               String                  @db.Uuid
+  customer_id            String                  @db.Uuid
+  stars                  Int
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  delivery    Delivery @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
-  rider       Rider    @relation(fields: [rider_id], references: [rider_id])
+  delivery               Delivery                @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
 
   @@index([rider_id])
   @@map("rider_ratings")
 }
 
 model RiderGivesRating {
-  rating_id   String   @id @default(uuid()) @db.Uuid
-  delivery_id String   @unique @db.Uuid
-  rider_id    String   @db.Uuid
-  customer_id String   @db.Uuid
-  stars       Int
-  reason      String?  @db.VarChar(200)
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  rating_id              String                  @id @default(uuid()) @db.Uuid
+  delivery_id            String                  @unique @db.Uuid
+  rider_id               String                  @db.Uuid
+  customer_id            String                  @db.Uuid
+  stars                  Int
+  reason                 String?                 @db.VarChar(200)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  delivery    Delivery @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
-  rider       Rider    @relation(fields: [rider_id], references: [rider_id])
+  delivery               Delivery                @relation(fields: [delivery_id], references: [delivery_id], onDelete: Cascade)
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
 
   @@index([rider_id])
   @@map("rider_gives_ratings")
 }
 
 model RiderIncident {
-  incident_id  String         @id @default(uuid()) @db.Uuid
-  rider_id     String         @db.Uuid
-  type         IncidentType
-  is_sos       Boolean        @default(false)
-  description  String?        @db.VarChar(1000)
-  lat          Decimal?       @db.Decimal(10, 8)
-  lng          Decimal?       @db.Decimal(11, 8)
-  delivery_id  String?        @db.Uuid
-  status       IncidentStatus @default(OPEN)
-  resolved_by  String?        @db.Uuid
-  resolved_at  DateTime?      @db.Timestamptz(6)
-  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  incident_id            String                  @id @default(uuid()) @db.Uuid
+  rider_id               String                  @db.Uuid
+  type                   IncidentType
+  is_sos                 Boolean                 @default(false)
+  description            String?                 @db.VarChar(1000)
+  lat                    Decimal?                @db.Decimal(10, 8)
+  lng                    Decimal?                @db.Decimal(11, 8)
+  delivery_id            String?                 @db.Uuid
+  status                 IncidentStatus          @default(OPEN)
+  resolved_by            String?                 @db.Uuid
+  resolved_at            DateTime?               @db.Timestamptz(6)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  rider        Rider          @relation(fields: [rider_id], references: [rider_id])
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
 
   @@index([rider_id])
   @@index([is_sos, status])
@@ -472,16 +580,16 @@ model RiderIncident {
 }
 
 model RiderAppeal {
-  appeal_id   String       @id @default(uuid()) @db.Uuid
-  rider_id    String       @db.Uuid
-  reason      String       @db.VarChar(1000)
-  status      AppealStatus @default(PENDING)
-  review_note String?      @db.VarChar(500)
-  reviewed_by String?      @db.Uuid
-  reviewed_at DateTime?    @db.Timestamptz(6)
-  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+  appeal_id              String                  @id @default(uuid()) @db.Uuid
+  rider_id               String                  @db.Uuid
+  reason                 String                  @db.VarChar(1000)
+  status                 AppealStatus            @default(PENDING)
+  review_note            String?                 @db.VarChar(500)
+  reviewed_by            String?                 @db.Uuid
+  reviewed_at            DateTime?               @db.Timestamptz(6)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  rider       Rider        @relation(fields: [rider_id], references: [rider_id])
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
 
   @@index([rider_id])
   @@index([status, created_at(sort: Desc)])
@@ -489,16 +597,16 @@ model RiderAppeal {
 }
 
 model RiderTicket {
-  ticket_id   String            @id @default(uuid()) @db.Uuid
-  rider_id    String            @db.Uuid
-  category    RiderTicketCategory
-  description String            @db.VarChar(2000)
-  status      RiderTicketStatus @default(OPEN)
-  created_at  DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime          @updatedAt @db.Timestamptz(6)
+  ticket_id              String                  @id @default(uuid()) @db.Uuid
+  rider_id               String                  @db.Uuid
+  category               RiderTicketCategory
+  description            String                  @db.VarChar(2000)
+  status                 RiderTicketStatus       @default(OPEN)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                @updatedAt @db.Timestamptz(6)
 
-  rider       Rider             @relation(fields: [rider_id], references: [rider_id])
-  replies     RiderTicketReply[]
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
+  replies                RiderTicketReply[]
 
   @@index([rider_id, status])
   @@index([status, created_at(sort: Desc)])
@@ -506,33 +614,33 @@ model RiderTicket {
 }
 
 model RiderTicketReply {
-  reply_id    String      @id @default(uuid()) @db.Uuid
-  ticket_id   String      @db.Uuid
-  sender_id   String      @db.Uuid
-  sender_type String      @db.VarChar(10)
-  message     String      @db.VarChar(2000)
-  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  reply_id               String                  @id @default(uuid()) @db.Uuid
+  ticket_id              String                  @db.Uuid
+  sender_id              String                  @db.Uuid
+  sender_type            String                  @db.VarChar(10)
+  message                String                  @db.VarChar(2000)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  ticket      RiderTicket @relation(fields: [ticket_id], references: [ticket_id], onDelete: Cascade)
+  ticket                 RiderTicket             @relation(fields: [ticket_id], references: [ticket_id], onDelete: Cascade)
 
   @@index([ticket_id, created_at(sort: Asc)])
   @@map("rider_ticket_replies")
 }
 
 model RiderNotification {
-  id             String    @id @default(uuid()) @db.Uuid
-  rider_id       String    @db.Uuid
-  title          String    @db.VarChar(200)
-  body           String    @db.VarChar(500)
-  category       String    @db.VarChar(50)
-  data           Json?
-  is_read        Boolean   @default(false)
-  read_at        DateTime? @db.Timestamptz(6)
-  push_sent      Boolean   @default(false)
-  push_ticket_id String?   @db.VarChar(200)
-  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  id                     String                  @id @default(uuid()) @db.Uuid
+  rider_id               String                  @db.Uuid
+  title                  String                  @db.VarChar(200)
+  body                   String                  @db.VarChar(500)
+  category               String                  @db.VarChar(50)
+  data                   Json?
+  is_read                Boolean                 @default(false)
+  read_at                DateTime?               @db.Timestamptz(6)
+  push_sent              Boolean                 @default(false)
+  push_ticket_id         String?                 @db.VarChar(200)
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
 
-  rider          Rider     @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
+  rider                  Rider                   @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
 
   @@index([rider_id, is_read, created_at(sort: Desc)])
   @@index([rider_id, created_at(sort: Desc)])
@@ -540,18 +648,18 @@ model RiderNotification {
 }
 
 model RiderTrainingContent {
-  content_id   String              @id @default(uuid()) @db.Uuid
-  type         TrainingContentType
-  title        String              @db.VarChar(200)
-  body         String              @db.Text
-  order        Int                 @default(0)
-  is_active    Boolean             @default(true)
-  target_zone_id String?           @db.Uuid
-  created_by   String              @db.Uuid
-  created_at   DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime            @updatedAt @db.Timestamptz(6)
+  content_id             String                  @id @default(uuid()) @db.Uuid
+  type                   TrainingContentType
+  title                  String                  @db.VarChar(200)
+  body                   String                  @db.Text
+  order                  Int                     @default(0)
+  is_active              Boolean                 @default(true)
+  target_zone_id         String?                 @db.Uuid
+  created_by             String                  @db.Uuid
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                @updatedAt @db.Timestamptz(6)
 
-  targetZone   DeliveryZone?       @relation(fields: [target_zone_id], references: [zone_id])
+  targetZone             DeliveryZone?           @relation(fields: [target_zone_id], references: [zone_id])
 
   @@index([type, is_active])
   @@index([target_zone_id])

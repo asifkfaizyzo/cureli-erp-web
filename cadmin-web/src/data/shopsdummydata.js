@@ -1,3 +1,4 @@
+// cadmin-web/src/data/shopsdummydata.js (do not remove this comment)
 export default [
   {
     businessName: "Sevana Medical Centre",

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/onboarding/comps/details-docs/BusinessTypeAndGST.jsx (do not remove this comment)
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { updateShopGst } from "../../../../api/shop";

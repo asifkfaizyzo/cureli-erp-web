@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/TableSkeleton.jsx (do not remove this comment)
 // src/components/common/TableSkeleton.jsx
 import React from 'react';
 import { TABLE_CONFIG } from '../../config/tableConfig';

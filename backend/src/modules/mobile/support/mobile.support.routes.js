@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/support/mobile.support.routes.js (do not remove this comment)
 import { Router } from "express";
 import multer from "multer";
 import { mobileAuth as authenticateMobileUser } from "../../../middleware/mobile.auth.js";

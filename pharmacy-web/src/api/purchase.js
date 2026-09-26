@@ -1,3 +1,4 @@
+// pharmacy-web/src/api/purchase.js (do not remove this comment)
 // pharmacy-web/src/api/purchase.js
 import API from "./axios";
 import { useAuthStore } from "../store/useAuthStore";

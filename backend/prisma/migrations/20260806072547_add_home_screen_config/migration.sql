@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260806072547_add_home_screen_config/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "home_feed_section_overrides" (
     "id" UUID NOT NULL,

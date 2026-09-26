@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/steps/BranchConfigurationStep.jsx (do not remove this comment)
 // src/pages/marketplace-onboarding/steps/BranchConfigurationStep.jsx
 
 import { useState, useMemo, useCallback } from "react";

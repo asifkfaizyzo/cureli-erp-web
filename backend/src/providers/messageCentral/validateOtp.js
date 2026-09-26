@@ -1,3 +1,4 @@
+// backend/src/providers/messageCentral/validateOtp.js (do not remove this comment)
 //Q:\YourZeroesAndOnes\cureli\curely_erp\backend\src\providers\messageCentral\validateOtp.js
 import axios from "axios";
 const BASE = "https://cpaas.messagecentral.com";

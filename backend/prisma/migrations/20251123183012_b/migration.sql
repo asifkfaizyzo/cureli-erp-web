@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251123183012_b/migration.sql (do not remove this comment)
 /*
   Warnings:
 

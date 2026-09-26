@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/paymentFailed.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/paymentFailed.js
 // ============================================
 // PAYMENT FAILED EMAIL TEMPLATE

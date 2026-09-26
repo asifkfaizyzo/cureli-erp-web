@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/EditBrandingModal.jsx (do not remove this comment)
 // src/pages/marketplace-storefront/components/EditBrandingModal.jsx
 
 import { useState, useEffect, useRef } from "react";

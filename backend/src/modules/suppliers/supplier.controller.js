@@ -1,3 +1,4 @@
+// backend/src/modules/suppliers/supplier.controller.js (do not remove this comment)
 // backend/src/modules/suppliers/supplier.controller.js
 import { success, fail } from "../../utils/response.js";
 import supplierService from "./supplier.service.js";

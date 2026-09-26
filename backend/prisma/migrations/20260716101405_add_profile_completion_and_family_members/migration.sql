@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260716101405_add_profile_completion_and_family_members/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "UserSex" AS ENUM ('MALE', 'FEMALE', 'OTHER');
 

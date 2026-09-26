@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/subscription.templates.js (do not remove this comment)
 // ============================================
 // SUBSCRIPTION LIFECYCLE TEMPLATES
 // ============================================

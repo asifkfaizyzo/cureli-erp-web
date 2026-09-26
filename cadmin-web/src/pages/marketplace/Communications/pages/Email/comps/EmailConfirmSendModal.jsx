@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/EmailConfirmSendModal.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/Email/comps/EmailConfirmSendModal.jsx
 
 import { AlertTriangle, Send, X, Users, Mail, AlertCircle } from "lucide-react";

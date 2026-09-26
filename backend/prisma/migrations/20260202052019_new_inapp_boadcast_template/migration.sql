@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260202052019_new_inapp_boadcast_template/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "broadcast_campaigns" ADD COLUMN     "action_label" VARCHAR(100),
 ADD COLUMN     "action_url" VARCHAR(500),

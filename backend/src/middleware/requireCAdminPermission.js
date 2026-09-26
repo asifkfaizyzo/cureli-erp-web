@@ -1,3 +1,4 @@
+// backend/src/middleware/requireCAdminPermission.js (do not remove this comment)
 // backend/src/middleware/requireCAdminPermission.js
 
 import { fail } from "../utils/response.js";

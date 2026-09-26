@@ -1,11 +1,7 @@
-// ============================================
-// backend\src\modules\notifications\notification.events.js
-// ============================================
+// backend/src/modules/notifications/notification.events.js (do not remove this comment)
+// backend/src/modules/notifications/notification.events.js
 
 export const NOTIFICATION_EVENTS = {
-  // ─────────────────────────────────────────
-  // SECURITY & ACCESS
-  // ─────────────────────────────────────────
   PASSWORD_CHANGED: "PASSWORD_CHANGED",
   PASSWORD_RESET_REQUESTED: "PASSWORD_RESET_REQUESTED",
   PASSWORD_RESET_BY_ADMIN: "PASSWORD_RESET_BY_ADMIN",
@@ -18,30 +14,18 @@ export const NOTIFICATION_EVENTS = {
   USER_DEACTIVATED: "USER_DEACTIVATED",
   USER_REACTIVATED: "USER_REACTIVATED",
 
-  // ─────────────────────────────────────────
-  // BROADCAST (Multi-Channel)
-  // ─────────────────────────────────────────
   BROADCAST_INAPP: "BROADCAST_INAPP",
   BROADCAST_EMAIL: "BROADCAST_EMAIL",
   BROADCAST_SMS: "BROADCAST_SMS",
-  BROADCAST_WHATSAPP: "BROADCAST_WHATSAPP", // Future-ready
+  BROADCAST_WHATSAPP: "BROADCAST_WHATSAPP",
 
-  // ─────────────────────────────────────────
-  // USER MANAGEMENT
-  // ─────────────────────────────────────────
   USER_CREATED: "USER_CREATED",
   USER_INVITED: "USER_INVITED",
 
-  // ─────────────────────────────────────────
-  // SHOP & VERIFICATION
-  // ─────────────────────────────────────────
   SHOP_VERIFIED: "SHOP_VERIFIED",
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
   DOCUMENT_PARTIALLY_REJECTED: "DOCUMENT_PARTIALLY_REJECTED",
 
-  // ─────────────────────────────────────────
-  // SUBSCRIPTION LIFECYCLE
-  // ─────────────────────────────────────────
   SUBSCRIPTION_ACTIVATED: "SUBSCRIPTION_ACTIVATED",
   SUBSCRIPTION_EXPIRING_7_DAYS: "SUBSCRIPTION_EXPIRING_7_DAYS",
   SUBSCRIPTION_EXPIRING_3_DAYS: "SUBSCRIPTION_EXPIRING_3_DAYS",
@@ -55,64 +39,38 @@ export const NOTIFICATION_EVENTS = {
   PLAN_UPGRADED: "PLAN_UPGRADED",
   PLAN_DOWNGRADED: "PLAN_DOWNGRADED",
 
-  // ─────────────────────────────────────────
-  // PAYMENTS
-  // ─────────────────────────────────────────
   PAYMENT_SUCCESS: "PAYMENT_SUCCESS",
   PAYMENT_FAILED: "PAYMENT_FAILED",
 
-  // ─────────────────────────────────────────
-  // INVENTORY
-  // ─────────────────────────────────────────
   LOW_STOCK_ALERT: "LOW_STOCK_ALERT",
   OUT_OF_STOCK_ALERT: "OUT_OF_STOCK_ALERT",
   NEAR_EXPIRY_ALERT: "NEAR_EXPIRY_ALERT",
   EXPIRED_STOCK_ALERT: "EXPIRED_STOCK_ALERT",
 
-  // ─────────────────────────────────────────
-  // MEDICINE LINKING
-  // ─────────────────────────────────────────
   MEDICINE_LINKED: "MEDICINE_LINKED",
   MEDICINE_UNLINKED: "MEDICINE_UNLINKED",
   MEDICINE_RESUBMITTED: "MEDICINE_RESUBMITTED",
 
-  // ─────────────────────────────────────────
-  // TICKETS
-  // ─────────────────────────────────────────
   TICKET_CREATED: "TICKET_CREATED",
   TICKET_STATUS_CHANGED: "TICKET_STATUS_CHANGED",
 
-  // ─────────────────────────────────────────
-  // ENQUIRIES
-  // ─────────────────────────────────────────
   ENQUIRY_RECEIVED: "ENQUIRY_RECEIVED",
   ENQUIRY_REPLIED: "ENQUIRY_REPLIED",
 
-  // ─────────────────────────────────────────
-  // CADMIN PASSWORD RESET (Email Only)
-  // ─────────────────────────────────────────
   CADMIN_PASSWORD_RESET_REQUESTED: "CADMIN_PASSWORD_RESET_REQUESTED",
 
-  // ─────────────────────────────────────────
-  // SYSTEM / BROADCAST (Email Only)
-  // ─────────────────────────────────────────
   SYSTEM_BROADCAST: "SYSTEM_BROADCAST",
 
-  // ─────────────────────────────────────────
-  // MARKETPLACE ORDERS
-  // ─────────────────────────────────────────
   MARKETPLACE_ORDER_PLACED: "MARKETPLACE_ORDER_PLACED",
   MARKETPLACE_ORDER_CANCELLED: "MARKETPLACE_ORDER_CANCELLED",
+
+  // Added Marketplace Order Billed
+  MARKETPLACE_ORDER_BILLED: "MARKETPLACE_ORDER_BILLED",
+  MOBILE_USER_WELCOME: "MOBILE_USER_WELCOME",
 };
 
-// ============================================
-// EVENT METADATA - Defines behavior per event
-// ============================================
-
 export const EVENT_CONFIG = {
-  // ─────────────────────────────────────────
-  // SECURITY & ACCESS
-  // ─────────────────────────────────────────
+  // ... (All existing configurations kept exactly as they are) ...
   [NOTIFICATION_EVENTS.PASSWORD_CHANGED]: {
     description: "User changed their password",
     defaultChannels: ["email", "inapp"],
@@ -179,14 +137,11 @@ export const EVENT_CONFIG = {
     audienceType: "shop_admins",
     priority: "normal",
   },
-  // ─────────────────────────────────────────
-  // BROADCAST EVENTS (Manual CAdmin Announcements)
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.BROADCAST_INAPP]: {
     description: "Manual in-app announcement from CAdmin",
     defaultChannels: ["inapp"],
     audienceType: "broadcast_filter",
-    priority: "normal", // Can be overridden per broadcast
+    priority: "normal",
   },
   [NOTIFICATION_EVENTS.BROADCAST_EMAIL]: {
     description: "Manual email broadcast from CAdmin",
@@ -206,10 +161,6 @@ export const EVENT_CONFIG = {
     audienceType: "broadcast_filter",
     priority: "normal",
   },
-
-  // ─────────────────────────────────────────
-  // USER MANAGEMENT
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.USER_CREATED]: {
     description: "New user created in shop",
     defaultChannels: ["inapp"],
@@ -222,10 +173,6 @@ export const EVENT_CONFIG = {
     audienceType: "direct_user",
     priority: "high",
   },
-
-  // ─────────────────────────────────────────
-  // SHOP & VERIFICATION
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.SHOP_VERIFIED]: {
     description: "Shop verification completed successfully",
     defaultChannels: ["email", "inapp"],
@@ -244,10 +191,6 @@ export const EVENT_CONFIG = {
     audienceType: "shop_owner",
     priority: "high",
   },
-
-  // ─────────────────────────────────────────
-  // SUBSCRIPTION LIFECYCLE
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.SUBSCRIPTION_ACTIVATED]: {
     description: "Subscription activated successfully",
     defaultChannels: ["email", "inapp"],
@@ -320,10 +263,6 @@ export const EVENT_CONFIG = {
     audienceType: "shop_owner",
     priority: "normal",
   },
-
-  // ─────────────────────────────────────────
-  // PAYMENTS
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.PAYMENT_SUCCESS]: {
     description: "Payment completed successfully",
     defaultChannels: ["email", "inapp"],
@@ -336,10 +275,6 @@ export const EVENT_CONFIG = {
     audienceType: "shop_owner",
     priority: "high",
   },
-
-  // ─────────────────────────────────────────
-  // INVENTORY
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.LOW_STOCK_ALERT]: {
     description: "Inventory item below reorder level",
     defaultChannels: ["inapp"],
@@ -388,10 +323,6 @@ export const EVENT_CONFIG = {
     priority: "normal",
     dedupEntity: "medicine",
   },
-
-  // ─────────────────────────────────────────
-  // TICKETS
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.TICKET_CREATED]: {
     description: "Support ticket created confirmation",
     defaultChannels: ["email", "inapp"],
@@ -404,10 +335,6 @@ export const EVENT_CONFIG = {
     audienceType: "ticket_creator",
     priority: "normal",
   },
-
-  // ─────────────────────────────────────────
-  // ENQUIRIES
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.ENQUIRY_RECEIVED]: {
     description: "Enquiry confirmation sent to user",
     defaultChannels: ["email"],
@@ -420,19 +347,12 @@ export const EVENT_CONFIG = {
     audienceType: "direct_user",
     priority: "normal",
   },
-
-  // ─────────────────────────────────────────
-  // CADMIN (Email Only - No In-App)
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.CADMIN_PASSWORD_RESET_REQUESTED]: {
     description: "CAdmin requested password reset",
     defaultChannels: ["email"],
     audienceType: "direct_cadmin",
     priority: "critical",
   },
-  // ─────────────────────────────────────────
-  // MARKETPLACE ORDERS
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.MARKETPLACE_ORDER_PLACED]: {
     description: "New marketplace order received by pharmacy",
     defaultChannels: ["inapp"],
@@ -445,14 +365,24 @@ export const EVENT_CONFIG = {
     audienceType: "shop_users",
     priority: "normal",
   },
-
-  // ─────────────────────────────────────────
-  // SYSTEM BROADCAST (Email Only)
-  // ─────────────────────────────────────────
   [NOTIFICATION_EVENTS.SYSTEM_BROADCAST]: {
     description: "System-wide announcement from admin",
     defaultChannels: ["email"],
     audienceType: "broadcast_filter",
+    priority: "normal",
+  },
+
+  // Added Marketplace Order Billed Event Configuration
+  [NOTIFICATION_EVENTS.MARKETPLACE_ORDER_BILLED]: {
+    description: "Customer marketplace order has been billed and invoice generated",
+    defaultChannels: ["email"],
+    audienceType: "direct_user",
+    priority: "high",
+  },
+ [NOTIFICATION_EVENTS.MOBILE_USER_WELCOME]: {
+    description: "Welcome email sent to new mobile user after first email setup",
+    defaultChannels: ["email"],
+    audienceType: "direct_user",
     priority: "normal",
   },
 };

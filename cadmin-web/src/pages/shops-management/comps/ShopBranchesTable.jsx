@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/ShopBranchesTable.jsx (do not remove this comment)
 // src/components/Shops/ShopBranchesTable.jsx
 import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, GitBranch, Loader2, Ban } from "lucide-react";

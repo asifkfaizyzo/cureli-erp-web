@@ -1,3 +1,4 @@
+// pharmacy-web/src/guards/BranchRequiredGuard.jsx (do not remove this comment)
 // src/guards/BranchRequiredGuard.jsx
 
 import { useEffect, useRef } from "react";

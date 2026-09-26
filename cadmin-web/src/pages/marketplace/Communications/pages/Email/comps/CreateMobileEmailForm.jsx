@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/CreateMobileEmailForm.jsx (do not remove this comment)
 // cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/CreateMobileEmailForm.jsx
 
 import { useState, useEffect, useCallback } from "react";

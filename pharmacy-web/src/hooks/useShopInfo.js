@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/useShopInfo.js (do not remove this comment)
 // pharmacy-web/src/hooks/useShopInfo.js
 // Hook to fetch and cache shop/branch information for print and other uses
 

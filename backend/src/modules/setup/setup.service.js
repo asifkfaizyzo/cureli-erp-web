@@ -1,3 +1,4 @@
+// backend/src/modules/setup/setup.service.js (do not remove this comment)
 // src/modules/setup/setup.service.js
 import prisma from "../../config/prisma.js";
 import { hashPassword } from "../../utils/hash.js";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/PrintInvoiceModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/PrintInvoiceModal.jsx
 //  FIXED: All toggle options now work correctly
 //  TWO TABS: Preview + Options to customize print content

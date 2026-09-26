@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/layout/Sidebar.jsx (do not remove this comment)
 // src/components/layout/Sidebar.jsx
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";

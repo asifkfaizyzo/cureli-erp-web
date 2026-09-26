@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/tabs/ShopSubscriptionTab.jsx (do not remove this comment)
 // src/components/Shops/tabs/ShopSubscriptionTab.jsx
 
 import {

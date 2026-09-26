@@ -1,3 +1,4 @@
+// backend/prisma/schema/erp-purchase.prisma (do not remove this comment)
 // ERP Purchase — Suppliers, purchase invoices, payments, credits
 
 model Supplier {

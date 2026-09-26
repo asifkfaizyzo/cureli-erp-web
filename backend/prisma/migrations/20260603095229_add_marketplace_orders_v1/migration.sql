@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260603095229_add_marketplace_orders_v1/migration.sql (do not remove this comment)
 CREATE SEQUENCE IF NOT EXISTS marketplace_order_seq
   START WITH 1
   INCREMENT BY 1

@@ -1,3 +1,4 @@
+// pharmacy-web/src/config/tableConfig.js (do not remove this comment)
 // pharmacy-web/src/config/tableConfig.js
 // Global table design system configuration
 // All tables across the application should use these values for consistency

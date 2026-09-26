@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/report/sales/SalesRegisterPage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/report/sales/SalesRegisterPage.jsx
 
 import { useState, useEffect, useCallback } from "react";

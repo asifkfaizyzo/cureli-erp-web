@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/CustomPlanModal.jsx (do not remove this comment)
 // src/components/Shops/CustomPlanModal.jsx
 
 import { useState, useEffect } from "react";

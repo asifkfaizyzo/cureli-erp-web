@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/suppliers/components/ManageSupplierBranchesModal.jsx (do not remove this comment)
 // src/pages/suppliers/components/ManageSupplierBranchesModal.jsx
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";

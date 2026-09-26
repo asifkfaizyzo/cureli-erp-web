@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-dashboard/components/TrendChart.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/components/TrendChart.jsx
 
 import { useState } from 'react';

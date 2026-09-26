@@ -1,3 +1,4 @@
+// backend/src/modules/rider/onboarding/rider.onboarding.schema.js (do not remove this comment)
 //backend\src\modules\rider\onboarding\rider.onboarding.schema.js
 
 import { z } from "zod";

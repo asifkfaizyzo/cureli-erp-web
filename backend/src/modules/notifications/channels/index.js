@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/channels/index.js (do not remove this comment)
 // ============================================
 // NOTIFICATION CHANNELS INDEX
 // ============================================

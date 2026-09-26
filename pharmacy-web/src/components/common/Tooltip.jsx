@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/Tooltip.jsx (do not remove this comment)
 // pharmacy-web/src/components/common/Tooltip.jsx
 
 import { useState, useRef, useEffect, useCallback } from "react";

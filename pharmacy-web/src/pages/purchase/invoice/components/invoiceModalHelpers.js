@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/invoiceModalHelpers.js (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/invoiceModalHelpers.js
 // Shared utilities and constants for Invoice Modal components
 //  UPDATED: Added print helpers, formatExpiry, numberToWords, and enhanced payment helpers

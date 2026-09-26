@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260526000000_baseline_existing_marketplace_profile_tables/migration.sql (do not remove this comment)
 -- Baseline migration for existing marketplace objects already present in DB
 -- Confirmed existing objects:
 --   - enum MarketplaceStatus

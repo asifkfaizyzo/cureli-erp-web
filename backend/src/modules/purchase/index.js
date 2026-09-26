@@ -1,3 +1,4 @@
+// backend/src/modules/purchase/index.js (do not remove this comment)
 // backend/src/modules/purchase/index.js
 
 // Import from purchase.service.js (Part 1)

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/inapp/marketplace.orders.templates.js (do not remove this comment)
 // ============================================
 // backend/src/modules/notifications/templates/inapp/marketplace.orders.templates.js
 // ============================================

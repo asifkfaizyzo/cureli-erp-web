@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251215100116_add_plan_type_and_shop_link/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "PlanType" AS ENUM ('PRE_MADE', 'CUSTOM');
 

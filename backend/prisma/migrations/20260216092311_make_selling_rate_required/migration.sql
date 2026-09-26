@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260216092311_make_selling_rate_required/migration.sql (do not remove this comment)
 /*
   Warnings:
 

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/ErrorState.jsx (do not remove this comment)
 import { WifiOff, RefreshCw } from "lucide-react";
 
 const ErrorState = ({ message, onRetry }) => (

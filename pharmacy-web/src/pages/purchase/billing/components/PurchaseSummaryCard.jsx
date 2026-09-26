@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/billing/components/PurchaseSummaryCard.jsx (do not remove this comment)
 // src/pages/purchase/billing/components/PurchaseSummaryCard.jsx
 
 import React from "react";

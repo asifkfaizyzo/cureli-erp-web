@@ -1,3 +1,4 @@
+// backend/src/services/sse.service.js (do not remove this comment)
 /**
  * SSE Service Manager (Singleton)
  * Maintains active SSE connections for:

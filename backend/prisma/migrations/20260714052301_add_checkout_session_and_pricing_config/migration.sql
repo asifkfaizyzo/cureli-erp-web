@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260714052301_add_checkout_session_and_pricing_config/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "marketplace_orders" ADD COLUMN     "checkout_session_id" UUID,
 ADD COLUMN     "delivery_fee" DECIMAL(10,2) NOT NULL DEFAULT 0,

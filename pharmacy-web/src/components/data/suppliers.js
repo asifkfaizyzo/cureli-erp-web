@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/data/suppliers.js (do not remove this comment)
 export const suppliersData = [
   {
     supplierId: "SUP00001",

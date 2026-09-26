@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/tickets/components/ViewTicketModal.jsx (do not remove this comment)
 import { useState, useEffect, useRef } from "react";
 import {
   X,

@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Pricing/MarketplacePricingPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/marketplace/Pricing/MarketplacePricingPage.jsx
 
 import { useState, useEffect, useCallback } from "react";

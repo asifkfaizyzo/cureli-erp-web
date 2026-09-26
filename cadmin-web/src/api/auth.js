@@ -1,3 +1,4 @@
+// cadmin-web/src/api/auth.js (do not remove this comment)
 import CAdminAPI from "./axios";
 
 // LOGIN WITH OTP → sends OTP

@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/app-config/cadmin.appConfig.service.js (do not remove this comment)
 // backend/src/modules/cadmin/app-config/cadmin.appConfig.service.js
 //
 // Service layer for CAdmin App Config — category display overrides.

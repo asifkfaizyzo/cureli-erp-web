@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/InventoryRowFixed.jsx (do not remove this comment)
 // src/pages/inventory/components/InventoryRowFixed.jsx
 
 import { memo, forwardRef, useImperativeHandle, useRef } from "react";

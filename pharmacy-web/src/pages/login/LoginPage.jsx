@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/login/LoginPage.jsx (do not remove this comment)
 // src/pages/login/LoginPage.jsx
 
 import { useState, useEffect, useRef } from "react";

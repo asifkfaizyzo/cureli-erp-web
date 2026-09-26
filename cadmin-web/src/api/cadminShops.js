@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminShops.js (do not remove this comment)
 import CAdminAPI from "./axios";
 
 /**

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251126055553_add_unique_to_current_subscription_id/migration.sql (do not remove this comment)
 /*
   Warnings:
 

@@ -1,3 +1,4 @@
+// backend/src/middleware/auth.js (do not remove this comment)
 // Q:\PROJECTS\YourZeroesAndOnes\cureli\curely_erp\backend\src\middleware\auth.js
 
 import jwt from "jsonwebtoken";

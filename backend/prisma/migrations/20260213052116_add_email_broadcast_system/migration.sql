@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260213052116_add_email_broadcast_system/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "email_broadcast_campaigns" (
     "campaign_id" UUID NOT NULL,

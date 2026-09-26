@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/medicines/mobile.medicines.service.js (do not remove this comment)
 // src/modules/mobile/medicines/mobile.medicines.service.js
 import prisma from "../../../config/prisma.js";
 import { resolveAssetUrl } from "../../../services/assetUrl.service.js";

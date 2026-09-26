@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/purchase/useResponsiveRowCount.js (do not remove this comment)
 // src/hooks/useResponsiveRowCount.js
 import { useState, useEffect, useMemo } from "react";
 

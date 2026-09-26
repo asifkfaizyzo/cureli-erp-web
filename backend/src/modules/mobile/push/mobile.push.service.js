@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/push/mobile.push.service.js (do not remove this comment)
 // backend/src/modules/mobile/push/mobile.push.service.js
 //
 // Core push notification service for Cureli Mobile.
@@ -560,7 +561,7 @@ export const MobilePush = {
     const statusBodies = {
       ACCEPTED: `Your order ${orderNumber} has been accepted by the pharmacy.`,
       REJECTED: `Your order ${orderNumber} was rejected. Tap to see details.`,
-      READY_FOR_PICKUP: `Your order ${orderNumber} is ready! Head to the pharmacy.`,
+      READY_FOR_PICKUP: `Your order ${orderNumber} is ready! Rider will soon bring it to you.`,
       COMPLETED: `Your order ${orderNumber} is complete. Thank you!`,
       CANCELLED: `Your order ${orderNumber} has been cancelled.`,
     };

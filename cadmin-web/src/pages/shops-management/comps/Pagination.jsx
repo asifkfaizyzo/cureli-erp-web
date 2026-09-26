@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/Pagination.jsx (do not remove this comment)
 // src/components/Shops/Pagination.jsx
 import {
   ChevronLeft,

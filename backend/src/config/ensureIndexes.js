@@ -1,3 +1,4 @@
+// backend/src/config/ensureIndexes.js (do not remove this comment)
 import prisma from "./prisma.js";
 
 const TRGM_INDEXES = [

@@ -1,3 +1,4 @@
+// backend/src/config/customerTicketStateMachine.js (do not remove this comment)
 /**
  * Single source of truth for Customer Support Ticket State Transitions.
  */

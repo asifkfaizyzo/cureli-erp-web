@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/auth/cadminPassword.schema.js (do not remove this comment)
 import { z } from "zod";
 
 export const cadminForgotPasswordSchema = z.object({

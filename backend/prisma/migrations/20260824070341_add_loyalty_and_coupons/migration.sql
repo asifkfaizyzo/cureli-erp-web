@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260824070341_add_loyalty_and_coupons/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "LoyaltyTransactionType" AS ENUM ('EARNED', 'REDEEMED', 'EXPIRED', 'ADMIN_ADJUST');
 

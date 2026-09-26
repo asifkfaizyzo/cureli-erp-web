@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/purchase/usePurchaseRows.js (do not remove this comment)
 // src/hooks/purchase/usePurchaseRows.js
 
 import { useState, useCallback, useEffect, useRef } from "react";

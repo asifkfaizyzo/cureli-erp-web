@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/invoice/invoice.html.js (do not remove this comment)
 // backend/src/modules/mobile/invoice/invoice.html.js
 
 import { CURELI_COMPANY } from '../../../config/cureli.js';

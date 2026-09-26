@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260210064231_add_sales_return_approval/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "SalesReturnApprovalStatus" AS ENUM ('PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED');
 

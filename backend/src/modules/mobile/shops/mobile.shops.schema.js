@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/shops/mobile.shops.schema.js (do not remove this comment)
 // src/modules/mobile/shops/mobile.shops.schema.js
 //
 // Validation schemas for the PUBLIC mobile shop discovery endpoints.

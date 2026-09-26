@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/ReviewDetailModal.jsx (do not remove this comment)
 // cadmin/src/pages/MasterMedicines/comps/ReviewDetailModal.jsx
 
 import { useState, useEffect, useMemo } from "react";

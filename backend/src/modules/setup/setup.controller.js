@@ -1,3 +1,4 @@
+// backend/src/modules/setup/setup.controller.js (do not remove this comment)
 // src/modules/setup/setup.controller.js
 import { success, fail } from "../../utils/response.js";
 import {

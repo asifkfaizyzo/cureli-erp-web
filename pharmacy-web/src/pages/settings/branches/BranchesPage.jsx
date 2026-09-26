@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/branches/BranchesPage.jsx (do not remove this comment)
 // src/pages/settings/branches/BranchesPage.jsx
 
 import { useState, useEffect, useCallback, useMemo } from "react";

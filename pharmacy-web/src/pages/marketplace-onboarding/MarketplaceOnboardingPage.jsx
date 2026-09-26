@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/MarketplaceOnboardingPage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/MarketplaceOnboardingPage.jsx
 
 import { useEffect } from "react";

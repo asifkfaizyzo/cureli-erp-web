@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260717065133_add_branch_schedule_and_holidays/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "BranchHolidayScope" AS ENUM ('BRANCH', 'SHOP');
 

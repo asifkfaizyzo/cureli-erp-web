@@ -1,3 +1,4 @@
+// backend/prisma/schema/config.prisma (do not remove this comment)
 // Prisma generator & datasource configuration
 
 generator client {

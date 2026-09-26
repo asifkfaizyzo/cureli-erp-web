@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/EmailPreviewModal.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/Email/comps/EmailPreviewModal.jsx
 
 import { X, Users, Building2, Mail } from "lucide-react";

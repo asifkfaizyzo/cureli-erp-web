@@ -88,10 +88,14 @@ import cadminMobileBroadcastRoutes from "./src/modules/cadmin/broadcast/mobile/c
 import cadminPricingRoutes from "./src/modules/cadmin/pricing/cadminPricing.routes.js";
 import cadminEnquiriesRoutes from "./src/modules/cadmin/enquiries/cadminEnquiries.routes.js";
 import cadminAppConfigRoutes from "./src/modules/cadmin/app-config/cadmin.appConfig.routes.js";
-import cadminRiderRoutes from "./src/modules/cadmin/delivery/cadminRiders.routes.js";
+import cadminRiderRoutes from "./src/modules/cadmin/riders/cadminRiders.routes.js";
 import cadminCouponRoutes from "./src/modules/cadmin/coupons/cadminCoupon.routes.js";
 import cadminCustomerSupportRoutes from "./src/modules/cadmin/customer-support/cadmin.customerSupport.routes.js";
 import cadminMobileEmailBroadcastRoutes from "./src/modules/cadmin/broadcast/mobile-email/cadminMobileEmailBroadcast.routes.js";
+import fleetPricingRoutes from "./src/modules/cadmin/fleet-pricing/fleetPricing.routes.js";
+import fleetIncentivesRoutes from "./src/modules/cadmin/fleet-incentives/fleetIncentives.routes.js";
+import cadminDeliveryRoutes from "./src/modules/cadmin/delivery/cadmin.delivery.routes.js";
+
 // ============================================
 // MOBILE ROUTES
 // ============================================
@@ -116,6 +120,10 @@ import mobileSupportRoutes from "./src/modules/mobile/support/mobile.support.rou
 import riderAuthRoutes from "./src/modules/rider/auth/rider.auth.routes.js";
 import riderOnboardingRoutes from "./src/modules/rider/onboarding/rider.onboarding.routes.js";
 import riderSseRoutes from "./src/modules/rider/sse/rider.sse.routes.js";
+import riderPresenceRoutes from "./src/modules/rider/presence/rider.presence.routes.js";
+import riderDashboardRoutes from "./src/modules/rider/dashboard/rider.dashboard.routes.js";
+import riderShopsRoutes from "./src/modules/rider/shops/rider.shops.routes.js";
+import riderDeliveryRoutes from "./src/modules/rider/delivery/rider.delivery.routes.js";
 
 // ============================================
 // APP SETUP
@@ -295,11 +303,13 @@ app.use("/cadmin", cadminMarketplaceOrdersRoutes);
 app.use("/cadmin", cadminMobileBroadcastRoutes);
 app.use("/cadmin", cadminPricingRoutes);
 app.use("/cadmin", cadminAppConfigRoutes);
-app.use("/cadmin", cadminRiderRoutes);
+app.use("/cadmin/fleet", cadminRiderRoutes);
 app.use("/cadmin/coupons", cadminCouponRoutes);
 app.use("/cadmin", cadminCustomerSupportRoutes);
 app.use("/cadmin", cadminMobileEmailBroadcastRoutes);
-
+app.use("/cadmin/fleet/pricing", fleetPricingRoutes);
+app.use("/cadmin/fleet/incentives", fleetIncentivesRoutes);
+app.use("/cadmin/delivery", cadminDeliveryRoutes);
 // ============================================
 // MOBILE ROUTES
 // ============================================
@@ -325,7 +335,10 @@ app.use("/mobile/support", mobileSupportRoutes);
 app.use("/rider/auth", riderAuthRoutes);
 app.use("/rider/onboarding", riderOnboardingRoutes);
 app.use("/rider/sse", riderSseRoutes);
-
+app.use("/rider", riderPresenceRoutes);
+app.use("/rider", riderDashboardRoutes);
+app.use("/rider", riderShopsRoutes);
+app.use("/rider/delivery", riderDeliveryRoutes);
 // ============================================
 // HEALTH CHECK
 // ============================================

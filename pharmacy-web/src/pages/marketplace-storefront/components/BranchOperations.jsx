@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/BranchOperations.jsx (do not remove this comment)
 //Q:\YourZeroesAndOnes\cureli\curely_erp\pharmacy-web\src\pages\marketplace-storefront\components\BranchOperations.jsx
 import { Building2, AlertCircle } from "lucide-react";
 import SectionCard from "./primitives/SectionCard";

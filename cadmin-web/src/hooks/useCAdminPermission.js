@@ -1,3 +1,4 @@
+// cadmin-web/src/hooks/useCAdminPermission.js (do not remove this comment)
 // pharmacy-web/src/hooks/useCAdminPermission.js
 
 import { useMemo } from "react";

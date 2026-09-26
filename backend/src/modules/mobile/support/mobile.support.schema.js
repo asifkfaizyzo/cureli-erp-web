@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/support/mobile.support.schema.js (do not remove this comment)
 import { z } from "zod";
 
 const CATEGORIES = [

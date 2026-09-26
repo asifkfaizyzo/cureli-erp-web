@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/broadcast/broadcast.schema.js (do not remove this comment)
 import Joi from 'joi';
 
 export const sendBroadcastSchema = Joi.object({

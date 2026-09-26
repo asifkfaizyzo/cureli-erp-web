@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/import/ImportLogsPanel.jsx (do not remove this comment)
 // src/pages/inventory/components/import/ImportLogsPanel.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";

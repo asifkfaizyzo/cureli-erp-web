@@ -1,3 +1,4 @@
+// backend/scripts/applyTrigrmIndexes.js (do not remove this comment)
 // backend/scripts/applyTrigrmIndexes.js
 //
 // One-time script to create trigram indexes on an existing database.

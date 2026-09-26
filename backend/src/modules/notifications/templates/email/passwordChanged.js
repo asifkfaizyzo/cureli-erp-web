@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/passwordChanged.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/passwordChanged.js
 // ============================================
 // PASSWORD CHANGED NOTIFICATION TEMPLATE

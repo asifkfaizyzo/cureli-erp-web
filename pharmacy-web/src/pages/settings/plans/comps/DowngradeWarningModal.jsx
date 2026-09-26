@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/plans/comps/DowngradeWarningModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/settings/plans/comps/DowngradeWarningModal.jsx
 
 import { useState } from "react";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/hooks/useGoogleMaps.js (do not remove this comment)
 // src/hooks/useGoogleMaps.js
 
 import { useJsApiLoader } from "@react-google-maps/api";

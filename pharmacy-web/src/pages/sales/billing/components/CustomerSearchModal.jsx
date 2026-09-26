@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/sales/billing/components/CustomerSearchModal.jsx (do not remove this comment)
 // src/pages/sales/billing/components/CustomerSearchModal.jsx
 
 import { useState, useEffect, useRef, useCallback } from "react";

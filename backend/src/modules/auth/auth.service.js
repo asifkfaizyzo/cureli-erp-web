@@ -1,3 +1,4 @@
+// backend/src/modules/auth/auth.service.js (do not remove this comment)
 // backend/src/modules/auth/auth.service.js
 
 import prisma from "../../config/prisma.js";

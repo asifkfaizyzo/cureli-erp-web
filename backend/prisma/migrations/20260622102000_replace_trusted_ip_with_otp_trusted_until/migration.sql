@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260622102000_replace_trusted_ip_with_otp_trusted_until/migration.sql (do not remove this comment)
 /*
   Warnings:
 

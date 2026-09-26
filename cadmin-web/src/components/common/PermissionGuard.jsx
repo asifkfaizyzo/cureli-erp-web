@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/PermissionGuard.jsx (do not remove this comment)
 // pharmacy-web/src/components/common/PermissionGuard.jsx
 
 import { Navigate } from "react-router-dom";

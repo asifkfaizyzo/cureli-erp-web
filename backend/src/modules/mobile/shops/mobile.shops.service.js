@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/shops/mobile.shops.service.js (do not remove this comment)
 // backend/src/modules/mobile/shops/mobile.shops.service.js
 //
 // ◄◄ CHANGED: Now imports timing logic from shared shopTiming utility.

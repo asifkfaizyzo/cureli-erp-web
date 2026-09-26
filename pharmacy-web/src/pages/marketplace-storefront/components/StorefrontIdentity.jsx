@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/StorefrontIdentity.jsx (do not remove this comment)
 import { Store, Edit3, Image, Type, FileText, Phone } from "lucide-react";
 import SectionCard from "./primitives/SectionCard";
 import SectionHeader from "./primitives/SectionHeader";

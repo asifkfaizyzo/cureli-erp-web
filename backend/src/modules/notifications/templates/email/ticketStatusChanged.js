@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/ticketStatusChanged.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/ticketStatusChanged.js
 // ============================================
 // TICKET STATUS CHANGED EMAIL TEMPLATE

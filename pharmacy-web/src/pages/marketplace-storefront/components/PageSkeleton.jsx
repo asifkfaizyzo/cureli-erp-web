@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-storefront/components/PageSkeleton.jsx (do not remove this comment)
 const PageSkeleton = () => (
   <div className="space-y-6 animate-pulse">
     <div className="flex items-center justify-between">

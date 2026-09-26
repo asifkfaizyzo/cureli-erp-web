@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/import/ImportResultStep.jsx (do not remove this comment)
 // src/pages/inventory/components/import/ImportResultStep.jsx
 
 import React, { useMemo, useState } from "react";

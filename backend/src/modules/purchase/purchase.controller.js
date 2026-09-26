@@ -1,3 +1,4 @@
+// backend/src/modules/purchase/purchase.controller.js (do not remove this comment)
 // backend/src/modules/purchase/purchase.controller.js
 
 import { success, fail } from "../../utils/response.js";

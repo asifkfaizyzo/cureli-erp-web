@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/components/StorefrontPreviewCard.jsx (do not remove this comment)
 // src/pages/marketplace-onboarding/components/StorefrontPreviewCard.jsx
 
 import { Phone, Store, MapPin, Clock } from "lucide-react";

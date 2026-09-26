@@ -1,3 +1,4 @@
+// backend/src/modules/reports/inventory/inventory.report.routes.js (do not remove this comment)
 import express from "express";
 import { requireAuth } from "../../../middleware/auth.js";
 import {

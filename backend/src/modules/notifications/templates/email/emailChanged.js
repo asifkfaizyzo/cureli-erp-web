@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/emailChanged.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/emailChanged.js
 // ============================================
 // EMAIL CHANGED NOTIFICATION TEMPLATE

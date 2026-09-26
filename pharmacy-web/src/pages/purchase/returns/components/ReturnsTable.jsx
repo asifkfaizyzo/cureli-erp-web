@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/returns/components/ReturnsTable.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/returns/components/ReturnsTable.jsx
 
 import React, { useRef, useCallback, useEffect, useState } from "react";

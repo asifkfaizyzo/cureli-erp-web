@@ -1,3 +1,4 @@
+// backend/prisma/schema/tickets.prisma (do not remove this comment)
 // Tickets — ERP support tickets, customer support tickets
 
 model Ticket {

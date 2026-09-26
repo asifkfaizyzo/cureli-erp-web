@@ -1,3 +1,4 @@
+// backend/prisma/schema/enums.prisma (do not remove this comment)
 // All enum definitions used across the schema
 
 enum LinkStatus {
@@ -313,6 +314,7 @@ enum EarningType {
   WEEKLY_CHALLENGE
   REFERRAL_BONUS
   MANUAL_ADJUSTMENT
+  TIP 
 }
 
 enum PayoutStatus {
@@ -443,4 +445,39 @@ enum CustomerTicketActivityType {
 enum RiderType {
   INDEPENDENT
   TEAM
+}
+
+// ── Fleet Pricing & Incentives Enums ─────────────────────────────────────────
+
+enum IncentiveMetricType {
+  ORDER_COUNT       
+  BASE_EARNINGS     
+}
+
+enum IncentivePeriodType {
+  DAILY             
+  WEEKLY            
+  CUSTOM_PERIOD     
+}
+
+enum SurgeCalculationType {
+  MULTIPLIER        
+  FLAT_ADDITION    
+}
+
+enum DistanceLegType {
+  LEG_1_PICKUP      
+  LEG_2_DROP        
+}
+
+enum SlabRateType {
+  FLAT_FIXED        
+  PER_KM           
+}
+
+enum PricingConfigStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  ARCHIVED
 }

@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/medicines/mobile.medicines.routes.js (do not remove this comment)
 // src/modules/mobile/medicines/mobile.medicines.routes.js
 //
 // PUBLIC mobile medicine discovery routes.

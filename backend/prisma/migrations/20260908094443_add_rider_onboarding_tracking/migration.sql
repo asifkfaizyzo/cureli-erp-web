@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260908094443_add_rider_onboarding_tracking/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "OnboardingStep" AS ENUM ('PERSONAL_DETAILS', 'LOCATION', 'VEHICLE_DETAILS', 'RC_UPLOAD', 'DL_UPLOAD', 'AADHAAR_UPLOAD', 'PAN_UPLOAD', 'LIVE_PHOTO', 'COMPLETED');
 

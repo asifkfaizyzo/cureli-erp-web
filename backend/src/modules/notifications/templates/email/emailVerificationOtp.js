@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/emailVerificationOtp.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/emailVerificationOtp.js
 // ============================================
 // EMAIL VERIFICATION OTP TEMPLATE

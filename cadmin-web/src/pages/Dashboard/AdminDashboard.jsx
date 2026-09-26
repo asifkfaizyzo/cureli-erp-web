@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Dashboard/AdminDashboard.jsx (do not remove this comment)
 // src/pages/Dashboard/AdminDashboard.jsx
 
 import { useState, useEffect, useCallback } from "react";

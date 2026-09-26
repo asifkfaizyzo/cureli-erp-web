@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Dashboard/comps/AlertsBanner.jsx (do not remove this comment)
 // src/pages/Dashboard/comps/AlertsBanner.jsx
 
 import { useState } from "react";

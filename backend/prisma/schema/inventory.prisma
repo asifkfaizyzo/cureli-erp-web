@@ -1,3 +1,4 @@
+// backend/prisma/schema/inventory.prisma (do not remove this comment)
 // Inventory — Stock batches, import jobs
 
 model Inventory {

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/plans/comps/RenewalConfirmModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/settings/plans/comps/RenewalConfirmModal.jsx
 
 import { motion, AnimatePresence } from "framer-motion";

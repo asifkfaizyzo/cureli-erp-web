@@ -1,3 +1,4 @@
+// backend/src/utils/otpLimiter.js (do not remove this comment)
 //backend\src\utils\otpLimiter.js
 import prisma from "../config/prisma.js";
 

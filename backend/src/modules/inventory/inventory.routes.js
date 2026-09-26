@@ -1,3 +1,4 @@
+// backend/src/modules/inventory/inventory.routes.js (do not remove this comment)
 // backend/src/modules/inventory/inventory.routes.js
 
 import express from "express";

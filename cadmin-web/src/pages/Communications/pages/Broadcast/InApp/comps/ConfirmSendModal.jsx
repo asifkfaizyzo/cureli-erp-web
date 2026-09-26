@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/ConfirmSendModal.jsx (do not remove this comment)
 // src/pages/Communications/pages/Broadcast/InApp/comps/ConfirmSendModal.jsx
 
 import { AlertTriangle, Send, X, Users, Image, Video, Link2, FileText } from "lucide-react";

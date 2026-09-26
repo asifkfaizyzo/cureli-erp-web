@@ -1,3 +1,4 @@
+// backend/src/modules/loyalty/loyalty.config.service.js (do not remove this comment)
 // backend/src/modules/loyalty/loyalty.config.service.js
 
 import prisma from "../../config/prisma.js";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-listings/components/ListingsTable.jsx (do not remove this comment)
 // src/pages/marketplace-listings/components/ListingsTable.jsx
 
 import { Package, Loader2 } from "lucide-react";

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251128055906_add_file_verification_log_and_resub_count/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "shop_files" ADD COLUMN     "resubmission_count" INTEGER NOT NULL DEFAULT 0;
 

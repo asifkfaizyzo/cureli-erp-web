@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260224084535_add_attachment_tables/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "EmailAttachmentType" AS ENUM ('INLINE', 'ATTACHMENT');
 

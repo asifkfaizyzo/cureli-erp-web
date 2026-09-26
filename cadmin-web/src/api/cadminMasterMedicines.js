@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminMasterMedicines.js (do not remove this comment)
 //cadmin-web\src\api\cadminMasterMedicines.js
 import CAdminAPI from "./axios";
 

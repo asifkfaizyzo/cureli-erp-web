@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/banners/BannersPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/banners/BannersPage.jsx
 
 import { useState, useCallback, useRef, useEffect } from "react";

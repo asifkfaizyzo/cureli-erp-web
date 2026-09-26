@@ -1,6 +1,5 @@
-// ============================================
-// EMAIL CHANNEL
-// ============================================
+// backend/src/modules/notifications/channels/email.channel.js (do not remove this comment)
+// backend/src/modules/notifications/channels/email.channel.js
 
 import { sendMail } from '../../../utils/email.js';
 import { getEmailTemplate } from '../templates/email/index.js';
@@ -27,6 +26,9 @@ export async function sendViaEmail(eventType, recipients, context) {
     return result;
   }
 
+  // Extract attachments if passed down inside context
+  const attachments = context.attachments || [];
+
   // Send to each recipient
   const sendPromises = recipients.map(async (recipient) => {
     try {
@@ -37,7 +39,8 @@ export async function sendViaEmail(eventType, recipients, context) {
         recipientEmail: recipient.email,
       });
 
-      await sendMail(recipient.email, subject, html);
+      // Pass attachments downstream safely
+      await sendMail(recipient.email, subject, html, attachments);
       result.sent++;
 
     } catch (error) {

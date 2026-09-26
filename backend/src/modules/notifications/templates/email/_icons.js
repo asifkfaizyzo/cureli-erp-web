@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/_icons.js (do not remove this comment)
 // backend/src/modules/notifications/templates/email/_icons.js
 // ============================================
 // EMAIL-SAFE SVG & CSS ICONS

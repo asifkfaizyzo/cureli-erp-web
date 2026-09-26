@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Cadmin-management/comps/AdminActivityTab.jsx (do not remove this comment)
 // pharmacy-web/src/pages/Cadmin-management/comps/AdminActivityTab.jsx
 
 import {

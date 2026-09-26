@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/ViewInvoiceModal.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/ViewInvoiceModal.jsx
 // Main Modal Container - Orchestrates View and Edit modes with Payment Status Dropdown
 // Updated with Payment Status Threshold Logic (Balance > ₹10 for Partially Paid)

@@ -1,3 +1,4 @@
+// cadmin-web/src/config/modules/userConfig.js (do not remove this comment)
 // ═══════════════════════════════════════════════════════════════════
 // USER MODULE CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════

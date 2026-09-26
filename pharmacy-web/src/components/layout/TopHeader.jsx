@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/layout/TopHeader.jsx (do not remove this comment)
 // src/components/layout/TopHeader.jsx
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";

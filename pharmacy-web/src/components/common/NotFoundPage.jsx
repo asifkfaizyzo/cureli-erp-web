@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/NotFoundPage.jsx (do not remove this comment)
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../../assets/icons/cureliwhitenew.svg';

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/templates/email/paymentRefunded.js (do not remove this comment)
 import { baseStyles } from "./_baseStyles.js";
 
 /**

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/marketplace-onboarding/components/BranchConfigCard.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/components/BranchConfigCard.jsx
 
 import { useState, useRef, useEffect } from "react";

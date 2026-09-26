@@ -1,3 +1,4 @@
+// backend/src/modules/mobile/loyalty/mobile.loyalty.routes.js (do not remove this comment)
 // backend/src/modules/mobile/loyalty/mobile.loyalty.routes.js
 
 import { Router } from "express";

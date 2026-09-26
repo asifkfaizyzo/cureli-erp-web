@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260805093246_strip_banners_multi/migration.sql (do not remove this comment)
 /*
   Warnings:
 

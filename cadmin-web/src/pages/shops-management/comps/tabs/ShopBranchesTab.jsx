@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/shops-management/comps/tabs/ShopBranchesTab.jsx (do not remove this comment)
 // src/components/Shops/tabs/ShopBranchesTab.jsx
 
 import { GitBranch, CheckCircle, XCircle, MapPin, Phone, Users } from "lucide-react";

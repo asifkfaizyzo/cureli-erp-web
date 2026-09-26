@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260905080053_add_rider_auth_fields_remove_zone/migration.sql (do not remove this comment)
 /*
   Warnings:
 

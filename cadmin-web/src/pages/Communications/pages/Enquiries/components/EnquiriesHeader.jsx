@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Enquiries/components/EnquiriesHeader.jsx (do not remove this comment)
 //cadmin-web\src\pages\Communications\pages\Enquiries\components\EnquiriesHeader.jsx
 import { Search, RefreshCw } from "lucide-react";
 import { memo, useCallback, useState } from "react";

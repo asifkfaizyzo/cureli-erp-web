@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/DetailRow.jsx (do not remove this comment)
 // Q:\YourZeroesAndOnes\cureli\curely_erp\cadmin-web\src\components\common\DetailRow.jsx
 
 import {

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/cadmin/cadminNotifications.routes.js (do not remove this comment)
 //backend\src\modules\notifications\cadmin\cadminNotifications.routes.js
 
 import { Router } from "express";

@@ -1,3 +1,4 @@
+// pharmacy-web/src/guards/SetupGuard.jsx (do not remove this comment)
 // src/guards/SetupGuard.jsx
 
 import { useEffect, useState, useRef, useCallback } from "react";

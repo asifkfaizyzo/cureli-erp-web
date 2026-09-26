@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/settings/profile/comps/ChangePasswordModal.jsx (do not remove this comment)
 // Q:\YourZeroesAndOnes\cureli\curely_erp\pharmacy-web\src\pages\settings\profile\comps\ChangePasswordModal.jsx
 
 import { useState } from "react";

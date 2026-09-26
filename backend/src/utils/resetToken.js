@@ -1,3 +1,4 @@
+// backend/src/utils/resetToken.js (do not remove this comment)
 import { createHash } from "crypto";
 import crypto from "crypto";
 

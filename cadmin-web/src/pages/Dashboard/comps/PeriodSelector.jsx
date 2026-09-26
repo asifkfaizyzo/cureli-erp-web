@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Dashboard/comps/PeriodSelector.jsx (do not remove this comment)
 // src/pages/Dashboard/comps/PeriodSelector.jsx
 
 import { useState, useRef, useEffect } from "react";

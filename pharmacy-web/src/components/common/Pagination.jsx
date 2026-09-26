@@ -1,3 +1,4 @@
+// pharmacy-web/src/components/common/Pagination.jsx (do not remove this comment)
 // pharmacy-web/src/components/common/Pagination.jsx
 
 import React from "react";

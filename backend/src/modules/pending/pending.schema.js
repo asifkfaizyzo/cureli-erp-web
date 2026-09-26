@@ -1,3 +1,4 @@
+// backend/src/modules/pending/pending.schema.js (do not remove this comment)
 import { z } from "zod";
 
 export const pendingSignupSchema = z.object({

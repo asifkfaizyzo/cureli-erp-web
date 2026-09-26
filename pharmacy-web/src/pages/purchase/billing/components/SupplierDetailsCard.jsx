@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/billing/components/SupplierDetailsCard.jsx (do not remove this comment)
 // src/pages/purchase/billing/components/SupplierDetailsCard.jsx
 import { useState, useRef, useEffect } from "react";
 import {

@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/purchase/invoice/components/EditModeContent.jsx (do not remove this comment)
 // pharmacy-web/src/pages/purchase/invoice/components/EditModeContent.jsx
 // Edit Mode Components for Invoice Modal
 //  UPDATED: Added hasLinkedReturns and linkedReturnCount props for footer display

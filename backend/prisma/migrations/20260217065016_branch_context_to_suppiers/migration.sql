@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260217065016_branch_context_to_suppiers/migration.sql (do not remove this comment)
 /*
   Warnings:
 

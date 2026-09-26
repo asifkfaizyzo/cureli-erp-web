@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/categories/comps/CategoryDisplayCard.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/categories/comps/CategoryDisplayCard.jsx
 //
 // One card per category in the CategoryDisplayPage grid.

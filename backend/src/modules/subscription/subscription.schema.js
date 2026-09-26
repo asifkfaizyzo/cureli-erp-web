@@ -1,3 +1,4 @@
+// backend/src/modules/subscription/subscription.schema.js (do not remove this comment)
 //Q:\YourZeroesAndOnes\cureli\curely_erp\backend\src\modules\subscription\subscription.schema.js
 import { z } from "zod";
 

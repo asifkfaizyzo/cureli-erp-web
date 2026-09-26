@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/AppConfig/AppConfigPage.jsx (do not remove this comment)
 // cadmin-web/src/pages/AppConfig/AppConfigPage.jsx
 
 import { useNavigate } from "react-router-dom";

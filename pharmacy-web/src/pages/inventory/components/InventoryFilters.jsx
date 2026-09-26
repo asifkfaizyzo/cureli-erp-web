@@ -1,3 +1,4 @@
+// pharmacy-web/src/pages/inventory/components/InventoryFilters.jsx (do not remove this comment)
 // src/pages/inventory/components/InventoryFilters.jsx
 
 import React, {

@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/email.config.js (do not remove this comment)
 // backend/src/modules/notifications/email.config.js
 // ============================================
 // EMAIL CONFIGURATION - S3 ONLY

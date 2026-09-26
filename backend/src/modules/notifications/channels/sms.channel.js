@@ -1,3 +1,4 @@
+// backend/src/modules/notifications/channels/sms.channel.js (do not remove this comment)
 // ============================================
 // SMS NOTIFICATION CHANNEL (STUB)
 // ============================================

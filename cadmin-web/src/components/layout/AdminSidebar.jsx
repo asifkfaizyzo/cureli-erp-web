@@ -1,3 +1,4 @@
+// cadmin-web/src/components/layout/AdminSidebar.jsx (do not remove this comment)
 // cadmin-web/src/components/layout/AdminSidebar.jsx
 
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -249,7 +250,16 @@ const FLEET_MENU_ITEMS = [
   },
 ];
 
-const FLEET_CHILD_ROUTES = {};
+const FLEET_CHILD_ROUTES = {
+  "/fleet/pricing/base-pay": {
+    parentId: "fleet-pricing",
+    breadcrumbs: ["Fleet", "Pricing", "Base Pay & Surge"],
+  },
+  "/fleet/pricing/incentives": {
+    parentId: "fleet-pricing",
+    breadcrumbs: ["Fleet", "Pricing", "Incentives & Quests"],
+  },
+};
 
 const ADMIN_CHILD_ROUTES = {
   "/communications/tickets": {

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251121093123_shop_files_init/migration.sql (do not remove this comment)
 -- CreateTable
 CREATE TABLE "shop_files" (
     "file_id" UUID NOT NULL,

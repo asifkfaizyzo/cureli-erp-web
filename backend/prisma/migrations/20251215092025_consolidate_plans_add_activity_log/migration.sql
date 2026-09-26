@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20251215092025_consolidate_plans_add_activity_log/migration.sql (do not remove this comment)
 /*
   Warnings:
 

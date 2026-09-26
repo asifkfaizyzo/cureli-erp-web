@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/Communications/pages/Enquiries/components/EnquiryDetailsModal.jsx (do not remove this comment)
 // cadmin-web\src\pages\Communications\pages\Enquiries\components\EnquiryDetailsModal.jsx
 import {
   X,

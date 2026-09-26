@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/master-medicines/cadminMasterMedicines.controller.js (do not remove this comment)
 // backend/src/modules/cadmin/master-medicines/cadminMasterMedicines.controller.js
 
 /**
