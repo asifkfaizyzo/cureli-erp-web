@@ -84,7 +84,7 @@ function computePrescriptionExpiry(status, now = new Date()) {
  *
  * @returns {{ pickup_otp: string, delivery_otp: string }}
  */
-function generateDistinctOtps() {
+export function generateDistinctOtps() {
   const pickup = String(Math.floor(1000 + Math.random() * 9000));
   let delivery = String(Math.floor(1000 + Math.random() * 9000));
   while (delivery === pickup) {
@@ -755,6 +755,7 @@ export async function getMobileOrderDetail(order_id, customer_id) {
       },
       shop: { select: { business_name: true } },
       branch: { select: { branch_name: true } },
+      delivery: { select: { status: true } },
     },
   });
 
@@ -1237,6 +1238,10 @@ function formatMobileOrderDetail(order) {
     notes: order.notes,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
+    delivery_otp:
+      order.delivery?.status === "ARRIVED_AT_CUSTOMER"
+        ? (order.delivery_otp ?? null)
+        : null,
     placed_at: order.placed_at,
     accepted_at: order.accepted_at,
     ready_at: order.ready_at,

@@ -7,6 +7,7 @@ import {
 } from "../../../config/razorpay.js";
 import { computePricing, normaliseConfig } from "./pricing.engine.js";
 import { fireOrderPlacedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
+import { generateDistinctOtps } from "../../marketplace-orders/marketplace.orders.service.js";
 import { markConverted } from "../../prescription-requests/prescription.requests.service.js";
 import {
   validateCouponForCustomer,
@@ -51,7 +52,10 @@ async function resolveRazorpayMethod(razorpay_payment_id) {
     if (method) return `RAZORPAY_${method}`;
     return "RAZORPAY";
   } catch (err) {
-    console.error("[Checkout] Failed to fetch Razorpay payment method:", err.message);
+    console.error(
+      "[Checkout] Failed to fetch Razorpay payment method:",
+      err.message,
+    );
     return "RAZORPAY";
   }
 }
@@ -511,7 +515,7 @@ async function _createOrderFromSession({
   razorpay_payment_id,
   razorpay_order_id,
   razorpay_signature,
-  resolved_payment_method = null,  
+  resolved_payment_method = null,
 }) {
   // Guard: check session hasn't already produced an order (race condition)
   const fresh = await prisma.checkoutSession.findUnique({
@@ -542,6 +546,7 @@ async function _createOrderFromSession({
 
   const now = new Date();
   const order_number = await _generateOrderNumber();
+  const { pickup_otp, delivery_otp } = generateDistinctOtps();
 
   const cartItems = session.cart_snapshot;
   const requiresPrescription = cartItems.some(
@@ -577,7 +582,9 @@ async function _createOrderFromSession({
         customer_name_snapshot: customer.full_name ?? customer.phone,
         customer_phone_snapshot: customer.phone,
         status: "PLACED",
-        payment_method: resolved_payment_method ?? await resolveRazorpayMethod(razorpay_payment_id),
+        payment_method:
+          resolved_payment_method ??
+          (await resolveRazorpayMethod(razorpay_payment_id)),
         payment_status: "PAID",
         subtotal: session.subtotal,
         service_charge: session.service_charge,
@@ -600,7 +607,8 @@ async function _createOrderFromSession({
         patient_name_snapshot: session.patient_name_snapshot ?? null,
         patient_age_snapshot: session.patient_age_snapshot ?? null,
         patient_sex_snapshot: session.patient_sex_snapshot ?? null,
-
+        pickup_otp,
+        delivery_otp,
         placed_at: now,
       },
     });
