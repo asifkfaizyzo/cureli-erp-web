@@ -43,35 +43,84 @@ export const branchSelectionSchema = z.object({
     .min(1, "Select at least one branch"),
 });
 
-// ── ADDED BANKING SCHEMA (Step 5) ──────────────────────────
-export const bankingSchema = z.object({
-  bank_account_holder: z
-    .string({ required_error: "Account holder name is required" })
-    .min(3, "Name must be at least 3 characters")
-    .max(200, "Name must be under 200 characters")
-    .trim(),
-  bank_name: z
-    .string({ required_error: "Bank name is required" })
-    .min(2, "Bank name is required")
-    .max(200)
-    .trim(),
-  bank_branch_name: z
-    .string({ required_error: "Branch name is required" })
-    .min(2, "Branch name is required")
-    .max(200)
-    .trim(),
-  bank_ifsc: z
-    .string({ required_error: "IFSC code is required" })
-    .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Enter a valid 11-digit IFSC code (e.g. UTIB0001234)")
-    .trim(),
-  bank_account_number: z
-    .string({ required_error: "Account number is required" })
-    .min(9, "Account number must be at least 9 digits")
-    .max(30, "Account number must be under 30 digits")
-    .trim(),
-  bank_mmid: z.string().max(20).trim().nullable().optional(),
-  bank_vpa: z.string().max(100).trim().nullable().optional(),
-});
+// ── BANKING SCHEMA (Step 5) — All-or-Nothing ───────────────
+export const bankingSchema = z
+  .object({
+    bank_account_holder: z.string().max(200).trim().optional().nullable(),
+    bank_name: z.string().max(200).trim().optional().nullable(),
+    bank_branch_name: z.string().max(200).trim().optional().nullable(),
+    bank_ifsc: z.string().max(11).trim().optional().nullable(),
+    bank_account_number: z.string().max(30).trim().optional().nullable(),
+    bank_mmid: z.string().max(20).trim().optional().nullable(),
+    bank_vpa: z.string().max(100).trim().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const required = [
+      "bank_account_holder",
+      "bank_name",
+      "bank_branch_name",
+      "bank_ifsc",
+      "bank_account_number",
+    ];
+
+    const filled = required.filter((f) => data[f]?.trim());
+
+    // All empty → valid skip
+    if (filled.length === 0) return;
+
+    // Partial → flag every missing field
+    if (filled.length < required.length) {
+      for (const f of required) {
+        if (!data[f]?.trim()) {
+          ctx.addIssue({
+            path: [f],
+            code: z.ZodIssueCode.custom,
+            message: "Required when other banking fields are provided",
+          });
+        }
+      }
+      return;
+    }
+
+    // All filled → strict validation
+    if (data.bank_account_holder.trim().length < 3) {
+      ctx.addIssue({
+        path: ["bank_account_holder"],
+        code: z.ZodIssueCode.custom,
+        message: "Name must be at least 3 characters",
+      });
+    }
+    if (data.bank_name.trim().length < 2) {
+      ctx.addIssue({
+        path: ["bank_name"],
+        code: z.ZodIssueCode.custom,
+        message: "Bank name must be at least 2 characters",
+      });
+    }
+    if (data.bank_branch_name.trim().length < 2) {
+      ctx.addIssue({
+        path: ["bank_branch_name"],
+        code: z.ZodIssueCode.custom,
+        message: "Branch name must be at least 2 characters",
+      });
+    }
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(data.bank_ifsc.trim())) {
+      ctx.addIssue({
+        path: ["bank_ifsc"],
+        code: z.ZodIssueCode.custom,
+        message:
+          "Enter a valid 11-character IFSC code (e.g. UTIB0001234)",
+      });
+    }
+    if (data.bank_account_number.trim().length < 9) {
+      ctx.addIssue({
+        path: ["bank_account_number"],
+        code: z.ZodIssueCode.custom,
+        message: "Account number must be at least 9 digits",
+      });
+    }
+  });
+// ──────────────────────────────────────────────────────────────
 
 // Branch Config Schema (Step 4) — UPDATED with delivery_mode
 export const branchConfigSchema = z

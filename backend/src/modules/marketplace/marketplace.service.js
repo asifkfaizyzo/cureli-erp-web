@@ -186,17 +186,38 @@ export const saveBanking = async (shop_id, data) => {
 
   if (!profile) throw new Error("Marketplace profile not found");
 
+  const requiredFields = [
+    "bank_account_holder",
+    "bank_name",
+    "bank_branch_name",
+    "bank_ifsc",
+    "bank_account_number",
+  ];
+  const allEmpty = requiredFields.every((f) => !data[f]?.trim());
+
+  const updateData = allEmpty
+    ? {
+        bank_account_holder: null,
+        bank_name: null,
+        bank_branch_name: null,
+        bank_ifsc: null,
+        bank_account_number: null,
+        bank_mmid: null,
+        bank_vpa: null,
+      }
+    : {
+        bank_account_holder: data.bank_account_holder,
+        bank_name: data.bank_name,
+        bank_branch_name: data.bank_branch_name,
+        bank_ifsc: data.bank_ifsc,
+        bank_account_number: data.bank_account_number,
+        bank_mmid: data.bank_mmid ?? null,
+        bank_vpa: data.bank_vpa ?? null,
+      };
+
   return await prisma.marketplaceProfile.update({
     where: { shop_id },
-    data: {
-      bank_account_holder: data.bank_account_holder,
-      bank_name: data.bank_name,
-      bank_branch_name: data.bank_branch_name,
-      bank_ifsc: data.bank_ifsc,
-      bank_account_number: data.bank_account_number,
-      bank_mmid: data.bank_mmid ?? null,
-      bank_vpa: data.bank_vpa ?? null,
-    },
+    data: updateData,
     select: {
       marketplace_profile_id: true,
       bank_account_holder: true,
@@ -434,23 +455,7 @@ export const goLive = async (shop_id) => {
     errors.push({ field: "logo_url", message: "Logo is required" });
   }
 
-  // ── ADDED BANKING VALIDATION CHECKS ──────────────────────
-  if (!profile.bank_account_holder?.trim()) {
-    errors.push({ field: "bank_account_holder", message: "Bank Account Holder is required" });
-  }
-  if (!profile.bank_name?.trim()) {
-    errors.push({ field: "bank_name", message: "Bank Name is required" });
-  }
-  if (!profile.bank_branch_name?.trim()) {
-    errors.push({ field: "bank_branch_name", message: "Bank Branch Name is required" });
-  }
-  if (!profile.bank_ifsc?.trim()) {
-    errors.push({ field: "bank_ifsc", message: "Bank IFSC Code is required" });
-  }
-  if (!profile.bank_account_number?.trim()) {
-    errors.push({ field: "bank_account_number", message: "Bank Account Number is required" });
-  }
-  // ─────────────────────────────────────────────────────────
+
 
   const enabledBranches = profile.branchSettings.filter(
     (b) => b.marketplace_enabled

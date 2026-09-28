@@ -1,7 +1,9 @@
 // pharmacy-web/src/pages/marketplace-dashboard/MarketplaceDashboardPage.jsx (do not remove this comment)
 // src/pages/marketplace-dashboard/MarketplaceDashboardPage.jsx
 
+import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 import { useDashboard }           from '../../hooks/marketplace/useDashboard';
 import DashboardSkeleton          from './components/DashboardSkeleton';
@@ -14,6 +16,11 @@ import ListingsHealthSection      from './components/ListingsHealthSection';
 import TrendChart                 from './components/TrendChart';
 import BranchPerformanceTable     from './components/BranchPerformanceTable';
 import RecentOrdersPanel          from './components/RecentOrdersPanel';
+
+// Banking Banner and Stores
+import BankingPendingBanner from '../../components/common/BankingPendingBanner';
+import { useMarketplaceStore } from '../../store/useMarketplaceStore';
+import { useAuthStore, selectIsSuperAdmin } from '../../store/useAuthStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANIMATION VARIANTS
@@ -45,6 +52,7 @@ const sectionVariants = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MarketplaceDashboardPage = () => {
+  const navigate = useNavigate();
   const {
     data,
     isLoading,
@@ -54,6 +62,19 @@ const MarketplaceDashboardPage = () => {
     usingDummy,
     refresh,
   } = useDashboard();
+
+  const isSuperAdmin = useAuthStore(selectIsSuperAdmin);
+  const banking = useMarketplaceStore((s) => s.banking);
+  const isStatusLoaded = useMarketplaceStore((s) => s.isStatusLoaded);
+  const isStatusLoading = useMarketplaceStore((s) => s.isStatusLoading);
+  const loadStatus = useMarketplaceStore((s) => s.loadStatus);
+
+  // Refresh status on load to ensure data accuracy
+  useEffect(() => {
+    if (!isStatusLoaded && !isStatusLoading) {
+      loadStatus();
+    }
+  }, [isStatusLoaded, isStatusLoading, loadStatus]);
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -100,6 +121,8 @@ const MarketplaceDashboardPage = () => {
     alerts,
   } = data;
 
+  const bankingPending = isSuperAdmin && !banking.bank_account_holder;
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#010015]">
@@ -136,6 +159,21 @@ const MarketplaceDashboardPage = () => {
         <MarketplaceStatusBanner
           marketplace_status={overview.marketplace_status}
         />
+      </AnimatePresence>
+
+      {/* ── Banking Pending Alert Banner ── */}
+      <AnimatePresence>
+        {bankingPending && (
+          <motion.div
+            key="banking-warning-banner"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mx-6 mt-3"
+          >
+            <BankingPendingBanner onAction={() => navigate("/marketplace/storefront")} />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* ── Dashboard body ───────────────────────────────────────────────────── */}

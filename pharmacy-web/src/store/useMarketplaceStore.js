@@ -247,6 +247,24 @@ export const useMarketplaceStore = create((set, get) => ({
   },
   // ──────────────────────────────────────────────────────────
 
+    // ── CLEAR BANKING (used by "Skip for now") ────────────────
+  clearBanking: () => {
+    set({
+      banking: {
+        bank_account_holder: "",
+        bank_name: "",
+        bank_branch_name: "",
+        bank_ifsc: "",
+        bank_account_number: "",
+        bank_mmid: "",
+        bank_vpa: "",
+      },
+      isDraftSaving: true,
+    });
+    scheduleDraftSave(get);
+  },
+  // ──────────────────────────────────────────────────────────
+
   setSelectedBranches: (ids) => {
     set({ selectedBranchIds: ids, isDraftSaving: true });
     scheduleDraftSave(get);
@@ -441,6 +459,7 @@ export const useMarketplaceStore = create((set, get) => ({
 
 // Added Selectors
 export const selectBanking = (s) => s.banking;
+export const selectClearBanking = (s) => s.clearBanking;
 export const selectMarketplaceStatus = (s) => s.marketplaceStatus;
 export const selectIsLive = (s) => s.isLive;
 export const selectOnboardingCompleted = (s) => s.onboardingCompleted;

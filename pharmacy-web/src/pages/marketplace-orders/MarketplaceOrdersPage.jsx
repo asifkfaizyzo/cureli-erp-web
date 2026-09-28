@@ -1,9 +1,9 @@
 // pharmacy-web/src/pages/marketplace-orders/MarketplaceOrdersPage.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-orders/MarketplaceOrdersPage.jsx
 
-import { useState }    from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useOrdersPage } from '../../hooks/marketplace/useOrdersPage';
 import OrdersTabBar, { PRESCRIPTION_TAB_ID } from './components/OrdersTabBar';
 import OrderListPanel    from './components/OrderListPanel';
@@ -13,9 +13,28 @@ import PrescriptionRequestsTab from '../prescription-requests/PrescriptionReques
 import usePrescriptionRequestAlertStore from '../../store/usePrescriptionRequestAlertStore';
 import { getInvoiceUrl, regenerateInvoice } from '../../api/marketplaceOrders';
 
+// Banking Banner and Stores
+import BankingPendingBanner from '../../components/common/BankingPendingBanner';
+import { useMarketplaceStore } from '../../store/useMarketplaceStore';
+import { useAuthStore, selectIsSuperAdmin } from '../../store/useAuthStore';
+
 const MarketplaceOrdersPage = () => {
   const page = useOrdersPage();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const isSuperAdmin = useAuthStore(selectIsSuperAdmin);
+  const banking = useMarketplaceStore((s) => s.banking);
+  const isStatusLoaded = useMarketplaceStore((s) => s.isStatusLoaded);
+  const isStatusLoading = useMarketplaceStore((s) => s.isStatusLoading);
+  const loadStatus = useMarketplaceStore((s) => s.loadStatus);
+
+  // Self-heal status fetch if deep-linked directly here
+  useEffect(() => {
+    if (!isStatusLoaded && !isStatusLoading) {
+      loadStatus();
+    }
+  }, [isStatusLoaded, isStatusLoading, loadStatus]);
 
   // Set default initialTab to 'all' if no specific query parameter is provided
   const initialTab = searchParams.get('tab') === 'prescriptions'
@@ -75,6 +94,8 @@ const MarketplaceOrdersPage = () => {
     }
   };
 
+  const bankingPending = isSuperAdmin && !banking.bank_account_holder;
+
   return (
     <div className="h-full flex flex-col bg-[#010015] overflow-hidden">
 
@@ -91,6 +112,13 @@ const MarketplaceOrdersPage = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Optional Banking Pending Banner ── */}
+      {bankingPending && (
+        <div className="flex-shrink-0 px-6 pt-4">
+          <BankingPendingBanner onAction={() => navigate("/marketplace/storefront")} />
+        </div>
+      )}
 
       <div className="flex-shrink-0">
         <OrdersTabBar activeTab={activeTab} onTabChange={handleTabChange} counts={tabCounts} />

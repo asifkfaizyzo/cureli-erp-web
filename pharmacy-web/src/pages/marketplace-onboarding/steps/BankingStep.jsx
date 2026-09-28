@@ -1,4 +1,3 @@
-// pharmacy-web/src/pages/marketplace-onboarding/steps/BankingStep.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/steps/BankingStep.jsx
 
 import React, { useState } from "react";
@@ -8,16 +7,25 @@ import {
   Landmark,
   AlertCircle,
   Loader2,
-  Check,
   CreditCard,
   Eye,
   EyeOff,
+  SkipForward,
 } from "lucide-react";
 import { useMarketplaceStore } from "../../../store/useMarketplaceStore";
+
+const REQUIRED_FIELDS = [
+  "bank_account_holder",
+  "bank_name",
+  "bank_branch_name",
+  "bank_ifsc",
+  "bank_account_number",
+];
 
 const BankingStep = ({ onNext, onBack }) => {
   const banking = useMarketplaceStore((s) => s.banking);
   const updateBanking = useMarketplaceStore((s) => s.updateBanking);
+  const clearBanking = useMarketplaceStore((s) => s.clearBanking);
   const submitBanking = useMarketplaceStore((s) => s.submitBanking);
 
   const [errors, setErrors] = useState({});
@@ -25,28 +33,48 @@ const BankingStep = ({ onNext, onBack }) => {
   const [submitErr, setSubmitErr] = useState(null);
   const [showAccountNumber, setShowAccountNumber] = useState(false);
 
+  /**
+   * All-or-nothing validation:
+   *  - All 5 required fields empty → valid (skip)
+   *  - Any filled → all 5 must be present + individually valid
+   */
   const validate = () => {
     const errs = {};
-    if (!banking.bank_account_holder?.trim())
-      errs.bank_account_holder = "Account Holder Name is required";
-    if (!banking.bank_name?.trim()) errs.bank_name = "Bank Name is required";
-    if (!banking.bank_branch_name?.trim())
-      errs.bank_branch_name = "Branch Name is required";
+    const filled = REQUIRED_FIELDS.filter((f) => banking[f]?.trim());
 
-    const ifsc = banking.bank_ifsc?.trim() || "";
-    if (!ifsc) {
-      errs.bank_ifsc = "IFSC code is required";
-    } else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
-      errs.bank_ifsc =
-        "Enter a valid 11-character alphanumeric IFSC code (e.g. UTIB0001234)";
+    // All empty → nothing to validate
+    if (filled.length === 0) {
+      setErrors({});
+      return true;
     }
 
-    if (!banking.bank_account_number?.trim()) {
-      errs.bank_account_number = "Account Number is required";
-    } else if (banking.bank_account_number.trim().length < 9) {
+    // Partial → flag missing
+    if (filled.length < REQUIRED_FIELDS.length) {
+      for (const f of REQUIRED_FIELDS) {
+        if (!banking[f]?.trim()) {
+          errs[f] = "Required when other banking fields are provided";
+        }
+      }
+      setErrors(errs);
+      return false;
+    }
+
+    // All filled → strict checks
+    if (banking.bank_account_holder.trim().length < 3)
+      errs.bank_account_holder = "Name must be at least 3 characters";
+    if (banking.bank_name.trim().length < 2)
+      errs.bank_name = "Bank name must be at least 2 characters";
+    if (banking.bank_branch_name.trim().length < 2)
+      errs.bank_branch_name = "Branch name must be at least 2 characters";
+
+    const ifsc = banking.bank_ifsc.trim();
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc))
+      errs.bank_ifsc =
+        "Enter a valid 11-character IFSC code (e.g. UTIB0001234)";
+
+    if (banking.bank_account_number.trim().length < 9)
       errs.bank_account_number =
         "Account number must be at least 9 characters long";
-    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -63,10 +91,19 @@ const BankingStep = ({ onNext, onBack }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSaveAndContinue = async (e) => {
     e.preventDefault();
     setSubmitErr(null);
     if (!validate()) return;
+
+    const filled = REQUIRED_FIELDS.filter((f) => banking[f]?.trim());
+
+    // All empty after validation → treat as skip
+    if (filled.length === 0) {
+      clearBanking();
+      onNext();
+      return;
+    }
 
     setIsSubmitting(true);
     const res = await submitBanking();
@@ -81,6 +118,13 @@ const BankingStep = ({ onNext, onBack }) => {
     }
   };
 
+  const handleSkip = () => {
+    setErrors({});
+    setSubmitErr(null);
+    clearBanking();
+    onNext();
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6 flex items-center gap-3">
@@ -93,16 +137,16 @@ const BankingStep = ({ onNext, onBack }) => {
           </h2>
           <p className="text-white/40 text-xs mt-0.5">
             Your weekly payout settlements will be processed manually to this
-            account.
+            account. You can skip this step and add details later.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSaveAndContinue} className="space-y-4">
         {/* Account Holder Name */}
         <div className="space-y-1.5">
           <label className="text-xs text-white/60 font-medium">
-            Account Holder Name *
+            Account Holder Name
           </label>
           <input
             type="text"
@@ -127,7 +171,7 @@ const BankingStep = ({ onNext, onBack }) => {
           <div className="flex items-center justify-between">
             <label className="text-xs text-white/70 font-medium flex items-center gap-1.5">
               <CreditCard size={13} className="text-white/40" />
-              Bank Account Number <span className="text-red-400">*</span>
+              Bank Account Number
             </label>
             <span className="text-[10px] text-white/25 font-mono">
               {(banking.bank_account_number || "").length}/18
@@ -190,7 +234,7 @@ const BankingStep = ({ onNext, onBack }) => {
           {/* Bank IFSC */}
           <div className="space-y-1.5">
             <label className="text-xs text-white/60 font-medium">
-              IFSC Code *
+              IFSC Code
             </label>
             <input
               type="text"
@@ -213,7 +257,7 @@ const BankingStep = ({ onNext, onBack }) => {
           {/* Bank Name */}
           <div className="space-y-1.5">
             <label className="text-xs text-white/60 font-medium">
-              Bank Name *
+              Bank Name
             </label>
             <input
               type="text"
@@ -235,7 +279,7 @@ const BankingStep = ({ onNext, onBack }) => {
         {/* Bank Branch Name */}
         <div className="space-y-1.5">
           <label className="text-xs text-white/60 font-medium">
-            Bank Branch Name *
+            Bank Branch Name
           </label>
           <input
             type="text"
@@ -313,6 +357,20 @@ const BankingStep = ({ onNext, onBack }) => {
           >
             <ArrowLeft size={14} /> Back
           </button>
+
+          {/* ── SKIP BUTTON ── */}
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={isSubmitting}
+            className="flex-1 py-2.5 rounded-xl border border-white/[0.06]
+              text-white/30 text-sm font-medium hover:border-amber-500/30
+              hover:text-amber-400/70 transition-all flex items-center
+              justify-center gap-2"
+          >
+            <SkipForward size={13} /> Skip for now
+          </button>
+
           <button
             type="submit"
             disabled={isSubmitting}

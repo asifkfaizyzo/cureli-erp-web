@@ -1,7 +1,9 @@
 // pharmacy-web/src/pages/marketplace-listings/MarketplaceListingsPage.jsx (do not remove this comment)
 // src/pages/marketplace-listings/MarketplaceListingsPage.jsx
 
+import { useEffect } from "react";
 import { RefreshCw, Download, RotateCcw, Pill } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { useListingsPage } from "../../hooks/marketplace/useListingsPage";
 import BranchSelectorCard from "./components/BranchSelectorCard";
@@ -12,8 +14,29 @@ import ListingDetailsDrawer from "./components/ListingDetailsDrawer";
 import BulkActionBar from "./components/BulkActionBar";
 import StatusPill from "../marketplace-storefront/components/primitives/StatusPill";
 
+// Banking Banner and Stores
+import BankingPendingBanner from "../../components/common/BankingPendingBanner";
+import { useMarketplaceStore } from "../../store/useMarketplaceStore";
+import { useAuthStore, selectIsSuperAdmin } from "../../store/useAuthStore";
+
 const MarketplaceListingsPage = () => {
   const page = useListingsPage();
+  const navigate = useNavigate();
+
+  const isSuperAdmin = useAuthStore(selectIsSuperAdmin);
+  const banking = useMarketplaceStore((s) => s.banking);
+  const isStatusLoaded = useMarketplaceStore((s) => s.isStatusLoaded);
+  const isStatusLoading = useMarketplaceStore((s) => s.isStatusLoading);
+  const loadStatus = useMarketplaceStore((s) => s.loadStatus);
+
+  // Auto-fetch status details if missing
+  useEffect(() => {
+    if (!isStatusLoaded && !isStatusLoading) {
+      loadStatus();
+    }
+  }, [isStatusLoaded, isStatusLoading, loadStatus]);
+
+  const bankingPending = isSuperAdmin && !banking.bank_account_holder;
 
   return (
     <div className="h-full flex flex-col bg-[#010015] overflow-hidden">
@@ -62,6 +85,11 @@ const MarketplaceListingsPage = () => {
 
       {/* ── Scrollable Content ── */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 pb-15">
+        {/* Banking Warning Banner */}
+        {bankingPending && (
+          <BankingPendingBanner onAction={() => navigate("/marketplace/storefront")} />
+        )}
+
         {/* Branch Selector */}
         <BranchSelectorCard
           branches={page.branchSummaries}

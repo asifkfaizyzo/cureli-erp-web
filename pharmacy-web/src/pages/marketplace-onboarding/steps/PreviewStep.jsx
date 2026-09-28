@@ -1,4 +1,3 @@
-// pharmacy-web/src/pages/marketplace-onboarding/steps/PreviewStep.jsx (do not remove this comment)
 // pharmacy-web/src/pages/marketplace-onboarding/steps/PreviewStep.jsx
 
 import {
@@ -6,15 +5,13 @@ import {
   ArrowLeft,
   Check,
   Store,
-  Building2,
   MapPin,
   Clock,
-  Truck,
   Phone,
-  Eye,
-  Landmark, // <-- Imported
+  Landmark,
 } from "lucide-react";
 import { useMarketplaceStore } from "../../../store/useMarketplaceStore";
+import BankingPendingBanner from "../../../components/common/BankingPendingBanner";
 
 const resolveImageUrl = (url) => {
   if (!url) return null;
@@ -24,7 +21,7 @@ const resolveImageUrl = (url) => {
 
 const PreviewStep = ({ onNext, onBack }) => {
   const storefront = useMarketplaceStore((s) => s.storefront);
-  const banking = useMarketplaceStore((s) => s.banking); // <-- Fetched
+  const banking = useMarketplaceStore((s) => s.banking);
   const allBranches = useMarketplaceStore((s) => s.allBranches);
   const selectedBranchIds = useMarketplaceStore((s) => s.selectedBranchIds);
   const branchConfigs = useMarketplaceStore((s) => s.branchConfigs);
@@ -32,13 +29,19 @@ const PreviewStep = ({ onNext, onBack }) => {
   const enabledBranches = allBranches.filter(
     (b) =>
       selectedBranchIds.includes(b.branch_id) &&
-      branchConfigs[b.branch_id]?.marketplace_enabled
+      branchConfigs[b.branch_id]?.marketplace_enabled,
   );
 
   const logoSrc = resolveImageUrl(storefront.logo_url);
   const bannerSrc = resolveImageUrl(storefront.banner_url);
 
-  // Expanded checklist tracking banking state
+  const bankingComplete = !!(
+    banking.bank_account_holder?.trim() &&
+    banking.bank_account_number?.trim() &&
+    banking.bank_ifsc?.trim()
+  );
+
+  // Checklist — banking is displayed but does NOT gate allChecked
   const checks = [
     {
       label: "Storefront name",
@@ -55,20 +58,25 @@ const PreviewStep = ({ onNext, onBack }) => {
       done: !!storefront.logo_url,
     },
     {
-      label: "Banking details", // <-- Added
-      done: !!(banking.bank_account_holder?.trim() && banking.bank_account_number?.trim() && banking.bank_ifsc?.trim()),
-      value: banking.bank_account_number ? `Acc: *${banking.bank_account_number.slice(-4)}` : "Missing Details",
+      label: "Banking details",
+      done: bankingComplete,
+      value: banking.bank_account_number
+        ? `Acc: *${banking.bank_account_number.slice(-4)}`
+        : "Skipped",
+      optional: true,
     },
     {
       label: "Branches enabled",
       done: enabledBranches.length > 0,
-      value: enabledBranches.length > 0
-        ? `${enabledBranches.length} branch${enabledBranches.length > 1 ? "es" : ""}`
-        : "None",
+      value:
+        enabledBranches.length > 0
+          ? `${enabledBranches.length} branch${enabledBranches.length > 1 ? "es" : ""}`
+          : "None",
     },
   ];
 
-  const allChecked = checks.every((c) => c.done);
+  // Only non-optional items gate the Continue button
+  const allChecked = checks.filter((c) => !c.optional).every((c) => c.done);
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -93,9 +101,13 @@ const PreviewStep = ({ onNext, onBack }) => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-white/[0.04] to-white/[0.02]
-                  flex items-center justify-center">
-                  <p className="text-[10px] text-white/15">No banner uploaded</p>
+                <div
+                  className="w-full h-full bg-gradient-to-br from-white/[0.04] to-white/[0.02]
+                  flex items-center justify-center"
+                >
+                  <p className="text-[10px] text-white/15">
+                    No banner uploaded
+                  </p>
                 </div>
               )}
 
@@ -137,7 +149,6 @@ const PreviewStep = ({ onNext, onBack }) => {
                 </div>
               )}
 
-              {/* Branches (Lists configs with Delivery mode badge) */}
               {enabledBranches.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/[0.06]">
                   <p className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-3">
@@ -167,7 +178,8 @@ const PreviewStep = ({ onNext, onBack }) => {
                                 </span>
                               ) : cfg.opening_time ? (
                                 <span className="text-[10px] text-white/30 flex items-center gap-1">
-                                  <Clock size={9} /> {cfg.opening_time} – {cfg.closing_time}
+                                  <Clock size={9} /> {cfg.opening_time} –{" "}
+                                  {cfg.closing_time}
                                 </span>
                               ) : null}
                               <div className="flex items-center gap-1.5">
@@ -178,7 +190,11 @@ const PreviewStep = ({ onNext, onBack }) => {
                                 )}
                                 {cfg.delivery_enabled && (
                                   <span className="text-[9px] text-white/25 px-1.5 py-0.5 rounded bg-white/[0.04] inline-flex items-center gap-1">
-                                    Delivery ({cfg.delivery_mode === "SELF" ? "Self" : "Cureli"})
+                                    Delivery (
+                                    {cfg.delivery_mode === "SELF"
+                                      ? "Self"
+                                      : "Cureli"}
+                                    )
                                   </span>
                                 )}
                               </div>
@@ -199,36 +215,48 @@ const PreviewStep = ({ onNext, onBack }) => {
             </div>
           </div>
 
-          {/* ── ADDED BANKING SUMMARY CARD ────────────────────────── */}
+          {/* Banking Summary Card */}
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
             <div className="flex items-center gap-2 mb-3">
               <Landmark size={14} className="text-white/40" />
-              <p className="text-xs font-semibold text-white/60">Settlement Account details</p>
+              <p className="text-xs font-semibold text-white/60">
+                Settlement Account Details
+              </p>
+              {!bankingComplete && (
+                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
+                  Pending
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
                 <p className="text-white/20">Holder</p>
-                <p className="text-white/70 font-medium mt-0.5">{banking.bank_account_holder || "-"}</p>
+                <p className="text-white/70 font-medium mt-0.5">
+                  {banking.bank_account_holder || "—"}
+                </p>
               </div>
               <div>
                 <p className="text-white/20">Account Number</p>
                 <p className="text-white/70 font-mono mt-0.5">
-                  {banking.bank_account_number ? `•••• •••• ${banking.bank_account_number.slice(-4)}` : "-"}
+                  {banking.bank_account_number
+                    ? `•••• •••• ${banking.bank_account_number.slice(-4)}`
+                    : "—"}
                 </p>
               </div>
               <div>
                 <p className="text-white/20">Bank Name</p>
-                <p className="text-white/70 font-medium mt-0.5">{banking.bank_name || "-"}</p>
+                <p className="text-white/70 font-medium mt-0.5">
+                  {banking.bank_name || "—"}
+                </p>
               </div>
               <div>
                 <p className="text-white/20">IFSC & Branch</p>
                 <p className="text-white/70 font-mono mt-0.5 uppercase">
-                  {banking.bank_ifsc || "-"} ({banking.bank_branch_name || "-"})
+                  {banking.bank_ifsc || "—"} ({banking.bank_branch_name || "—"})
                 </p>
               </div>
             </div>
           </div>
-          {/* ────────────────────────────────────────────────────────── */}
         </div>
 
         {/* Right column (Summary/checks + Actions) */}
@@ -244,9 +272,12 @@ const PreviewStep = ({ onNext, onBack }) => {
                     <div
                       className={`
                         w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${check.done
-                          ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-white/[0.04] text-white/15"
+                        ${
+                          check.done
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : check.optional
+                              ? "bg-amber-500/10 text-amber-400/50"
+                              : "bg-white/[0.04] text-white/15"
                         }
                       `}
                     >
@@ -255,10 +286,19 @@ const PreviewStep = ({ onNext, onBack }) => {
                     <div className="min-w-0">
                       <p
                         className={`text-xs font-medium ${
-                          check.done ? "text-white/60" : "text-white/25"
+                          check.done
+                            ? "text-white/60"
+                            : check.optional
+                              ? "text-amber-400/60"
+                              : "text-white/25"
                         }`}
                       >
                         {check.label}
+                        {check.optional && !check.done && (
+                          <span className="ml-1 text-[9px] text-white/20">
+                            (optional)
+                          </span>
+                        )}
                       </p>
                       {check.value && (
                         <p className="text-[10px] text-white/20 truncate mt-0.5">
@@ -270,9 +310,18 @@ const PreviewStep = ({ onNext, onBack }) => {
                 ))}
               </div>
 
+              {/* Banking warning in checklist */}
+              {!bankingComplete && (
+                <div className="mt-3">
+                  <BankingPendingBanner compact />
+                </div>
+              )}
+
               {allChecked && (
-                <div className="mt-3 pt-3 border-t border-white/[0.06]
-                  flex items-center gap-2">
+                <div
+                  className="mt-3 pt-3 border-t border-white/[0.06]
+                  flex items-center gap-2"
+                >
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <p className="text-[11px] text-emerald-400/80 font-medium">
                     Ready to go live
