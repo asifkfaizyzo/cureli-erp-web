@@ -8,6 +8,9 @@ import {
   unregisterActiveDelivery,
 } from "../presence/rider.presence.service.js";
 
+// ── Developer / Local Testing Configuration ──────────────────────────────────
+const BYPASS_GEOFENCE_IN_DEV = true; // Set to true to bypass GPS distance validation during dev/test cycles
+
 // ── Geofence helper ──────────────────────────────────────────────────────────
 const EARTH_RADIUS_KM = 6371;
 const ARRIVAL_GEOFENCE_METERS = 200; // Generous threshold for GPS drift
@@ -320,6 +323,9 @@ export async function updateDeliveryStatus(
   const currentStatus = delivery.status;
   const updateData = { status: targetStatus };
 
+  // Helper inside status update to decide if we should strictly validate location
+  const isDevBypassEnabled = BYPASS_GEOFENCE_IN_DEV && process.env.NODE_ENV !== "production";
+
   // ── State Machine Guards ──────────────────────────────────────────────────
 
   if (targetStatus === "ARRIVED_AT_PHARMACY") {
@@ -350,10 +356,15 @@ export async function updateDeliveryStatus(
         pharmacyLat,
         pharmacyLng,
       );
+
       if (distM > ARRIVAL_GEOFENCE_METERS) {
-        throw new Error(
-          `You are too far from the pharmacy (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
-        );
+        if (isDevBypassEnabled) {
+          console.log(`[DEV BYPASS] Bypassed Pharmacy Geofence. Actual distance: ${Math.round(distM)}m`);
+        } else {
+          throw new Error(
+            `You are too far from the pharmacy (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
+          );
+        }
       }
     }
 
@@ -373,7 +384,7 @@ export async function updateDeliveryStatus(
       );
     }
     updateData.picked_up_at = now;
-    } else if (targetStatus === "EN_ROUTE") {
+  } else if (targetStatus === "EN_ROUTE") {
     if (currentStatus !== "PICKED_UP") {
       throw new Error(
         `Cannot mark en route from '${currentStatus}'. You must confirm pickup first.`,
@@ -407,10 +418,15 @@ export async function updateDeliveryStatus(
         dropLat,
         dropLng,
       );
+
       if (distM > ARRIVAL_GEOFENCE_METERS) {
-        throw new Error(
-          `You are too far from the customer (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
-        );
+        if (isDevBypassEnabled) {
+          console.log(`[DEV BYPASS] Bypassed Customer Geofence. Actual distance: ${Math.round(distM)}m`);
+        } else {
+          throw new Error(
+            `You are too far from the customer (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
+          );
+        }
       }
     }
 
