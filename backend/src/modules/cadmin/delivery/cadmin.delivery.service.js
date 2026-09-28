@@ -2,8 +2,14 @@
 
 import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";
-import { getDrivingDistance, estimateDrivingDistance } from "../../../services/distance.service.js";
+import {
+  getDrivingDistance,
+  getBatchedDrivingDistances,
+  estimateDrivingDistance,
+} from "../../../services/distance.service.js";
 import { registerActiveDelivery } from "../../rider/presence/rider.presence.service.js";
+
+const MAX_REAL_DISTANCE_RIDERS = 25;
 
 export async function getAvailableRidersForOrder({ order_id, rider_type, search }) {
   const order = await prisma.marketplaceOrder.findUnique({
@@ -80,9 +86,10 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
     },
   });
 
+  // ── Step 1: Build initial list with Haversine estimates for sorting ──
   const formattedRiders = riders.map((rider) => {
     const activeDelivery = rider.deliveries[0] || null;
-    const distanceKm =
+    const haversineKm =
       rider.current_lat && rider.current_lng && pharmacyLat && pharmacyLng
         ? estimateDrivingDistance(
             rider.current_lat,
@@ -101,7 +108,8 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
       current_lat: rider.current_lat ? Number(rider.current_lat) : null,
       current_lng: rider.current_lng ? Number(rider.current_lng) : null,
       last_location_at: rider.last_location_at,
-      distance_to_pharmacy_km: distanceKm,
+      distance_to_pharmacy_km: haversineKm,
+      is_estimate: true, // Will be overwritten for top N by real distance
       has_active_delivery: Boolean(activeDelivery),
       active_delivery_id: activeDelivery?.delivery_id || null,
       active_delivery_status: activeDelivery?.status || null,
@@ -110,14 +118,55 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
     };
   });
 
+  // ── Step 2: Sort by online status first, then by Haversine distance ──
   formattedRiders.sort((a, b) => {
     if (a.is_online && !b.is_online) return -1;
     if (!a.is_online && b.is_online) return 1;
     if (a.distance_to_pharmacy_km !== null && b.distance_to_pharmacy_km !== null) {
       return a.distance_to_pharmacy_km - b.distance_to_pharmacy_km;
     }
+    if (a.distance_to_pharmacy_km !== null) return -1;
+    if (b.distance_to_pharmacy_km !== null) return 1;
     return 0;
   });
+
+  // ── Step 3: Get real driving distances for top N riders ──
+  if (pharmacyLat && pharmacyLng) {
+    const topRiders = formattedRiders
+      .filter((r) => r.current_lat !== null && r.current_lng !== null)
+      .slice(0, MAX_REAL_DISTANCE_RIDERS);
+
+    if (topRiders.length > 0) {
+      const origins = topRiders.map((r) => ({
+        lat: r.current_lat,
+        lng: r.current_lng,
+      }));
+
+      const realDistances = await getBatchedDrivingDistances(
+        origins,
+        pharmacyLat,
+        pharmacyLng,
+      );
+
+      // Overwrite Haversine estimates with real distances for top N
+      for (let i = 0; i < topRiders.length; i++) {
+        topRiders[i].distance_to_pharmacy_km = realDistances[i].distanceKm;
+        topRiders[i].is_estimate = realDistances[i].isEstimate;
+      }
+
+      // Re-sort after real distances are applied
+      formattedRiders.sort((a, b) => {
+        if (a.is_online && !b.is_online) return -1;
+        if (!a.is_online && b.is_online) return 1;
+        if (a.distance_to_pharmacy_km !== null && b.distance_to_pharmacy_km !== null) {
+          return a.distance_to_pharmacy_km - b.distance_to_pharmacy_km;
+        }
+        if (a.distance_to_pharmacy_km !== null) return -1;
+        if (b.distance_to_pharmacy_km !== null) return 1;
+        return 0;
+      });
+    }
+  }
 
   return {
     order: {
@@ -193,7 +242,7 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     throw new Error("Rider is already handling another active delivery.");
   }
 
-    const now = new Date();
+  const now = new Date();
   const pharmacyLat = order.branch?.marketplaceSettings?.latitude ?? null;
   const pharmacyLng = order.branch?.marketplaceSettings?.longitude ?? null;
   const dropLat = order.delivery_address_snapshot?.latitude ?? null;

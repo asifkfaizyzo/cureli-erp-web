@@ -1,5 +1,4 @@
-// cadmin-web/src/hooks/useSSENotifications.js (do not remove this comment)
-
+// cadmin-web/src/hooks/useSSENotifications.js
 import { useEffect, useRef } from 'react';
 import { useCAdminNotificationStore } from '../store/useCAdminNotificationStore';
 import useOrderAlertStore from '../store/useOrderAlertStore';
@@ -7,6 +6,15 @@ import useOrderAlertStore from '../store/useOrderAlertStore';
 export const useSSENotifications = () => {
   const receiveSSE = useCAdminNotificationStore((s) => s.receiveSSENotification);
   const onNewOrderSSE = useOrderAlertStore((s) => s.onNewOrderSSE);
+  
+  const receiveSSERef = useRef(receiveSSE);
+  const onNewOrderSSERef = useRef(onNewOrderSSE);
+
+  useEffect(() => {
+    receiveSSERef.current = receiveSSE;
+    onNewOrderSSERef.current = onNewOrderSSE;
+  }, [receiveSSE, onNewOrderSSE]);
+
   const eventSourceRef = useRef(null);
 
   useEffect(() => {
@@ -14,42 +22,100 @@ export const useSSENotifications = () => {
 
     const connect = () => {
       const token = localStorage.getItem('cadmin_access_token');
-      if (!token) return;
+      if (!token) {
+        console.warn("⚠️ [CAdmin SSE] Missing cadmin_access_token. Postponing registration.");
+        return;
+      }
 
+      console.log("🔌 [CAdmin SSE] Initializing control center notification stream...");
       const url = `${import.meta.env.VITE_API_URL}/cadmin/notifications/stream?token=${token}`;
       
-      // FIXED: Added { withCredentials: true } to forward secure cookies alongside headers
       const es = new EventSource(url, { withCredentials: true });
 
       es.addEventListener('connected', (e) => {
-        const data = JSON.parse(e.data);
-        useCAdminNotificationStore.setState({ unreadCount: data.unread_count });
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`💚 [CAdmin SSE] Stream established. Unread items count: ${data.unread_count}`);
+          useCAdminNotificationStore.setState({ unreadCount: data.unread_count });
+        } catch (err) {
+          console.error("❌ [CAdmin SSE] Connection parser failure:", err);
+        }
       });
 
       es.addEventListener('new_notification', (e) => {
-        receiveSSE(JSON.parse(e.data));
+        try {
+          const data = JSON.parse(e.data);
+          console.log("🔔 [CAdmin SSE Event] Dispatching administrative alert:", data);
+          receiveSSERef.current?.(data);
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Dispatch parser failure:", err);
+        }
       });
 
-      // Handle a new order arriving at a shop
       es.addEventListener('marketplace_new_order', (e) => {
-        onNewOrderSSE();
-        // Notify any active view listening for table updates
-        window.dispatchEvent(new CustomEvent('sse-marketplace-new-order'));
+        try {
+          const data = JSON.parse(e.data);
+          console.log("🛍️ [CAdmin SSE Event] Marketplace Order Placed (Global Dispatch):", data);
+          onNewOrderSSERef.current?.();
+          window.dispatchEvent(
+            new CustomEvent('sse-marketplace-new-order', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Marketplace payload failure:", err);
+        }
       });
 
-      // Handle status modifications (ERP updates, etc.)
       es.addEventListener('marketplace_order_status_changed', (e) => {
-        window.dispatchEvent(new CustomEvent('sse-marketplace-order-status-changed'));
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`📦 [CAdmin SSE Event] Order Status Transition for ${data.order_number} to ${data.new_status}`);
+          window.dispatchEvent(
+            new CustomEvent('sse-marketplace-order-status-changed', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Status payload failure:", err);
+        }
       });
 
-      // Handle delivery status updates (rider accepts, arrives, delivers, etc.)
       es.addEventListener('delivery_status_changed', (e) => {
-        window.dispatchEvent(new CustomEvent('sse-delivery-status-changed'));
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`🚚 [CAdmin SSE Event] Delivery Progress update for Order ${data.order_id}:`, data.status);
+          window.dispatchEvent(
+            new CustomEvent('sse-delivery-status-changed', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Delivery status payload failure:", err);
+        }
       });
 
-      es.onerror = () => {
+      es.addEventListener('rider_location_update', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`📍 [CAdmin SSE Event] Rider GPS Ping (${data.rider_id}): [${data.lat}, ${data.lng}]`);
+          window.dispatchEvent(
+            new CustomEvent('sse-rider-location-update', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Location payload failure:", err);
+        }
+      });
+
+      es.addEventListener('rider_availability_changed', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`👤 [CAdmin SSE Event] Rider Online State Adjusted. Rider ID: ${data.rider_id}, Online: ${data.is_online}`);
+          window.dispatchEvent(
+            new CustomEvent('sse-rider-availability-changed', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Availability payload failure:", err);
+        }
+      });
+
+      es.onerror = (err) => {
+        console.error("🚨 [CAdmin SSE] Stream disconnected. Scheduling auto-reconnect in 5000ms...", err);
         es.close();
-        // Retry connection after 5 seconds if connection drops
         reconnectTimeout = setTimeout(connect, 5000);
       };
 
@@ -60,6 +126,7 @@ export const useSSENotifications = () => {
 
     const handleStorage = (e) => {
       if (e.key === 'cadmin_access_token') {
+        console.log("🔑 [CAdmin SSE] Admin auth state changed. Reconnecting stream...");
         eventSourceRef.current?.close();
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
         if (e.newValue) connect();
@@ -67,12 +134,14 @@ export const useSSENotifications = () => {
     };
 
     window.addEventListener('storage', handleStorage);
+    
     return () => {
+      console.log("🔌 [CAdmin SSE] Unmounting stream connection.");
       window.removeEventListener('storage', handleStorage);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       eventSourceRef.current?.close();
     };
-  }, [receiveSSE, onNewOrderSSE]);
+  }, []);
 
   return null;
 };

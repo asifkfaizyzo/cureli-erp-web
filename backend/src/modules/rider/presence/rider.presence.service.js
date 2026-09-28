@@ -1,11 +1,9 @@
 // backend/src/modules/rider/presence/rider.presence.service.js (do not remove this comment)
+
 import prisma from "../../../config/prisma.js";
 import { sseService } from "../../../services/sse.service.js";
 
 // ── In-memory cache for active delivery broadcasting ─────────
-// Maps riderId → { customerId, orderId }
-// Populated on assignment, cleared on delivery completion.
-// Avoids DB queries on every 5-second location update.
 const activeDeliveryCache = new Map();
 
 export function registerActiveDelivery(riderId, customerId, orderId) {
@@ -17,17 +15,13 @@ export function unregisterActiveDelivery(riderId) {
 }
 
 // ── Constants ────────────────────────────────────────────────
-// ── Constants ────────────────────────────────────────────────
-const MIN_LOCATION_INTERVAL_MS = 5 * 1000; // 5 seconds between uploads
-const MAX_ACCURACY_METERS = 100; // reject GPS fixes worse than 100m
-const MAX_SPEED_KMH = 200; // reject if implied speed > 200 km/h
+const MIN_LOCATION_INTERVAL_MS = 5 * 1000;
+const MAX_ACCURACY_METERS = 100;
+const MAX_SPEED_KMH = 200;
 const EARTH_RADIUS_KM = 6371;
 
 // ── Helpers ──────────────────────────────────────────────────
 
-/**
- * Haversine distance between two lat/lng points in km.
- */
 function haversineKm(lat1, lng1, lat2, lng2) {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -39,13 +33,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/**
- * Returns the 6AM–6AM shift date for the current IST time.
- * If before 6AM IST, the shift belongs to yesterday.
- * Mirrors getShiftWindowForDate() from incentiveEngine.service.js.
- */
 function getCurrentShiftDate(now = new Date()) {
-  // Use the same local-time approach as the incentive engine
   const year = now.getFullYear();
   const month = now.getMonth();
   const date = now.getDate();
@@ -64,7 +52,6 @@ function getCurrentShiftDate(now = new Date()) {
   );
 }
 
-// ── Active delivery statuses that block going offline ────────
 const ACTIVE_DELIVERY_STATUSES = [
   "RIDER_NOTIFIED",
   "ACCEPTED",
@@ -80,7 +67,6 @@ const ACTIVE_DELIVERY_STATUSES = [
 export async function updateLocation(riderId, data) {
   const { lat, lng, accuracy, speed } = data;
 
-  // 1. Accuracy gate (if provided)
   if (accuracy != null && accuracy > MAX_ACCURACY_METERS) {
     const err = new Error(
       "GPS accuracy too low. Please wait for a better fix.",
@@ -89,7 +75,6 @@ export async function updateLocation(riderId, data) {
     throw err;
   }
 
-  // 2. Fetch current rider state for rate-limit and speed check
   const rider = await prisma.rider.findUnique({
     where: { rider_id: riderId },
     select: {
@@ -105,7 +90,6 @@ export async function updateLocation(riderId, data) {
     throw err;
   }
 
-  // 3. Rate limit: reject if last upload was < 5 seconds ago
   if (rider.last_location_at) {
     const elapsed = Date.now() - new Date(rider.last_location_at).getTime();
     if (elapsed < MIN_LOCATION_INTERVAL_MS) {
@@ -115,7 +99,6 @@ export async function updateLocation(riderId, data) {
     }
   }
 
-  // 4. Speed sanity check (if we have a previous location)
   if (
     rider.current_lat != null &&
     rider.current_lng != null &&
@@ -138,7 +121,6 @@ export async function updateLocation(riderId, data) {
     }
   }
 
-  // 5. Update rider telemetry
   await prisma.rider.update({
     where: { rider_id: riderId },
     data: {
@@ -149,7 +131,6 @@ export async function updateLocation(riderId, data) {
     },
   });
 
-  // 6. Broadcast location to customer + CAdmin if on active delivery
   const activeDelivery = activeDeliveryCache.get(riderId);
   if (activeDelivery) {
     const payload = {
@@ -174,7 +155,6 @@ export async function updateLocation(riderId, data) {
 export async function toggleAvailability(riderId, data) {
   const { is_online, lat, lng } = data;
 
-  // Fetch full rider for state checks
   const rider = await prisma.rider.findUnique({
     where: { rider_id: riderId },
     select: {
@@ -195,7 +175,6 @@ export async function toggleAvailability(riderId, data) {
 
   // ── TOGGLE ONLINE ──────────────────────────────────────────
   if (is_online) {
-    // Already online — idempotent, just update location
     if (rider.is_online) {
       if (lat != null && lng != null) {
         await prisma.rider.update({
@@ -211,7 +190,6 @@ export async function toggleAvailability(riderId, data) {
       return { is_online: true, already_online: true };
     }
 
-    // Status check: only ACTIVE riders can go online
     if (rider.status !== "ACTIVE") {
       const err = new Error(
         rider.status === "PENDING_REVIEW"
@@ -224,7 +202,6 @@ export async function toggleAvailability(riderId, data) {
       throw err;
     }
 
-    // Document check: all 5 docs must be APPROVED
     const approvedDocs = rider.documents.filter((d) => d.status === "APPROVED");
     if (approvedDocs.length < 5) {
       const err = new Error(
@@ -234,12 +211,10 @@ export async function toggleAvailability(riderId, data) {
       throw err;
     }
 
-    // Go online + create session
     const now = new Date();
     const shiftDate = getCurrentShiftDate(now);
 
     await prisma.$transaction(async (tx) => {
-      // Update rider telemetry + online flag
       await tx.rider.update({
         where: { rider_id: riderId },
         data: {
@@ -251,7 +226,6 @@ export async function toggleAvailability(riderId, data) {
         },
       });
 
-      // Check for existing open session (safety — shouldn't happen but handle it)
       const openSession = await tx.riderOnlineSession.findFirst({
         where: { rider_id: riderId, went_offline_at: null },
       });
@@ -267,17 +241,29 @@ export async function toggleAvailability(riderId, data) {
       }
     });
 
+    // ── NEW: Broadcast rider online to all CAdmins ──────────
+    try {
+      sseService.notifyAllCAdmins("rider_availability_changed", {
+        rider_id: riderId,
+        is_online: true,
+        timestamp: now.toISOString(),
+      });
+    } catch (err) {
+      console.error(
+        "[Presence] SSE broadcast failed (rider online):",
+        err.message,
+      );
+    }
+
     return { is_online: true };
   }
 
   // ── TOGGLE OFFLINE ─────────────────────────────────────────
   if (!is_online) {
-    // Already offline — idempotent
     if (!rider.is_online) {
       return { is_online: false, already_offline: true };
     }
 
-    // Active delivery guard
     const activeDelivery = await prisma.delivery.findFirst({
       where: {
         rider_id: riderId,
@@ -297,7 +283,6 @@ export async function toggleAvailability(riderId, data) {
       throw err;
     }
 
-    // Go offline + close session
     const now = new Date();
 
     await prisma.$transaction(async (tx) => {
@@ -309,7 +294,6 @@ export async function toggleAvailability(riderId, data) {
         },
       });
 
-      // Close all open sessions for this rider
       const openSessions = await tx.riderOnlineSession.findMany({
         where: { rider_id: riderId, went_offline_at: null },
         select: { session_id: true, went_online_at: true },
@@ -330,6 +314,20 @@ export async function toggleAvailability(riderId, data) {
         });
       }
     });
+
+    // ── NEW: Broadcast rider offline to all CAdmins ─────────
+    try {
+      sseService.notifyAllCAdmins("rider_availability_changed", {
+        rider_id: riderId,
+        is_online: false,
+        timestamp: now.toISOString(),
+      });
+    } catch (err) {
+      console.error(
+        "[Presence] SSE broadcast failed (rider offline):",
+        err.message,
+      );
+    }
 
     return { is_online: false };
   }

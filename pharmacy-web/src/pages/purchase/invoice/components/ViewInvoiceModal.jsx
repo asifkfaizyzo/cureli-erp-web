@@ -951,7 +951,7 @@ const ViewInvoiceModal = ({
               </div>
             )}
             <p className="text-sm text-red-600 font-medium">
-              ⚠️ Cancelled invoices cannot be edited or restored.
+               Cancelled invoices cannot be edited or restored.
             </p>
           </div>
         );

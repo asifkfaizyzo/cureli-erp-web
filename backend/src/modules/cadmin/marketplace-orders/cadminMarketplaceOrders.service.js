@@ -41,7 +41,6 @@ export const listAllOrders = async ({
 
   const where = {};
 
-  // Status filter — supports comma-separated values
   if (status) {
     const statuses = status
       .split(",")
@@ -54,7 +53,6 @@ export const listAllOrders = async ({
     }
   }
 
-  // Search — by order_number or customer name/phone
   if (search) {
     where.OR = [
       { order_number: { contains: search, mode: "insensitive" } },
@@ -103,6 +101,14 @@ export const listAllOrders = async ({
             branch_id: true,
             branch_name: true,
             city: true,
+          },
+        },
+        // ── NEW: Include delivery for rider assignment indicator ──
+        delivery: {
+          select: {
+            delivery_id: true,
+            rider_id: true,
+            status: true,
           },
         },
         _count: {
@@ -204,6 +210,47 @@ export const getOrderDetail = async (order_id) => {
           created_at: true,
         },
       },
+      // ── NEW: Include full delivery + rider data ──
+      delivery: {
+        select: {
+          delivery_id: true,
+          rider_id: true,
+          status: true,
+          assigned_at: true,
+          accepted_at: true,
+          arrived_at_pharmacy_at: true,
+          pharmacy_confirmed_at: true,
+          picked_up_at: true,
+          arrived_at_customer_at: true,
+          delivered_at: true,
+          failed_at: true,
+          failure_reason: true,
+          failure_note: true,
+          assignment_attempts: true,
+          pickup_lat: true,
+          pickup_lng: true,
+          drop_lat: true,
+          drop_lng: true,
+          pickup_distance_km: true,
+          drop_distance_km: true,
+          total_distance_km: true,
+          pickup_fee: true,
+          drop_fee: true,
+          surge_fee: true,
+          floor_topup_fee: true,
+          total_rider_earning: true,
+          tip_amount: true,
+          rider: {
+            select: {
+              rider_id: true,
+              full_name: true,
+              phone: true,
+              rider_type: true,
+              is_online: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -216,10 +263,6 @@ export const getOrderDetail = async (order_id) => {
 // UPDATE ORDER STATUS  (CAdmin override)
 // ─────────────────────────────────────────────
 
-/**
- * CAdmin override: change order status.
- * Records history with changed_by_type = "cadmin".
- */
 export const updateOrderStatus = async ({
   order_id,
   new_status,
@@ -249,7 +292,7 @@ export const updateOrderStatus = async ({
 
   if (TERMINAL_STATES.includes(order.status)) {
     const err = new Error(
-      `Cannot change status — order is already ${order.status}`
+      `Cannot change status — order is already ${order.status}`,
     );
     err.code = "TERMINAL_STATE";
     throw err;
@@ -261,7 +304,6 @@ export const updateOrderStatus = async ({
     throw err;
   }
 
-  // Reason required for REJECTED / CANCELLED
   if (
     (new_status === "REJECTED" || new_status === "CANCELLED") &&
     !reason?.trim()
@@ -274,7 +316,6 @@ export const updateOrderStatus = async ({
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
-    // Update order
     const updated = await tx.marketplaceOrder.update({
       where: { order_id },
       data: {
@@ -290,24 +331,18 @@ export const updateOrderStatus = async ({
         ...(new_status === "CANCELLED" && {
           cancelled_at: now,
           cancelled_by: "cadmin",
-          // NOTE: Make sure your schema has `cancellation_reason` field.
-          // If it doesn't, remove the next line.
           ...(reason.trim() && { cancellation_reason: reason.trim() }),
         }),
         updated_at: now,
       },
     });
 
-    // Status history entry
     await tx.marketplaceOrderStatusHistory.create({
       data: {
         order_id,
         from_status: order.status,
         to_status: new_status,
         changed_by_type: "cadmin",
-        // NOTE: If your schema doesn't have `changed_by_name`, remove next line
-        // and rely on changed_by_type only.
-        // changed_by_name: cadmin_name,
         reason: reason?.trim() || null,
       },
     });
@@ -351,6 +386,9 @@ function formatOrderSummary(order) {
           city: order.branch.city,
         }
       : null,
+    // ── NEW: Delivery assignment indicator for table highlighting ──
+    has_rider: !!order.delivery?.rider_id,
+    delivery_status: order.delivery?.status || null,
     placed_at: order.placed_at,
     accepted_at: order.accepted_at,
     ready_at: order.ready_at,
@@ -380,12 +418,42 @@ function formatOrderDetail(order) {
     auto_completed: order.auto_completed,
     pickup_otp: order.pickup_otp ?? null,
     delivery_otp: order.delivery_otp ?? null,
+
+    // ── NEW: Full billing breakdown ──
+    service_charge: Number(order.service_charge ?? 0),
+    delivery_fee: Number(order.delivery_fee ?? 0),
+    km_surcharge: Number(order.km_surcharge ?? 0),
+    tip: Number(order.tip ?? 0),
+    distance_km: Number(order.distance_km ?? 0),
+
+    // ── NEW: Coupon & loyalty details ──
+    coupon_code: order.coupon_code || null,
+    coupon_discount_amount: order.coupon_discount_amount
+      ? Number(order.coupon_discount_amount)
+      : 0,
+    loyalty_points_redeemed: order.loyalty_points_redeemed ?? 0,
+    loyalty_discount_amount: order.loyalty_discount_amount
+      ? Number(order.loyalty_discount_amount)
+      : 0,
+    loyalty_points_earned: order.loyalty_points_earned ?? 0,
+
+    // ── NEW: Razorpay references ──
+    razorpay_order_id: order.razorpay_order_id || null,
+    razorpay_payment_id: order.razorpay_payment_id || null,
+
+    // ── NEW: Patient info ──
+    patient_is_self: order.patient_is_self,
+    patient_name: order.patient_name_snapshot || null,
+    patient_age: order.patient_age_snapshot ?? null,
+    patient_sex: order.patient_sex_snapshot || null,
+
     placed_at: order.placed_at,
     accepted_at: order.accepted_at,
     ready_at: order.ready_at,
     completed_at: order.completed_at,
     rejected_at: order.rejected_at,
     cancelled_at: order.cancelled_at,
+
     shop: order.shop
       ? {
           shop_id: order.shop.shop_id,
@@ -448,8 +516,77 @@ function formatOrderDetail(order) {
       reason: h.reason,
       created_at: h.created_at,
     })),
+
+    // ── NEW: Full delivery + rider breakdown ──
+    delivery: order.delivery
+      ? {
+          delivery_id: order.delivery.delivery_id,
+          rider_id: order.delivery.rider_id,
+          status: order.delivery.status,
+          assigned_at: order.delivery.assigned_at,
+          accepted_at: order.delivery.accepted_at,
+          arrived_at_pharmacy_at: order.delivery.arrived_at_pharmacy_at,
+          pharmacy_confirmed_at: order.delivery.pharmacy_confirmed_at,
+          picked_up_at: order.delivery.picked_up_at,
+          arrived_at_customer_at: order.delivery.arrived_at_customer_at,
+          delivered_at: order.delivery.delivered_at,
+          failed_at: order.delivery.failed_at,
+          failure_reason: order.delivery.failure_reason,
+          failure_note: order.delivery.failure_note,
+          assignment_attempts: order.delivery.assignment_attempts,
+          pickup_lat: order.delivery.pickup_lat
+            ? Number(order.delivery.pickup_lat)
+            : null,
+          pickup_lng: order.delivery.pickup_lng
+            ? Number(order.delivery.pickup_lng)
+            : null,
+          drop_lat: order.delivery.drop_lat
+            ? Number(order.delivery.drop_lat)
+            : null,
+          drop_lng: order.delivery.drop_lng
+            ? Number(order.delivery.drop_lng)
+            : null,
+          pickup_distance_km: order.delivery.pickup_distance_km
+            ? Number(order.delivery.pickup_distance_km)
+            : null,
+          drop_distance_km: order.delivery.drop_distance_km
+            ? Number(order.delivery.drop_distance_km)
+            : null,
+          total_distance_km: order.delivery.total_distance_km
+            ? Number(order.delivery.total_distance_km)
+            : null,
+          pickup_fee: order.delivery.pickup_fee
+            ? Number(order.delivery.pickup_fee)
+            : null,
+          drop_fee: order.delivery.drop_fee
+            ? Number(order.delivery.drop_fee)
+            : null,
+          surge_fee: order.delivery.surge_fee
+            ? Number(order.delivery.surge_fee)
+            : null,
+          floor_topup_fee: order.delivery.floor_topup_fee
+            ? Number(order.delivery.floor_topup_fee)
+            : null,
+          total_rider_earning: order.delivery.total_rider_earning
+            ? Number(order.delivery.total_rider_earning)
+            : null,
+          tip_amount: order.delivery.tip_amount
+            ? Number(order.delivery.tip_amount)
+            : null,
+          rider: order.delivery.rider
+            ? {
+                rider_id: order.delivery.rider.rider_id,
+                full_name: order.delivery.rider.full_name,
+                phone: order.delivery.rider.phone,
+                rider_type: order.delivery.rider.rider_type,
+                is_online: order.delivery.rider.is_online,
+              }
+            : null,
+        }
+      : null,
   };
 }
+
 /**
  * CAdmin override: change payment status.
  * Fires push + email to customer when REFUNDED or PARTIALLY_REFUNDED.
@@ -502,7 +639,7 @@ export const updatePaymentStatus = async ({
     !reason?.trim()
   ) {
     const err = new Error(
-      "Reason is required when marking as refunded or partially refunded"
+      "Reason is required when marking as refunded or partially refunded",
     );
     err.code = "REASON_REQUIRED";
     throw err;
@@ -512,7 +649,6 @@ export const updatePaymentStatus = async ({
   const now = new Date();
 
   const updated = await prisma.$transaction(async (tx) => {
-    // 1. Update payment_status
     const result = await tx.marketplaceOrder.update({
       where: { order_id },
       data: {
@@ -521,11 +657,10 @@ export const updatePaymentStatus = async ({
       },
     });
 
-    // 2. Record in status history (reuse existing table)
     await tx.marketplaceOrderStatusHistory.create({
       data: {
         order_id,
-        from_status: result.status, // order status unchanged
+        from_status: result.status,
         to_status: result.status,
         changed_by_type: "cadmin",
         reason: `payment_status: ${old_payment_status} → ${new_payment_status}${reason?.trim() ? ` | ${reason.trim()}` : ""}`,
@@ -535,7 +670,6 @@ export const updatePaymentStatus = async ({
     return result;
   });
 
-  // 3. Fire notifications post-commit (non-blocking)
   if (REASON_REQUIRED_PAYMENT_STATUSES.includes(new_payment_status)) {
     _firePaymentRefundNotifications({
       customer_id: order.customer_id,
@@ -547,18 +681,14 @@ export const updatePaymentStatus = async ({
     }).catch((err) =>
       console.error(
         `[CAdmin Orders] Payment refund notification failed:`,
-        err.message
-      )
+        err.message,
+      ),
     );
   }
 
   return updated;
 };
 
-/**
- * Internal: fire push + email for refund events.
- * Non-blocking — called with .catch() by the caller.
- */
 async function _firePaymentRefundNotifications({
   customer_id,
   customer_name,
@@ -567,28 +697,20 @@ async function _firePaymentRefundNotifications({
   total_amount,
   payment_status,
 }) {
-  const { MobilePush } = await import(
-    "../../mobile/push/mobile.push.service.js"
-  );
+  const { MobilePush } =
+    await import("../../mobile/push/mobile.push.service.js");
   const { sendEmail } = await import("../../../utils/email.js");
 
   const isPartial = payment_status === "PARTIALLY_REFUNDED";
   const label = isPartial ? "partially refunded" : "refunded";
 
-  // ── Push notification ────────────────────────────────────
   if (customer_id) {
-    await MobilePush.paymentRefunded(
-      customer_id,
-      order_number,
-      payment_status
-    );
+    await MobilePush.paymentRefunded(customer_id, order_number, payment_status);
   }
 
-  // ── Email notification ───────────────────────────────────
   if (customer_email) {
-    const { default: paymentRefundedTemplate } = await import(
-      "../../notifications/templates/email/paymentRefunded.js"
-    );
+    const { default: paymentRefundedTemplate } =
+      await import("../../notifications/templates/email/paymentRefunded.js");
 
     const html = paymentRefundedTemplate({
       customerName: customer_name,

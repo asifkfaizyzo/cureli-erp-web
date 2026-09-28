@@ -1,4 +1,4 @@
-//backend\src\services\distance.service.js
+// backend/src/services/distance.service.js (do not remove this comment)
 
 /**
  * Shared Distance Service
@@ -88,4 +88,80 @@ export function estimateDrivingDistance(lat1, lng1, lat2, lng2) {
   if (!lat1 || !lng1 || !lat2 || !lng2) return null;
   const straight = haversineKm(Number(lat1), Number(lng1), Number(lat2), Number(lng2));
   return Math.round(straight * 1.3 * 100) / 100;
+}
+
+/**
+ * Batched driving distances for multiple origins → single destination.
+ * Uses one Google Distance Matrix API call (up to 25 origins per request).
+ * Falls back to Haversine × 1.3 per-origin if the API fails.
+ *
+ * @param {Array<{ lat: number, lng: number }>} origins
+ * @param {number} destLat
+ * @param {number} destLng
+ * @returns {Promise<Array<{ distanceKm: number, durationSecs: number, isEstimate: boolean }>>}
+ */
+export async function getBatchedDrivingDistances(origins, destLat, destLng) {
+  if (!origins.length || !destLat || !destLng) {
+    return origins.map(() => ({ distanceKm: 0, durationSecs: 0, isEstimate: true }));
+  }
+
+  // Google Distance Matrix allows max 25 origins per request.
+  // Split into chunks if needed.
+  const CHUNK_SIZE = 25;
+  const results = [];
+
+  for (let i = 0; i < origins.length; i += CHUNK_SIZE) {
+    const chunk = origins.slice(i, i + CHUNK_SIZE);
+
+    try {
+      const originsStr = chunk.map((o) => `${o.lat},${o.lng}`).join("|");
+      const params = new URLSearchParams({
+        origins: originsStr,
+        destinations: `${destLat},${destLng}`,
+        mode: "driving",
+        units: "metric",
+        key: getApiKey(),
+      });
+
+      const url = `${PLACES_BASE}/distancematrix/json?${params}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      if (data.status !== "OK") throw new Error(data.status);
+
+      const chunkResults = data.rows.map((row) => {
+        const el = row.elements[0];
+        if (!el || el.status !== "OK") {
+          return { distanceKm: 0, durationSecs: 0, isEstimate: true };
+        }
+        return {
+          distanceKm: parseFloat((el.distance.value / 1000).toFixed(2)),
+          durationSecs: el.duration.value,
+          isEstimate: false,
+        };
+      });
+
+      results.push(...chunkResults);
+    } catch (err) {
+      console.warn(
+        `[DistanceService] Batched Google API failed for chunk ${i / CHUNK_SIZE + 1}:`,
+        err.message,
+      );
+      // Fallback: Haversine × 1.3 for each origin in this chunk
+      const fallbackResults = chunk.map((o) => {
+        const straight = haversineKm(o.lat, o.lng, destLat, destLng);
+        const estimated = Math.round(straight * 1.3 * 100) / 100;
+        return {
+          distanceKm: estimated,
+          durationSecs: Math.round(estimated * 120),
+          isEstimate: true,
+        };
+      });
+      results.push(...fallbackResults);
+    }
+  }
+
+  return results;
 }

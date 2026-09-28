@@ -423,7 +423,7 @@ const PurchaseInvoicePage = () => {
               </div>
               <div className="bg-red-50 p-3 rounded border border-red-200">
                 <p className="text-sm text-red-800 font-medium">
-                  ⚠️ Important Warning:
+                   Important Warning:
                 </p>
                 <ul className="text-xs text-red-700 mt-1 list-disc list-inside space-y-1">
                   <li>
