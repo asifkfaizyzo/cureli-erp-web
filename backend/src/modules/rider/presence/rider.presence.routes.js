@@ -4,11 +4,12 @@ import { riderAuth } from "../../../middleware/rider.auth.js";
 import {
   handleUpdateLocation,
   handleToggleAvailability,
+  getOnlineStatus,
 } from "./rider.presence.controller.js";
 
 const router = Router();
 
-// All routes require authenticated rider session
+router.get("/status", riderAuth,getOnlineStatus);
 router.post("/location", riderAuth, handleUpdateLocation);
 router.put("/availability", riderAuth, handleToggleAvailability);
 

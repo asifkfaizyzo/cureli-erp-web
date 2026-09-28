@@ -1,5 +1,6 @@
 // backend/src/modules/rider/presence/rider.presence.controller.js (do not remove this comment)
 import { fail, success } from "../../../utils/response.js";
+import prisma from "../../../config/prisma.js";
 import {
   updateLocationSchema,
   toggleAvailabilitySchema,
@@ -8,6 +9,23 @@ import {
   updateLocation,
   toggleAvailability,
 } from "./rider.presence.service.js";
+
+
+export async function getOnlineStatus(req, res) {
+  try {
+    const riderId = req.rider.rider_id;
+    const rider = await prisma.rider.findUnique({
+      where: { rider_id: riderId },
+      select: { is_online: true },
+    });
+    return res.status(200).json({
+      success: true,
+      data: { is_online: rider?.is_online ?? false },
+    });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
 
 // ── POST /rider/location ─────────────────────────────────────
 

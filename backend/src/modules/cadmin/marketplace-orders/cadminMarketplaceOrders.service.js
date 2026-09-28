@@ -269,6 +269,10 @@ export const updateOrderStatus = async ({
   reason = "",
   cadmin_name = "CAdmin",
 }) => {
+  const { sseService } = await import("../../../services/sse.service.js");
+  const { fireOrderStatusChangedEvents } =
+    await import("../../marketplace-orders/marketplace.orders.events.js");
+
   if (!VALID_STATUSES.includes(new_status)) {
     const err = new Error("Invalid status");
     err.code = "INVALID_STATUS";
@@ -279,6 +283,10 @@ export const updateOrderStatus = async ({
     where: { order_id },
     select: {
       order_id: true,
+      order_number: true,
+      shop_id: true,
+      customer_id: true,
+      customer_name_snapshot: true,
       status: true,
       cancelled_by: true,
     },
@@ -315,40 +323,124 @@ export const updateOrderStatus = async ({
 
   const now = new Date();
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.marketplaceOrder.update({
-      where: { order_id },
-      data: {
-        status: new_status,
-        ...(new_status === "ACCEPTED" && { accepted_at: now }),
-        ...(new_status === "READY_FOR_PICKUP" && { ready_at: now }),
-        ...(new_status === "COMPLETED" && { completed_at: now }),
-        ...(new_status === "REJECTED" && {
-          rejected_at: now,
-          rejection_reason: "other",
-          rejection_reason_other: reason.trim(),
-        }),
-        ...(new_status === "CANCELLED" && {
-          cancelled_at: now,
-          cancelled_by: "cadmin",
-          ...(reason.trim() && { cancellation_reason: reason.trim() }),
-        }),
-        updated_at: now,
-      },
-    });
+  // ── Prescription Expiry Settings ───────────────────────────────────────
+  const PRESCRIPTION_EXPIRY_DAYS = {
+    COMPLETED: 10,
+    REJECTED: 10,
+    CANCELLED: 1,
+  };
+  const days = PRESCRIPTION_EXPIRY_DAYS[new_status];
+  const expiresAt = days
+    ? new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+    : null;
 
-    await tx.marketplaceOrderStatusHistory.create({
-      data: {
+  // ── Transaction ────────────────────────────────────────────────────────
+  const { updated, previousDelivery } = await prisma.$transaction(
+    async (tx) => {
+      // Fetch delivery details within transaction block
+      const currentDelivery = await tx.delivery.findUnique({
+        where: { order_id },
+        select: { delivery_id: true, rider_id: true, status: true },
+      });
+
+      const upd = await tx.marketplaceOrder.update({
+        where: { order_id },
+        data: {
+          status: new_status,
+          ...(new_status === "ACCEPTED" && { accepted_at: now }),
+          ...(new_status === "READY_FOR_PICKUP" && { ready_at: now }),
+          ...(new_status === "COMPLETED" && { completed_at: now }),
+          ...(new_status === "REJECTED" && {
+            rejected_at: now,
+            rejection_reason: "other",
+            rejection_reason_other: reason.trim(),
+          }),
+          ...(new_status === "CANCELLED" && {
+            cancelled_at: now,
+            cancelled_by: "cadmin",
+            ...(reason.trim() && { cancellation_reason: reason.trim() }),
+          }),
+          updated_at: now,
+        },
+      });
+
+      // Write Status History log
+      await tx.marketplaceOrderStatusHistory.create({
+        data: {
+          order_id,
+          from_status: order.status,
+          to_status: new_status,
+          changed_by_type: "cadmin",
+          reason: reason?.trim() || null,
+        },
+      });
+
+      // Sync delivery cancellation if cancelled or rejected
+      if (["CANCELLED", "REJECTED"].includes(new_status) && currentDelivery) {
+        await tx.delivery.update({
+          where: { order_id },
+          data: {
+            status: "CANCELLED",
+            failed_at: now,
+            failure_note: `Order marked as ${new_status} by CAdmin: ${reason.trim()}`,
+          },
+        });
+      }
+
+      // Set prescription expiry timestamp on S3 files
+      if (expiresAt) {
+        await tx.marketplaceOrderPrescription.updateMany({
+          where: { order_id },
+          data: { expires_at: expiresAt },
+        });
+      }
+
+      return { updated: upd, previousDelivery: currentDelivery };
+    },
+  );
+
+  // ── 1. If cancelled/rejected, clear old rider active task cache ────────
+  if (
+    ["CANCELLED", "REJECTED"].includes(new_status) &&
+    previousDelivery?.rider_id
+  ) {
+    const { unregisterActiveDelivery } =
+      await import("../../rider/presence/rider.presence.service.js");
+    unregisterActiveDelivery(previousDelivery.rider_id);
+
+    // Notify Rider of cancellation
+    sseService.notifyRider(previousDelivery.rider_id, "delivery_cancelled", {
+      delivery_id: previousDelivery.delivery_id,
+      order_id,
+      order_number: order.order_number,
+      reason: `Order cancelled by admin: ${reason.trim()}`,
+    });
+  }
+
+  // ── 2. If READY_FOR_PICKUP, notify assigned rider ──────────────────────
+  if (new_status === "READY_FOR_PICKUP" && previousDelivery?.rider_id) {
+    sseService.notifyRider(
+      previousDelivery.rider_id,
+      "order_ready_for_pickup",
+      {
+        delivery_id: previousDelivery.delivery_id,
         order_id,
-        from_status: order.status,
-        to_status: new_status,
-        changed_by_type: "cadmin",
-        reason: reason?.trim() || null,
+        order_number: order.order_number,
       },
-    });
+    );
+  }
 
-    return updated;
+  // ── 3. Fire state event pipeline (SSE, Mobile Push notifications, ERP operators)
+  await fireOrderStatusChangedEvents({
+    order_id,
+    order_number: order.order_number,
+    shop_id: order.shop_id,
+    customer_id: order.customer_id,
+    new_status: new_status,
+    customer_name: order.customer_name_snapshot,
   });
+
+  return updated;
 };
 
 // ─────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { deleteFile } from "../services/fileStorage.service.js";
 import { processExpiredLoyaltyPoints } from "./loyaltyExpiryWorker.js";
 import { runBirthdayPushJob } from "./birthdayPushWorker.js";
 import { staleRiderWorker } from "./staleRiderWorker.js";
+import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
 
 import {
   cleanupOldPendingUsers,
@@ -518,9 +519,7 @@ function initializePrescriptionQuoteExpiryJob() {
   cron.schedule("*/5 * * * *", () =>
     withCronLock("prescription-quote-expiry", 4, runQuoteExpiryJob),
   );
-  cronLogger.info(
-    "Prescription quote expiry job scheduled (every 5 minutes)",
-  );
+  cronLogger.info("Prescription quote expiry job scheduled (every 5 minutes)");
 }
 
 async function runPrescriptionRequestCleanupJob() {
@@ -543,7 +542,11 @@ async function runPrescriptionRequestCleanupJob() {
 
 function initializePrescriptionRequestCleanupJob() {
   cron.schedule("30 20 * * *", () =>
-    withCronLock("prescription-request-cleanup", 30, runPrescriptionRequestCleanupJob),
+    withCronLock(
+      "prescription-request-cleanup",
+      30,
+      runPrescriptionRequestCleanupJob,
+    ),
   );
   cronLogger.info(
     "Prescription request cleanup job scheduled (daily at 02:00 IST / 20:30 UTC)",
@@ -556,7 +559,9 @@ function initializeLoyaltyPointsExpiryJob() {
       cronLogger.info("Starting loyalty points expiry check...");
       try {
         const result = await processExpiredLoyaltyPoints();
-        cronLogger.info(`Loyalty points expiry complete | Processed: ${result.processed}`);
+        cronLogger.info(
+          `Loyalty points expiry complete | Processed: ${result.processed}`,
+        );
       } catch (err) {
         cronLogger.error("Loyalty points expiry job failed", err);
       }
@@ -574,7 +579,9 @@ async function runShiftEvaluation() {
     await evaluateDailyIncentivesForShift(yesterday);
     await checkAndActivateScheduledConfigs();
 
-    cronLogger.success("Daily rider incentive shift evaluation and configuration activation completed.");
+    cronLogger.success(
+      "Daily rider incentive shift evaluation and configuration activation completed.",
+    );
   } catch (err) {
     cronLogger.error("Daily rider incentive evaluation failed", err);
   }
@@ -600,6 +607,12 @@ function initializeStaleRiderJob() {
     withCronLock("stale-rider-worker", 2, staleRiderWorker),
   );
   cronLogger.info("Stale rider cleanup job scheduled (every 2 minutes)");
+}
+function initializeStaleAssignmentJob() {
+  cron.schedule("*/2 * * * *", () =>
+    withCronLock("stale-assignment-worker", 2, staleAssignmentWorker),
+  );
+  cronLogger.info("Stale assignment alert job scheduled (every 2 minutes)");
 }
 
 export function initializeCronJobs() {
@@ -635,6 +648,7 @@ export function initializeCronJobs() {
   initializeShiftEvaluationJob();
   initializeBirthdayPushJob();
   initializeStaleRiderJob();
+  initializeStaleAssignmentJob();
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -713,4 +727,5 @@ export function initializeCronJobs() {
   cronLogger.info("  - Shift evaluation: Daily at 6:05 AM");
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
+  cronLogger.info("  - Stale assignment alerts: Every 2 minutes");
 }

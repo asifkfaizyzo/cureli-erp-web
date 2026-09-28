@@ -6,6 +6,8 @@ import {
 } from "./marketplace.orders.events.js";
 import { resolveAssetUrl } from "../../services/assetUrl.service.js";
 import { deleteFile } from "../../services/fileStorage.service.js";
+import { getDrivingDistance } from "../../services/distance.service.js";
+import { computePricing, normaliseConfig } from "../mobile/checkout/pricing.engine.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -135,11 +137,13 @@ export async function placeOrder({
     throw new Error("Delivery address not found");
   }
 
-  // ── 3. Validate branch ────────────────────────────────────────────────────
+  // ── 3. Validate branch ────────────────────────────────────
   const branchSettings = await prisma.branchMarketplaceSettings.findUnique({
     where: { branch_id },
     select: {
       marketplace_enabled: true,
+      latitude: true,
+      longitude: true,
       branch: {
         select: { shop_id: true, branch_name: true, is_active: true },
       },
@@ -227,12 +231,43 @@ export async function placeOrder({
     );
   }
 
-  // ── 6. Calculate totals ───────────────────────────────────────────────────
+// ── 6. Calculate real driving distance + pricing ──────────
   const subtotal = resolvedItems.reduce(
     (sum, item) => sum + item.line_total,
     0,
   );
-  const total_amount = subtotal;
+
+  const branchLat = branchSettings.latitude ? Number(branchSettings.latitude) : null;
+  const branchLng = branchSettings.longitude ? Number(branchSettings.longitude) : null;
+  const addrLat = address.latitude ? Number(address.latitude) : null;
+  const addrLng = address.longitude ? Number(address.longitude) : null;
+
+  let distanceKm = 0;
+  if (branchLat && branchLng && addrLat && addrLng) {
+    const dist = await getDrivingDistance(branchLat, branchLng, addrLat, addrLng);
+    distanceKm = dist.distanceKm;
+  }
+
+  // Load pricing config and compute delivery fees
+  const pricingConfigRow = await prisma.deliveryPricingConfig.findFirst();
+  let total_amount = subtotal;
+  let service_charge = 0;
+  let delivery_fee = 0;
+  let km_surcharge = 0;
+
+  if (pricingConfigRow) {
+    const config = normaliseConfig(pricingConfigRow);
+    const pricing = computePricing({ subtotal, distance_km: distanceKm, tip: 0, config });
+
+    if (!pricing.delivery_available) {
+      throw new Error(pricing.unavailable_reason);
+    }
+
+    service_charge = pricing.service_charge;
+    delivery_fee = pricing.delivery_fee;
+    km_surcharge = pricing.km_surcharge;
+    total_amount = pricing.grand_total;
+  }
 
   // ── 7. Snapshot delivery address ──────────────────────────────────────────
   const delivery_address_snapshot = {
@@ -271,7 +306,12 @@ export async function placeOrder({
         payment_method: "COD",
         payment_status: "PENDING",
         subtotal,
+        service_charge,
+        delivery_fee,
+        km_surcharge,
+        tip: 0,
         total_amount,
+        distance_km: distanceKm,
         requires_prescription: requiresPrescription,
         notes: notes ?? null,
         placed_at: now,
@@ -509,19 +549,32 @@ export async function transitionOrderStatus({
     }
   });
 
-  // ── Post-commit: If READY_FOR_PICKUP, notify assigned rider via SSE ──────
-  if (target_status === "READY_FOR_PICKUP") {
-    const delivery = await prisma.delivery.findUnique({
-      where: { order_id },
-      select: { delivery_id: true, rider_id: true },
-    });
+  // ── Post-commit: Notify rider about critical transitions ──────────────────
+  const delivery = await prisma.delivery.findUnique({
+    where: { order_id },
+    select: { delivery_id: true, rider_id: true },
+  });
 
-    if (delivery?.rider_id) {
-      const { sseService } = await import("../../services/sse.service.js");
+  if (delivery?.rider_id) {
+    const { sseService } = await import("../../services/sse.service.js");
+
+    if (target_status === "READY_FOR_PICKUP") {
       sseService.notifyRider(delivery.rider_id, "order_ready_for_pickup", {
         delivery_id: delivery.delivery_id,
         order_id,
         order_number: order.order_number,
+      });
+    }
+
+    if (target_status === "CANCELLED" || target_status === "REJECTED") {
+      const { unregisterActiveDelivery } = await import("../rider/presence/rider.presence.service.js");
+      unregisterActiveDelivery(delivery.rider_id);
+
+      sseService.notifyRider(delivery.rider_id, "delivery_cancelled", {
+        delivery_id: delivery.delivery_id,
+        order_id,
+        order_number: order.order_number,
+        reason: `Order cancelled by ${actor_type}`,
       });
     }
   }

@@ -9,6 +9,11 @@ import {
 import { useNavigate } from "react-router-dom";
 import { getMyProfile, logoutAdmin } from "../api/cadminProfile";
 
+// ── NEW: Import stores for Option A Reset ────────────────────────────────────
+import useAdminModeStore from "../store/useAdminModeStore";
+import { useMenuStore } from "../store/useMenuStore";
+// ─────────────────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -43,6 +48,17 @@ export function AuthProvider({ children }) {
         "/reset-password",
       ];
       if (publicPaths.includes(currentPath)) {
+        console.log(
+          "🧹 [AuthContext] Public path redirect triggered. Resetting CAdmin session modules to Admin Dashboard (Option A).",
+        );
+
+        // Reset stores to default Admin Dashboard
+        useAdminModeStore.setState({ activeModule: "admin" });
+        useMenuStore.setState({
+          activeMenu: "dashboard",
+          breadcrumbs: ["Dashboard"],
+        });
+
         navigate("/dashboard");
       }
     } catch (err) {
@@ -86,7 +102,24 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
+      console.log(
+        "🧹 [AuthContext] Logout triggered. Cleaning up all session state cache keys.",
+      );
+
+      // Clear all auth token keys
       localStorage.removeItem("cadmin_access_token");
+
+      // Wipe localStorage keys for module state persistence
+      localStorage.removeItem("cadmin-active-module");
+      localStorage.removeItem("menu-storage");
+
+      // Force reset stores in-memory values immediately
+      useAdminModeStore.setState({ activeModule: "admin" });
+      useMenuStore.setState({
+        activeMenu: "dashboard",
+        breadcrumbs: ["Dashboard"],
+      });
+
       setAdmin(null);
       setPendingCounts(null);
       navigate("/");

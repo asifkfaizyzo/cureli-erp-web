@@ -209,10 +209,13 @@ export async function createCheckoutSession({
   if (!address) throw new Error("Delivery address not found");
 
   // ── 3. Validate branch ───────────────────────────────────
+    // ── 3. Validate branch ───────────────────────────────────
   const branchSettings = await prisma.branchMarketplaceSettings.findUnique({
     where: { branch_id },
     select: {
       marketplace_enabled: true,
+      latitude: true,
+      longitude: true,
       branch: { select: { shop_id: true, branch_name: true, is_active: true } },
     },
   });
@@ -224,8 +227,11 @@ export async function createCheckoutSession({
   const shop_id = branchSettings.branch.shop_id;
 
   // ── 3b. Server-side distance validation ─────────────────
-  const branchLat = branchSettings.branch.marketplaceSettings?.latitude ?? null;
-  const branchLng = branchSettings.branch.marketplaceSettings?.longitude ?? null;
+  // latitude/longitude are columns on BranchMarketplaceSettings itself,
+  // NOT a nested relation. The previous select omitted them, causing
+  // branchLat/branchLng to always be null and silently skipping validation.
+  const branchLat = branchSettings.latitude ? Number(branchSettings.latitude) : null;
+  const branchLng = branchSettings.longitude ? Number(branchSettings.longitude) : null;
   const addrLat = address.latitude ? Number(address.latitude) : null;
   const addrLng = address.longitude ? Number(address.longitude) : null;
 

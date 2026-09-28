@@ -8,6 +8,21 @@ import {
   unregisterActiveDelivery,
 } from "../presence/rider.presence.service.js";
 
+// ── Geofence helper ──────────────────────────────────────────────────────────
+const EARTH_RADIUS_KM = 6371;
+const ARRIVAL_GEOFENCE_METERS = 200; // Generous threshold for GPS drift
+
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1000;
+}
+
 /**
  * Fetch the active ongoing delivery task for a rider.
  */
@@ -65,10 +80,49 @@ export async function acceptDelivery(delivery_id, rider_id) {
     where: { delivery_id },
     include: { order: true },
   });
-
   if (!delivery) throw new Error("Delivery assignment not found");
   if (delivery.rider_id !== rider_id)
     throw new Error("Unauthorized assignment");
+
+  // ── Idempotency: if already accepted by this rider, return current state ──
+  if (delivery.status === "ACCEPTED") {
+    const alreadyAccepted = await prisma.delivery.findUnique({
+      where: { delivery_id },
+      include: {
+        order: {
+          include: {
+            shop: { select: { business_name: true } },
+            branch: {
+              select: {
+                branch_name: true,
+                address_line_1: true,
+                city: true,
+                contact_number: true,
+                marketplaceSettings: {
+                  select: {
+                    latitude: true,
+                    longitude: true,
+                    formatted_address: true,
+                    contact_override: true,
+                  },
+                },
+              },
+            },
+            items: {
+              select: {
+                item_id: true,
+                medicine_name_snapshot: true,
+                pack_size_snapshot: true,
+                quantity: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return formatDeliveryForRider(alreadyAccepted);
+  }
+
   if (delivery.status !== "RIDER_NOTIFIED") {
     throw new Error(`Cannot accept delivery in '${delivery.status}' state`);
   }
@@ -158,7 +212,13 @@ export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
     include: { order: true },
   });
 
-  if (!delivery) throw new Error("Delivery assignment not found");
+   if (!delivery) throw new Error("Delivery assignment not found");
+
+  // ── Idempotency: if already declined/reset, return success ────────────────
+  if (delivery.status === "PENDING_ASSIGNMENT" && delivery.rider_id === null) {
+    return { success: true, message: "Delivery already declined" };
+  }
+
   if (delivery.rider_id !== rider_id)
     throw new Error("Unauthorized assignment");
   if (delivery.status !== "RIDER_NOTIFIED") {
@@ -268,6 +328,35 @@ export async function updateDeliveryStatus(
         `Cannot mark arrived at pharmacy from status '${currentStatus}'`,
       );
     }
+
+    // ── Server-side geofence: verify rider is near the pharmacy ────────────
+    const rider = await prisma.rider.findUnique({
+      where: { rider_id },
+      select: { current_lat: true, current_lng: true },
+    });
+
+    const pharmacyLat = delivery.pickup_lat ? Number(delivery.pickup_lat) : null;
+    const pharmacyLng = delivery.pickup_lng ? Number(delivery.pickup_lng) : null;
+
+    if (
+      rider?.current_lat != null &&
+      rider?.current_lng != null &&
+      pharmacyLat != null &&
+      pharmacyLng != null
+    ) {
+      const distM = haversineMeters(
+        Number(rider.current_lat),
+        Number(rider.current_lng),
+        pharmacyLat,
+        pharmacyLng,
+      );
+      if (distM > ARRIVAL_GEOFENCE_METERS) {
+        throw new Error(
+          `You are too far from the pharmacy (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
+        );
+      }
+    }
+
     updateData.arrived_at_pharmacy_at = now;
   } else if (targetStatus === "PICKED_UP") {
     if (currentStatus !== "ARRIVED_AT_PHARMACY") {
@@ -284,9 +373,11 @@ export async function updateDeliveryStatus(
       );
     }
     updateData.picked_up_at = now;
-  } else if (targetStatus === "EN_ROUTE") {
-    if (!["PICKED_UP", "ARRIVED_AT_PHARMACY"].includes(currentStatus)) {
-      throw new Error(`Cannot mark en route from '${currentStatus}'`);
+    } else if (targetStatus === "EN_ROUTE") {
+    if (currentStatus !== "PICKED_UP") {
+      throw new Error(
+        `Cannot mark en route from '${currentStatus}'. You must confirm pickup first.`,
+      );
     }
   } else if (targetStatus === "ARRIVED_AT_CUSTOMER") {
     if (!["EN_ROUTE", "PICKED_UP"].includes(currentStatus)) {
@@ -294,6 +385,35 @@ export async function updateDeliveryStatus(
         `Cannot mark arrived at customer from '${currentStatus}'`,
       );
     }
+
+    // ── Server-side geofence: verify rider is near the customer ────────────
+    const rider = await prisma.rider.findUnique({
+      where: { rider_id },
+      select: { current_lat: true, current_lng: true },
+    });
+
+    const dropLat = delivery.drop_lat ? Number(delivery.drop_lat) : null;
+    const dropLng = delivery.drop_lng ? Number(delivery.drop_lng) : null;
+
+    if (
+      rider?.current_lat != null &&
+      rider?.current_lng != null &&
+      dropLat != null &&
+      dropLng != null
+    ) {
+      const distM = haversineMeters(
+        Number(rider.current_lat),
+        Number(rider.current_lng),
+        dropLat,
+        dropLng,
+      );
+      if (distM > ARRIVAL_GEOFENCE_METERS) {
+        throw new Error(
+          `You are too far from the customer (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
+        );
+      }
+    }
+
     updateData.arrived_at_customer_at = now;
   } else {
     throw new Error(`Invalid target status '${targetStatus}'`);
@@ -373,10 +493,12 @@ export async function completeDeliveryWithOtp(
   if (delivery.rider_id !== rider_id)
     throw new Error("Unauthorized assignment");
 
-  if (
-    !["ARRIVED_AT_CUSTOMER", "EN_ROUTE", "PICKED_UP"].includes(delivery.status)
+   if (
+    !["ARRIVED_AT_CUSTOMER", "EN_ROUTE"].includes(delivery.status)
   ) {
-    throw new Error(`Cannot complete delivery in '${delivery.status}' status`);
+    throw new Error(
+      `Cannot complete delivery in '${delivery.status}' status. You must arrive at the customer location first.`,
+    );
   }
 
   if (delivery.order.delivery_otp !== delivery_otp.trim()) {

@@ -262,6 +262,9 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
   const dropDistKm = leg2.distanceKm;
   const totalDistKm = parseFloat((pickupDistKm + dropDistKm).toFixed(2));
 
+  // Track previous rider before updating DB
+  const oldRiderId = order.delivery?.rider_id;
+
   const result = await prisma.$transaction(async (tx) => {
     let deliveryRecord = order.delivery;
 
@@ -346,6 +349,19 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     status: "RIDER_NOTIFIED",
     timestamp: now.toISOString(),
   });
+
+  // Notify old rider they have been unassigned/replaced
+  if (oldRiderId && oldRiderId !== rider.rider_id) {
+    const { unregisterActiveDelivery } = await import("../../rider/presence/rider.presence.service.js");
+    unregisterActiveDelivery(oldRiderId);
+
+    sseService.notifyRider(oldRiderId, "delivery_cancelled", {
+      delivery_id: result.delivery_id,
+      order_id: order.order_id,
+      order_number: order.order_number,
+      reason: "Reassigned by admin to another delivery partner",
+    });
+  }
 
   return {
     delivery_id: result.delivery_id,

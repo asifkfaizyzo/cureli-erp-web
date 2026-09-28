@@ -28,6 +28,8 @@ const useMarketplaceSSE = ({
   onDeliveryChanged,
   onRiderLocation,
   onRiderAvailability,
+  onAssignmentStale,
+  onRiderStale,
   debounceMs = 500,
 } = {}) => {
   // Store callbacks in refs so we never re-subscribe when callbacks change identity
@@ -37,6 +39,8 @@ const useMarketplaceSSE = ({
     onDeliveryChanged,
     onRiderLocation,
     onRiderAvailability,
+    onAssignmentStale,
+    onRiderStale,
   });
 
   // Keep refs in sync without triggering effect re-runs
@@ -47,8 +51,10 @@ const useMarketplaceSSE = ({
       onDeliveryChanged,
       onRiderLocation,
       onRiderAvailability,
+      onAssignmentStale,
+      onRiderStale,
     };
-  }, [onNewOrder, onStatusChanged, onDeliveryChanged, onRiderLocation, onRiderAvailability]);
+  }, [onNewOrder, onStatusChanged, onDeliveryChanged, onRiderLocation, onRiderAvailability, onAssignmentStale, onRiderStale]);
 
   // Debounce timers per event type to prevent burst re-renders
   const timersRef = useRef({});
@@ -107,9 +113,19 @@ const useMarketplaceSSE = ({
       debouncedCall('onRiderLocation', e.detail);
     };
 
-    const handleRiderAvailability = (e) => {
+        const handleRiderAvailability = (e) => {
       // Online/offline toggles are infrequent — immediate is fine
       immediateCall('onRiderAvailability', e.detail);
+    };
+
+    const handleAssignmentStale = (e) => {
+      // Stale assignment alerts should be immediate — admin needs to act
+      immediateCall('onAssignmentStale', e.detail);
+    };
+
+    const handleRiderStale = (e) => {
+      // Rider went offline during active delivery — immediate alert
+      immediateCall('onRiderStale', e.detail);
     };
 
     // ── Subscribe ───────────────────────────────────────────
@@ -118,7 +134,8 @@ const useMarketplaceSSE = ({
     window.addEventListener('sse-marketplace-order-status-changed', handleStatusChanged);
     window.addEventListener('sse-delivery-status-changed', handleDeliveryChanged);
     window.addEventListener('sse-rider-location-update', handleRiderLocation);
-    window.addEventListener('sse-rider-availability-changed', handleRiderAvailability);
+    window.addEventListener('sse-delivery-assignment-stale', handleAssignmentStale);
+    window.addEventListener('sse-delivery-rider-stale', handleRiderStale);
 
     // ── Cleanup ─────────────────────────────────────────────
 

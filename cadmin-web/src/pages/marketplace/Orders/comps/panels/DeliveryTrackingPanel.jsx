@@ -576,9 +576,26 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     );
   }, []);
 
+  // ── Real-time delivery status updates ──────────────────────────────
+  const handleDeliveryChanged = useCallback((payload) => {
+    if (!payload?.order_id || payload.order_id !== order.order_id) return;
+    console.log(`📦 [DeliveryPanel] Delivery status changed:`, payload);
+    // Trigger parent to re-fetch order data so milestones update
+    onUpdated();
+  }, [order.order_id, onUpdated]);
+
+  // ── Real-time order status updates ─────────────────────────────────
+  const handleStatusChanged = useCallback((payload) => {
+    if (!payload?.order_id || payload.order_id !== order.order_id) return;
+    console.log(`📋 [DeliveryPanel] Order status changed:`, payload);
+    onUpdated();
+  }, [order.order_id, onUpdated]);
+
   useMarketplaceSSE({
     onRiderAvailability: handleRiderAvailability,
     onRiderLocation: handleRiderLocation,
+    onDeliveryChanged: handleDeliveryChanged,
+    onStatusChanged: handleStatusChanged,
     debounceMs: 1000,
   });
 
@@ -640,7 +657,7 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
       if (s === "PENDING_ASSIGNMENT") return -1;
       if (s === "RIDER_NOTIFIED") return 0;
       if (s === "ACCEPTED") return 1;
-      if (s === "ARRIVED_AT_PHARMACY" || s === "PHARMACY_CONFIRMED") return 2;
+      if (s === "ARRIVED_AT_PHARMACY") return 2;
       if (["PICKED_UP", "EN_ROUTE"].includes(s)) return 3;
       if (["ARRIVED_AT_CUSTOMER", "DELIVERED"].includes(s)) return 4;
       return 0;
@@ -727,7 +744,7 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                 )}
               </div>
 
-              {["ACCEPTED", "ARRIVED_AT_PHARMACY", "PENDING_ASSIGNMENT", "RIDER_NOTIFIED", "PHARMACY_CONFIRMED"].includes(delivery.status) && (
+              {["ACCEPTED", "ARRIVED_AT_PHARMACY", "PENDING_ASSIGNMENT", "RIDER_NOTIFIED"].includes(delivery.status) && (
                 <button
                   onClick={() => setForceReassign(true)}
                   className="w-full mt-2 py-2 border border-dashed border-gray-200 hover:border-[#05015A]/30 text-[11px] font-bold text-gray-600 hover:text-[#05015A] rounded-lg transition-all"

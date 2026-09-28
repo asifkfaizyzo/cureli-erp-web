@@ -56,7 +56,6 @@ const ACTIVE_DELIVERY_STATUSES = [
   "RIDER_NOTIFIED",
   "ACCEPTED",
   "ARRIVED_AT_PHARMACY",
-  "PHARMACY_CONFIRMED",
   "PICKED_UP",
   "EN_ROUTE",
   "ARRIVED_AT_CUSTOMER",
@@ -274,8 +273,11 @@ export async function toggleAvailability(riderId, data) {
     });
 
     if (activeDelivery) {
+      const isPendingAlert = activeDelivery.status === "RIDER_NOTIFIED";
       const err = new Error(
-        "Cannot go offline during an active delivery. Please complete or cancel the delivery first.",
+        isPendingAlert
+          ? "You have an incoming order. Please accept or decline before going offline."
+          : "Cannot go offline during an active delivery. Please complete or cancel the delivery first.",
       );
       err.code = "ACTIVE_DELIVERY";
       err.active_delivery_id = activeDelivery.delivery_id;

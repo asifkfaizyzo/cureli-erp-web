@@ -1,4 +1,4 @@
-// cadmin-web/src/hooks/useSSENotifications.js
+// cadmin-web/src/hooks/useSSENotifications.js (do not remove this comment)
 import { useEffect, useRef } from 'react';
 import { useCAdminNotificationStore } from '../store/useCAdminNotificationStore';
 import useOrderAlertStore from '../store/useOrderAlertStore';
@@ -110,6 +110,32 @@ export const useSSENotifications = () => {
           );
         } catch (err) {
           console.error("❌ [CAdmin SSE Event] Availability payload failure:", err);
+        }
+      });
+
+      // ── NEW: Dispatch Stale Assignment Alerts ───────────────────────────
+      es.addEventListener('delivery_assignment_stale', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`⚠️ [CAdmin SSE Event] Delivery assignment stale for Order ${data.order_number}`);
+          window.dispatchEvent(
+            new CustomEvent('sse-delivery-assignment-stale', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Stale assignment payload failure:", err);
+        }
+      });
+
+      // ── NEW: Dispatch Stale Rider Alerts (Offline during active delivery) ──
+      es.addEventListener('delivery_rider_stale', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log(`🚨 [CAdmin SSE Event] Active delivery rider went offline. Delivery: ${data.delivery_id}`);
+          window.dispatchEvent(
+            new CustomEvent('sse-delivery-rider-stale', { detail: data })
+          );
+        } catch (err) {
+          console.error("❌ [CAdmin SSE Event] Rider stale payload failure:", err);
         }
       });
 
