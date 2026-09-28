@@ -89,6 +89,7 @@ const SalesBillingPage = () => {
   const [rejectModal, setRejectModal] = useState({ open: false });
   const [rejectLoading, setRejectLoading] = useState(false);
   const [rejectError, setRejectError] = useState(null);
+  const loadedMarketplaceOrderRef = useRef(null);
 
   const closeConfirmDialog = useCallback(() => {
     setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
@@ -366,6 +367,10 @@ const SalesBillingPage = () => {
     if (!marketplaceOrderId) return;
     if (!rowsInitialized) return;
 
+    // ── Prevent duplicate runs for the same order ──
+    if (loadedMarketplaceOrderRef.current === marketplaceOrderId) return;
+    loadedMarketplaceOrderRef.current = marketplaceOrderId;
+
     const populateFromMarketplace = async () => {
       setLoadingStates((prev) => ({ ...prev, marketplace: true, table: true }));
 
@@ -444,6 +449,8 @@ const SalesBillingPage = () => {
       } catch (err) {
         console.error("[SalesBillingPage] Marketplace populate error:", err);
         toast.error("Load Failed", "Could not load marketplace order data.");
+        // Reset ref on error so user can retry if needed
+        loadedMarketplaceOrderRef.current = null;
       } finally {
         setLoadingStates((prev) => ({
           ...prev,
@@ -1277,7 +1284,7 @@ const SalesBillingPage = () => {
         />
       )}
 
- <ConfirmDialog
+      <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={closeConfirmDialog}
         onConfirm={confirmDialog.onConfirm}
@@ -1296,7 +1303,7 @@ const SalesBillingPage = () => {
           onSubmit={handleRejectSubmit}
           isLoading={rejectLoading}
           error={rejectError}
-          theme="light" 
+          theme="light"
         />
       )}
     </div>

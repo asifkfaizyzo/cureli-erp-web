@@ -46,7 +46,6 @@ import {
 } from "../../store/useSubscriptionStore";
 import { useToast } from "../common/Toast";
 import { NotificationDropdown } from "../common/notifications";
-import { useSSENotifications } from "../../hooks/useSSENotifications";
 
 const WRITE_ROUTES = ["/erp/sales-billing", "/erp/purchase-billing"];
 
@@ -55,7 +54,7 @@ const AuthenticatedTopHeader = () => {
   const location = useLocation();
   const toast = useToast();
   const newOrderCount = useNotificationStore(selectNewOrderCount);
-  useSSENotifications();
+
 
   const profileRef = useRef(null);
   const branchRef = useRef(null);

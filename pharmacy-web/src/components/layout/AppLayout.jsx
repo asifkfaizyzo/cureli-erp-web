@@ -1,6 +1,4 @@
-// pharmacy-web/src/components/layout/AppLayout.jsx (do not remove this comment)
 // src/components/layout/AppLayout.jsx
-
 import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Outlet, useLocation } from "react-router-dom";
@@ -12,10 +10,8 @@ import { useMenuStore } from "../../store/useMenuStore";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useAppMode } from "../../store/useAppModeStore";
-
-// ── NEW ───────────────────────────────────────────────────────────────────────
+import { useSSENotifications } from "../../hooks/useSSENotifications";
 import NewOrderBanner from "../common/NewOrderBanner";
-// ─────────────────────────────────────────────────────────────────────────────
 
 const NON_SIDEBAR_ROUTES = {
   "/erp/notifications": {
@@ -53,6 +49,9 @@ const modeOverlayVariants = {
 };
 
 const AppLayout = () => {
+  // Initialize persistent SSE connection
+  useSSENotifications();
+
   const location = useLocation();
   const { isMarketplace } = useAppMode();
 
@@ -86,7 +85,7 @@ const AppLayout = () => {
     }
   }, [location.pathname, setBreadcrumbs, setActiveMenu]);
 
-  // ★ TEST BYPASS: Check if current route is storefront
+  // Check if current route is storefront
   const isStorefrontRoute = location.pathname === "/marketplace/storefront";
 
   return (
@@ -131,11 +130,6 @@ const AppLayout = () => {
         >
           <Breadcrumb />
 
-          {/* 
-            ★ TEST BYPASS: 
-            If navigating to/from the storefront route, mount a static div instantly.
-            This completely takes storefront out of Framer Motion's orchestrator.
-          */}
           {isStorefrontRoute ? (
             <div className="mt-2 w-[96%] sm:w-[100%] mx-auto">
               <Outlet />

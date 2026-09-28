@@ -400,7 +400,7 @@ const EditModeContent = ({
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-red-900 text-sm mb-1">
-                    ⚠️ Returns Linked ({invoice.returnInvoices.length})
+                     Returns Linked ({invoice.returnInvoices.length})
                   </p>
                   <p className="text-xs text-red-700 leading-relaxed mb-3">
                     This invoice has {invoice.returnInvoices.length} approved

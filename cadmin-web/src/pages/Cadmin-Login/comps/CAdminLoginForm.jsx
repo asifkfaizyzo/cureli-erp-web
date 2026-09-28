@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// ── NEW: Import stores for Option A Reset ────────────────────────────────────
+import useAdminModeStore from "../../../store/useAdminModeStore";
+import { useMenuStore } from "../../../store/useMenuStore";
+// ─────────────────────────────────────────────────────────────────────────────
+
 const CAdminLoginForm = ({ onSuccess, enableOtp = false }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +54,17 @@ const CAdminLoginForm = ({ onSuccess, enableOtp = false }) => {
         const res = await loginCAdminDirect({ username, password });
         const accessToken = res.data.data.access_token;
 
-        //  Store token IMMEDIATELY — before any navigation or timeout
+        console.log(
+          "🧹 [Login] Option A active: Resetting active modules to Admin Dashboard.",
+        );
+        // Reset stores to absolute defaults
+        useAdminModeStore.setState({ activeModule: "admin" });
+        useMenuStore.setState({
+          activeMenu: "dashboard",
+          breadcrumbs: ["Dashboard"],
+        });
+
+        // Store token IMMEDIATELY — before any navigation or timeout
         localStorage.setItem("cadmin_access_token", accessToken);
 
         setLoading(false);

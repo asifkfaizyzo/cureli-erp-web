@@ -11,25 +11,16 @@ import {
   XCircle,
   Layers,
   Building2,
-  Link2,
   Radio,
   MoreVertical,
+  Globe,
+  EyeOff,
 } from "lucide-react";
 import {
   getMarketplaceShops,
   getMarketplaceShopById,
 } from "../../../api/cadminMarketplaceShops";
 import ShopDetailView from "./ShopDetailView";
-
-// ── Helpers ────────────────────────────────────────────────────
-const fmt = (d) => {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const avatarGradient = (name = "") => {
   const palette = [
@@ -44,46 +35,59 @@ const avatarGradient = (name = "") => {
   return palette[idx];
 };
 
-// ── Marketplace status badge ───────────────────────────────────
-const MPBadge = ({ status }) => {
-  const cfg = {
+// ── Marketplace badge: shows verification + visibility ─────────
+const MPBadge = ({ status, isLive }) => {
+  const isVerified = status === "LIVE";
+
+  const statusCfg = {
     NOT_STARTED: {
       label: "Not Started",
       dot: "bg-gray-400",
-      cls: "bg-gray-50 text-gray-600",
+      cls: "bg-gray-50 text-gray-600 border-gray-200",
     },
     DRAFT: {
       label: "Draft",
       dot: "bg-amber-500",
-      cls: "bg-amber-50 text-amber-700",
+      cls: "bg-amber-50 text-amber-700 border-amber-200",
     },
     LIVE: {
-      label: "Live",
+      label: "Verified",
       dot: "bg-emerald-500",
-      cls: "bg-emerald-50 text-emerald-700",
+      cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
     },
     SUSPENDED: {
       label: "Suspended",
       dot: "bg-red-500",
-      cls: "bg-red-50 text-red-700",
+      cls: "bg-red-50 text-red-700 border-red-200",
     },
   }[status] || {
     label: "—",
     dot: "bg-gray-400",
-    cls: "bg-gray-50 text-gray-600",
+    cls: "bg-gray-50 text-gray-600 border-gray-200",
   };
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full ${cfg.cls}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
+    <div className="flex flex-col gap-1 items-start">
+      <span
+        className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusCfg.cls}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+        {statusCfg.label}
+      </span>
+      {isVerified &&
+        (isLive ? (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+            <Globe size={8} /> Visible on App
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">
+            <EyeOff size={8} /> Hidden on App
+          </span>
+        ))}
+    </div>
   );
 };
 
-// ── Stat card ──────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, tint }) => (
   <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-200/60">
     <div
@@ -98,7 +102,6 @@ const StatCard = ({ icon: Icon, label, value, tint }) => (
   </div>
 );
 
-// ── Row skeleton ───────────────────────────────────────────────
 const RowSkeleton = () => (
   <div className="flex items-center gap-4 px-5 py-3.5 border-b border-gray-50">
     <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
@@ -110,7 +113,6 @@ const RowSkeleton = () => (
   </div>
 );
 
-// ── Empty ──────────────────────────────────────────────────────
 const EmptyState = ({ query }) => (
   <div className="flex flex-col items-center justify-center py-20 text-center">
     <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-3">
@@ -125,7 +127,6 @@ const EmptyState = ({ query }) => (
   </div>
 );
 
-// ── Status filter tabs ─────────────────────────────────────────
 const STATUS_TABS = [
   { key: "", label: "All" },
   { key: "active", label: "Active" },
@@ -134,15 +135,13 @@ const STATUS_TABS = [
 
 const MP_TABS = [
   { key: "", label: "Any" },
-  { key: "LIVE", label: "Live" },
+  { key: "LIVE", label: "Verified" },
   { key: "DRAFT", label: "Draft" },
   { key: "NOT_STARTED", label: "Not Started" },
   { key: "SUSPENDED", label: "Suspended" },
 ];
 
-// ── Main page ──────────────────────────────────────────────────
 const MarketplaceShopsPage = () => {
-  // List state
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -155,12 +154,10 @@ const MarketplaceShopsPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 20;
 
-  // Detail state
   const [selectedShopId, setSelectedShopId] = useState(null);
   const [shopDetail, setShopDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // ── Debounce search ──
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
@@ -173,7 +170,6 @@ const MarketplaceShopsPage = () => {
     setPage(1);
   }, [statusFilter, mpFilter]);
 
-  // ── Fetch list ──
   const fetchShops = useCallback(
     async ({ silent = false } = {}) => {
       if (!silent) setLoading(true);
@@ -197,14 +193,13 @@ const MarketplaceShopsPage = () => {
         setRefreshing(false);
       }
     },
-    [page, debouncedSearch, statusFilter, mpFilter]
+    [page, debouncedSearch, statusFilter, mpFilter],
   );
 
   useEffect(() => {
     fetchShops();
   }, [fetchShops]);
 
-  // ── Fetch detail ──
   const fetchDetail = useCallback(async (shopId) => {
     setDetailLoading(true);
     setShopDetail(null);
@@ -222,28 +217,23 @@ const MarketplaceShopsPage = () => {
     setSelectedShopId(shop.shop_id);
     fetchDetail(shop.shop_id);
   };
-
   const handleBack = () => {
     setSelectedShopId(null);
     setShopDetail(null);
     fetchShops({ silent: true });
   };
-
   const handleRefreshDetail = () => {
     if (selectedShopId) fetchDetail(selectedShopId);
   };
 
-  // ── Stats ──
   const stats = useMemo(() => {
-    const active = shops.filter((s) => s.is_active).length;
-    const blocked = shops.filter((s) => !s.is_active).length;
-    const live = shops.filter(
-      (s) => s.marketplaceProfile?.marketplace_status === "LIVE"
+    const verified = shops.filter(
+      (s) => s.marketplaceProfile?.marketplace_status === "LIVE",
     ).length;
-    return { active, blocked, live };
+    const visible = shops.filter((s) => s.marketplaceProfile?.is_live).length;
+    return { verified, visible };
   }, [shops]);
 
-  // ── Detail view (full screen inside layout) ──
   if (selectedShopId) {
     return (
       <ShopDetailView
@@ -255,10 +245,8 @@ const MarketplaceShopsPage = () => {
     );
   }
 
-  // ── List view ──
   return (
     <div className="h-full flex flex-col bg-gray-50/80">
-      {/* ═══ HEADER ═══ */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -266,7 +254,7 @@ const MarketplaceShopsPage = () => {
               Marketplace Shops
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Manage shops and their marketplace presence
+              Manage marketplace visibility and storefront profiles
             </p>
           </div>
           <button
@@ -274,15 +262,11 @@ const MarketplaceShopsPage = () => {
             disabled={refreshing || loading}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all disabled:opacity-50"
           >
-            <RefreshCw
-              size={15}
-              className={refreshing ? "animate-spin" : ""}
-            />
+            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
             Refresh
           </button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-4">
           <StatCard
             icon={Store}
@@ -292,64 +276,50 @@ const MarketplaceShopsPage = () => {
           />
           <StatCard
             icon={CheckCircle2}
-            label="Active"
-            value={stats.active}
+            label="Verified"
+            value={stats.verified}
             tint="bg-emerald-50 text-emerald-600"
           />
           <StatCard
-            icon={XCircle}
-            label="Blocked"
-            value={stats.blocked}
-            tint="bg-red-50 text-red-600"
+            icon={Globe}
+            label="Visible on App"
+            value={stats.visible}
+            tint="bg-blue-50 text-blue-600"
           />
           <StatCard
             icon={Radio}
-            label="Live on MP"
-            value={stats.live}
-            tint="bg-violet-50 text-violet-600"
+            label="Hidden on App"
+            value={stats.verified - stats.visible}
+            tint="bg-orange-50 text-orange-600"
           />
         </div>
 
-        {/* Filters bar */}
         <div className="flex items-center justify-between gap-3 bg-white rounded-xl border border-gray-200/60 p-2">
           <div className="flex items-center gap-2">
-            {/* Shop status tabs */}
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
               {STATUS_TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    statusFilter === tab.key
-                      ? "bg-white text-[#05015A] shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${statusFilter === tab.key ? "bg-white text-[#05015A] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
-
-            {/* Marketplace status tabs */}
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
               <Layers size={13} className="ml-2 text-gray-400" />
               {MP_TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setMpFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
-                    mpFilter === tab.key
-                      ? "bg-white text-[#05015A] shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${mpFilter === tab.key ? "bg-white text-[#05015A] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Search */}
           <div className="relative flex-1 max-w-md">
             <Search
               size={15}
@@ -374,24 +344,19 @@ const MarketplaceShopsPage = () => {
         </div>
       </div>
 
-      {/* ═══ LIST ═══ */}
       <div className="flex-1 min-h-0 px-6 pb-6">
         <div className="h-full bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden flex flex-col">
-          {/* Column hints */}
-          <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/50 text-[10px] font-semibold text-gray-500 uppercase tracking-wider flex-shrink-0">
+          <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/50 text-[10px] font-bold text-gray-500 uppercase tracking-wider flex-shrink-0">
             <span className="flex-1">Shop</span>
             <span className="w-36 hidden md:block">Location</span>
-            <span className="w-28 hidden lg:block">Marketplace</span>
+            <span className="w-36 hidden lg:block">Marketplace</span>
             <span className="w-20 hidden lg:block text-center">Branches</span>
-            <span className="w-24">Status</span>
             <span className="w-6" />
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              Array.from({ length: 10 }).map((_, i) => (
-                <RowSkeleton key={i} />
-              ))
+              Array.from({ length: 10 }).map((_, i) => <RowSkeleton key={i} />)
             ) : shops.length === 0 ? (
               <EmptyState query={debouncedSearch} />
             ) : (
@@ -403,11 +368,9 @@ const MarketplaceShopsPage = () => {
                     .join("")
                     .toUpperCase()
                     .slice(0, 2) || "?";
-
                 const logoUrl = shop.marketplaceProfile?.logo_url;
-                const blocked = !shop.is_active;
-                const mpStatus =
-                  shop.marketplaceProfile?.marketplace_status;
+                const mpStatus = shop.marketplaceProfile?.marketplace_status;
+                const isLive = shop.marketplaceProfile?.is_live;
 
                 return (
                   <button
@@ -415,7 +378,6 @@ const MarketplaceShopsPage = () => {
                     onClick={() => handleSelectShop(shop)}
                     className="w-full flex items-center gap-4 px-5 py-3 border-b border-gray-50 text-left transition-all group hover:bg-gray-50"
                   >
-                    {/* Shop */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="relative flex-shrink-0">
                         {logoUrl ? (
@@ -435,34 +397,20 @@ const MarketplaceShopsPage = () => {
                           </div>
                         ) : null}
                         <div
-                          className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(
-                            shop.business_name || "?"
-                          )} items-center justify-center text-white text-xs font-bold ${
-                            logoUrl ? "hidden" : "flex"
-                          }`}
+                          className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(shop.business_name || "?")} items-center justify-center text-white text-xs font-bold ${logoUrl ? "hidden" : "flex"}`}
                         >
                           {initials}
                         </div>
-                        <span
-                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                            blocked ? "bg-red-500" : "bg-emerald-500"
-                          }`}
-                        />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">
                           {shop.business_name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate md:hidden">
-                          {shop.city || "—"}
                         </p>
                         <p className="text-[11px] text-gray-400 truncate hidden md:block">
                           {shop.owner?.full_name || "—"}
                         </p>
                       </div>
                     </div>
-
-                    {/* Location */}
                     <div className="w-36 hidden md:block min-w-0">
                       <p className="text-xs text-gray-700 truncate">
                         {shop.city || "—"}
@@ -471,39 +419,15 @@ const MarketplaceShopsPage = () => {
                         {shop.state || "—"}
                       </p>
                     </div>
-
-                    {/* Marketplace */}
-                    <div className="w-28 hidden lg:block">
-                      <MPBadge status={mpStatus} />
+                    <div className="w-36 hidden lg:block">
+                      <MPBadge status={mpStatus} isLive={isLive} />
                     </div>
-
-                    {/* Branches */}
                     <div className="w-20 hidden lg:flex justify-center">
                       <span className="inline-flex items-center gap-1 text-xs text-gray-600">
                         <Building2 size={12} className="text-gray-400" />
                         {shop._count?.branches ?? 0}
                       </span>
                     </div>
-
-                    {/* Status */}
-                    <div className="w-24">
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full ${
-                          blocked
-                            ? "bg-red-50 text-red-700"
-                            : "bg-emerald-50 text-emerald-700"
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            blocked ? "bg-red-500" : "bg-emerald-500"
-                          }`}
-                        />
-                        {blocked ? "Blocked" : "Active"}
-                      </span>
-                    </div>
-
-                    {/* Arrow */}
                     <div className="w-6 flex justify-center">
                       <MoreVertical
                         size={15}
@@ -516,12 +440,10 @@ const MarketplaceShopsPage = () => {
             )}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 flex-shrink-0">
               <p className="text-xs text-gray-500">
-                Page{" "}
-                <span className="font-semibold text-gray-700">{page}</span>{" "}
+                Page <span className="font-semibold text-gray-700">{page}</span>{" "}
                 of {totalPages} · {totalCount.toLocaleString()} total
               </p>
               <div className="flex items-center gap-2">
@@ -533,9 +455,7 @@ const MarketplaceShopsPage = () => {
                   Previous
                 </button>
                 <button
-                  onClick={() =>
-                    setPage((p) => Math.min(totalPages, p + 1))
-                  }
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >

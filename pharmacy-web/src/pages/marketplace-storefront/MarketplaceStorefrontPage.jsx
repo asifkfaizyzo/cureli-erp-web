@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion"; // ★ Imported motion
 import { Landmark, Edit3 } from "lucide-react";
-
+import BankingPendingBanner from "../../components/common/BankingPendingBanner";
 import { useStorefrontPage } from "../../hooks/marketplace/useStorefrontPage";
 import { usePermission } from "../../hooks/usePermission";
 import { useToast } from "../../components/common/Toast";
@@ -68,10 +68,13 @@ const MarketplaceStorefrontPage = () => {
   const canManage = hasPermission(PERMISSIONS.MARKETPLACE_MANAGE);
   const canSuspend = hasPermission(PERMISSIONS.MARKETPLACE_SUSPEND);
 
-  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: null });
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    type: null,
+  });
   const [brandingModalOpen, setBrandingModalOpen] = useState(false);
   const [bankingModalOpen, setBankingModalOpen] = useState(false);
-  const [branchModal, setBranchModal]             = useState({ open: false, branch: null });
+  const [branchModal, setBranchModal] = useState({ open: false, branch: null });
 
   useEffect(() => {
     load({ isSuperAdmin, branchId });
@@ -103,14 +106,20 @@ const MarketplaceStorefrontPage = () => {
     if (type === "suspend") {
       const result = await suspend();
       result.success
-        ? toast.warning("Marketplace suspended", "All branches are now offline.")
+        ? toast.warning(
+            "Marketplace suspended",
+            "All branches are now offline.",
+          )
         : toast.error("Suspend failed", result.error);
     }
 
     if (type === "resume") {
       const result = await resume();
       result.success
-        ? toast.success("Marketplace resumed", "Your marketplace is live again.")
+        ? toast.success(
+            "Marketplace resumed",
+            "Your marketplace is live again.",
+          )
         : toast.error("Resume failed", result.error);
     }
   };
@@ -125,7 +134,10 @@ const MarketplaceStorefrontPage = () => {
   const handleBranchSave = async (branch_id, payload) => {
     const result = await saveBranchConfig(branch_id, payload);
     if (result.success)
-      toast.success("Branch updated", "Branch marketplace settings saved successfully.");
+      toast.success(
+        "Branch updated",
+        "Branch marketplace settings saved successfully.",
+      );
     return result;
   };
 
@@ -136,7 +148,10 @@ const MarketplaceStorefrontPage = () => {
       await refresh();
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to update banking details";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to update banking details";
       toast.error("Save failed", message);
       return { success: false, error: message };
     }
@@ -155,7 +170,10 @@ const MarketplaceStorefrontPage = () => {
   if (storefrontError || branchesError) {
     return (
       <div className="min-h-screen bg-[#010015]">
-        <ErrorState message={storefrontError || branchesError} onRetry={refresh} />
+        <ErrorState
+          message={storefrontError || branchesError}
+          onRetry={refresh}
+        />
       </div>
     );
   }
@@ -171,7 +189,7 @@ const MarketplaceStorefrontPage = () => {
 
   // ★ Wrapped core container in motion.div to give it a local transition
   return (
-    <motion.div 
+    <motion.div
       variants={localPageVariants}
       initial="initial"
       animate="animate"
@@ -193,8 +211,16 @@ const MarketplaceStorefrontPage = () => {
           isLive={isLive}
           isSuspending={isSuspending}
           canSuspend={canSuspend}
-          onSuspendClick={() => setConfirmDialog({ open: true, type: "suspend" })}
+          onSuspendClick={() =>
+            setConfirmDialog({ open: true, type: "suspend" })
+          }
         />
+        {/* ── BANKING PENDING BANNER ── */}
+        {isSuperAdmin && !storefront.bank_account_holder && (
+          <BankingPendingBanner
+            onAction={canManage ? () => setBankingModalOpen(true) : undefined}
+          />
+        )}
 
         <StorefrontMetrics
           storefront={storefront}
@@ -221,7 +247,9 @@ const MarketplaceStorefrontPage = () => {
                   <Landmark size={15} className="text-white/50" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Settlement Account</h3>
+                  <h3 className="text-sm font-semibold text-white">
+                    Settlement Account
+                  </h3>
                   <p className="text-[11px] text-white/30 mt-0.5">
                     Manual payouts are routed to this account
                   </p>
@@ -243,7 +271,9 @@ const MarketplaceStorefrontPage = () => {
               <div className="px-3.5 py-3 bg-white/[0.015] border border-white/[0.03] rounded-xl">
                 <p className="text-white/20">Account Holder</p>
                 <p className="text-white/70 font-medium mt-1">
-                  {storefront.bank_account_holder || <span className="text-white/10">Not configured</span>}
+                  {storefront.bank_account_holder || (
+                    <span className="text-white/10">Not configured</span>
+                  )}
                 </p>
               </div>
 
@@ -261,7 +291,9 @@ const MarketplaceStorefrontPage = () => {
               <div className="px-3.5 py-3 bg-white/[0.015] border border-white/[0.03] rounded-xl">
                 <p className="text-white/20">Bank Name</p>
                 <p className="text-white/70 font-medium mt-1">
-                  {storefront.bank_name || <span className="text-white/10">Not configured</span>}
+                  {storefront.bank_name || (
+                    <span className="text-white/10">Not configured</span>
+                  )}
                 </p>
               </div>
 
@@ -311,7 +343,9 @@ const MarketplaceStorefrontPage = () => {
             ? "This will immediately take all branches offline. Customers will not be able to place orders until you resume."
             : "This will restore your marketplace to live status. You will need to re-enable each branch individually."
         }
-        confirmText={confirmDialog.type === "suspend" ? "Yes, Suspend" : "Yes, Resume"}
+        confirmText={
+          confirmDialog.type === "suspend" ? "Yes, Suspend" : "Yes, Resume"
+        }
         cancelText="Cancel"
         type={confirmDialog.type === "suspend" ? "danger" : "warning"}
         loading={isSuspending || isResuming}

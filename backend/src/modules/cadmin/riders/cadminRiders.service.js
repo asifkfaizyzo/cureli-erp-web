@@ -568,7 +568,6 @@ export async function convertRiderType(riderId, newType) {
   const ACTIVE_DELIVERY_STATUSES = [
     "ACCEPTED",
     "ARRIVED_AT_PHARMACY",
-    "PHARMACY_CONFIRMED",
     "PICKED_UP",
     "EN_ROUTE",
     "ARRIVED_AT_CUSTOMER",

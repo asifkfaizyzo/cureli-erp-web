@@ -32,7 +32,7 @@
     {
       "label": "Backend tree",
       "type": "shell",
-      "command": "ls; cd src; tree /f; cd ..; cd prisma/schema; tree /f; powershell",
+      "command": "ls; cd src; tree /f; cd ..; cd prisma/schema; tree /f",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/backend"
@@ -44,7 +44,7 @@
     {
       "label": "Prisma tree",
       "type": "shell",
-      "command": "tree prisma\\schema /f; Write-Host ''; Write-Host 'prisma\\ (root files)' -ForegroundColor Cyan; Get-ChildItem prisma -File | Select-Object Name; Write-Host ''; Write-Host 'prisma\\migrations\\ (contents hidden)' -ForegroundColor Yellow; Write-Host ''; tree prisma\\seeds /f; powershell",
+      "command": "tree prisma\\schema /f; Write-Host ''; Write-Host 'prisma\\ (root files)' -ForegroundColor Cyan; Get-ChildItem prisma -File | Select-Object Name; Write-Host ''; Write-Host 'prisma\\migrations\\ (contents hidden)' -ForegroundColor Yellow; Write-Host ''; tree prisma\\seeds /f",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/backend"
@@ -56,7 +56,7 @@
     {
       "label": "ERP tree",
       "type": "shell",
-      "command": "ls; cd src; tree /f; powershell",
+      "command": "ls; cd src; tree /f",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/pharmacy-web"
@@ -68,7 +68,7 @@
     {
       "label": "cAdmin tree",
       "type": "shell",
-      "command": "ls; cd src; tree /f; powershell",
+      "command": "ls; cd src; tree /f",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/cadmin-web"
@@ -80,7 +80,7 @@
     {
       "label": "Landing tree",
       "type": "shell",
-      "command": "ls; cd src; tree /f; powershell",
+      "command": "ls; cd src; tree /f",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/landing-web"
