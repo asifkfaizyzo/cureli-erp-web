@@ -125,6 +125,183 @@ export async function getRiderDetail(riderId) {
   return rider;
 }
 
+// ── Update rider details ──────────────────────────────────────
+
+export async function updateRiderDetail(riderId, data) {
+  const rider = await prisma.rider.findUnique({
+    where: { rider_id: riderId },
+  });
+
+  if (!rider) {
+    const err = new Error("Rider not found.");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  // Duplicate validations for phone
+  if (data.phone && data.phone !== rider.phone) {
+    const raw10 = data.phone.replace(/^\+?91/, "").replace(/\s+/g, "").trim();
+    const phoneVariants = [data.phone, `+91${raw10}`, `91${raw10}`, raw10];
+    const existing = await prisma.rider.findFirst({
+      where: {
+        phone: { in: phoneVariants },
+        rider_id: { not: riderId },
+        deleted_at: null,
+      },
+    });
+    if (existing) {
+      const err = new Error("A rider with this phone number already exists.");
+      err.code = "ALREADY_EXISTS";
+      throw err;
+    }
+  }
+
+  // Duplicate validations for email
+  if (data.email && data.email !== rider.email) {
+    const existing = await prisma.rider.findFirst({
+      where: {
+        email: data.email.trim(),
+        rider_id: { not: riderId },
+        deleted_at: null,
+      },
+    });
+    if (existing) {
+      const err = new Error("A rider with this email address already exists.");
+      err.code = "ALREADY_EXISTS";
+      throw err;
+    }
+  }
+
+  const updateData = {};
+  if (data.phone !== undefined) updateData.phone = data.phone.trim();
+  if (data.full_name !== undefined) updateData.full_name = data.full_name?.trim() || null;
+  if (data.email !== undefined) updateData.email = data.email?.trim() || null;
+  if (data.sex !== undefined) updateData.sex = data.sex || null;
+  if (data.current_city !== undefined) updateData.current_city = data.current_city?.trim() || null;
+  if (data.residential_address !== undefined) updateData.residential_address = data.residential_address?.trim() || null;
+  if (data.vehicle_type !== undefined) updateData.vehicle_type = data.vehicle_type || null;
+  if (data.vehicle_number !== undefined) updateData.vehicle_number = data.vehicle_number?.trim().toUpperCase() || null;
+  if (data.vehicle_make_model !== undefined) updateData.vehicle_make_model = data.vehicle_make_model?.trim() || null;
+  if (data.bank_holder_name !== undefined) updateData.bank_holder_name = data.bank_holder_name?.trim() || null;
+  if (data.bank_account_number !== undefined) updateData.bank_account_number = data.bank_account_number?.trim() || null;
+  if (data.bank_ifsc !== undefined) updateData.bank_ifsc = data.bank_ifsc?.trim().toUpperCase() || null;
+  if (data.bank_name !== undefined) updateData.bank_name = data.bank_name?.trim() || null;
+  
+  if (data.date_of_birth !== undefined) {
+    updateData.date_of_birth = data.date_of_birth ? new Date(data.date_of_birth) : null;
+  }
+  if (data.bank_verified !== undefined) {
+    updateData.bank_verified = !!data.bank_verified;
+  }
+
+  return prisma.rider.update({
+    where: { rider_id: riderId },
+    data: updateData,
+    include: {
+      documents: {
+        orderBy: { created_at: "asc" },
+      },
+      appeals: {
+        orderBy: { created_at: "desc" },
+        take: 5,
+      },
+      tickets: {
+        orderBy: { created_at: "desc" },
+        take: 5,
+        select: {
+          ticket_id: true,
+          category: true,
+          status: true,
+          created_at: true,
+        },
+      },
+      _count: {
+        select: {
+          deliveries: true,
+          ratingsReceived: true,
+        },
+      },
+    },
+  });
+}
+
+// ── Replace document (Manually overwritten by Admin) ─────────
+
+export async function replaceDocument(riderId, documentId, files, cadminId) {
+  const document = await prisma.riderDocument.findFirst({
+    where: { document_id: documentId, rider_id: riderId },
+  });
+
+  if (!document) {
+    const err = new Error("Document not found.");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  if (!files.front && !files.back) {
+    const err = new Error("At least one document file must be uploaded.");
+    err.code = "BAD_REQUEST";
+    throw err;
+  }
+
+  let frontKey = undefined;
+  let backKey = undefined;
+
+  if (files.front && files.front[0]) {
+    const file = files.front[0];
+    const s3 = await uploadFile({
+      buffer: file.buffer,
+      folder: "rider_documents",
+      originalName: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+    });
+    frontKey = s3.storage_key;
+  }
+
+  if (files.back && files.back[0]) {
+    const file = files.back[0];
+    const s3 = await uploadFile({
+      buffer: file.buffer,
+      folder: "rider_documents",
+      originalName: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+    });
+    backKey = s3.storage_key;
+  }
+
+  const updateData = {
+    status: "APPROVED", // Auto-approved on admin override
+    rejection_reason: null,
+    was_rejected_this_cycle: false,
+    reviewed_by: cadminId,
+    reviewed_at: new Date(),
+    uploaded_at: new Date(),
+    resubmission_count: { increment: 1 },
+  };
+
+  if (frontKey) updateData.storage_key = frontKey;
+  if (backKey) updateData.back_storage_key = backKey;
+
+  const [updatedDoc] = await prisma.$transaction([
+    prisma.riderDocument.update({
+      where: { document_id: documentId },
+      data: updateData,
+    }),
+    ...(document.type === "PROFILE_PHOTO" && frontKey
+      ? [
+          prisma.rider.update({
+            where: { rider_id: riderId },
+            data: { profile_photo_key: frontKey },
+          }),
+        ]
+      : []),
+  ]);
+
+  return updatedDoc;
+}
+
 // ── Review document ───────────────────────────────────────────
 
 export async function reviewDocument(

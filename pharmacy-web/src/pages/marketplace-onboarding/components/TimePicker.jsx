@@ -11,27 +11,45 @@ import {
 import { createPortal } from "react-dom";
 import { Clock, ChevronUp, ChevronDown } from "lucide-react";
 
-const TimePicker = ({ value, onChange, placeholder = "Select time" }) => {
-  const [isOpen, setIsOpen]   = useState(false);
-  const [hours, setHours]     = useState(9);
-  const [minutes, setMinutes] = useState(0);
-  const [period, setPeriod]   = useState("AM");
+const parseTime = (timeStr) => {
+  if (!timeStr) return { h: 9, m: 0, p: "AM" };
+  const [rawH, rawM] = timeStr.split(":").map(Number);
+  if (isNaN(rawH) || isNaN(rawM)) return { h: 9, m: 0, p: "AM" };
+  return {
+    h: rawH === 0 ? 12 : rawH > 12 ? rawH - 12 : rawH,
+    m: rawM,
+    p: rawH >= 12 ? "PM" : "AM",
+  };
+};
+
+const TimePicker = ({
+  value,
+  onChange,
+  placeholder = "Select time",
+  defaultValue = "09:00",
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const initial = parseTime(value || defaultValue);
+  const [hours, setHours] = useState(initial.h);
+  const [minutes, setMinutes] = useState(initial.m);
+  const [period, setPeriod] = useState(initial.p);
 
   // Position of the dropdown portal
   const [dropdownStyle, setDropdownStyle] = useState({});
 
-  const triggerRef   = useRef(null);
-  const dropdownRef  = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // ─── Parse incoming HH:mm (24h) → 12h state ─────────────────────
   useEffect(() => {
-    if (!value) return;
-    const [h, m] = value.split(":").map(Number);
-    if (isNaN(h) || isNaN(m)) return;
-    setPeriod(h >= 12 ? "PM" : "AM");
-    setHours(h === 0 ? 12 : h > 12 ? h - 12 : h);
-    setMinutes(m);
-  }, [value]);
+    const timeToParse = value || defaultValue;
+    if (!timeToParse) return;
+    const parsed = parseTime(timeToParse);
+    setPeriod(parsed.p);
+    setHours(parsed.h);
+    setMinutes(parsed.m);
+  }, [value, defaultValue]);
 
   // ─── Calculate portal position from trigger element ──────────────
   const calculatePosition = useCallback(() => {
@@ -39,45 +57,12 @@ const TimePicker = ({ value, onChange, placeholder = "Select time" }) => {
     const rect = triggerRef.current.getBoundingClientRect();
     setDropdownStyle({
       position: "fixed",
-      top:      rect.bottom + 6,
-      left:     rect.left + rect.width / 2,
+      top: rect.bottom + 6,
+      left: rect.left + rect.width / 2,
       transform: "translateX(-50%)",
-      zIndex:   9999,
+      zIndex: 9999,
     });
   }, []);
-
-  // ─── Open / close ────────────────────────────────────────────────
-  const handleOpen = () => {
-    calculatePosition();
-    setIsOpen(true);
-  };
-
-  // ─── Close on outside click ──────────────────────────────────────
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => {
-      if (
-        triggerRef.current  && !triggerRef.current.contains(e.target) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
-
-  // ─── Reposition on scroll / resize ──────────────────────────────
-  useEffect(() => {
-    if (!isOpen) return;
-    const update = () => calculatePosition();
-    window.addEventListener("scroll",  update, true);
-    window.addEventListener("resize",  update);
-    return () => {
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
-  }, [isOpen, calculatePosition]);
 
   // ─── Emit 24h time string ────────────────────────────────────────
   const emit = useCallback(
@@ -91,6 +76,50 @@ const TimePicker = ({ value, onChange, placeholder = "Select time" }) => {
     },
     [onChange]
   );
+
+  // ─── Open / close ────────────────────────────────────────────────
+  const handleOpen = () => {
+    calculatePosition();
+    setIsOpen(true);
+    // Automatically select & emit the default time on first click if empty
+    if (!value) {
+      emit(hours, minutes, period);
+    }
+  };
+
+  const handleDone = () => {
+    if (!value) {
+      emit(hours, minutes, period);
+    }
+    setIsOpen(false);
+  };
+
+  // ─── Close on outside click ──────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  // ─── Reposition on scroll / resize ──────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const update = () => calculatePosition();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [isOpen, calculatePosition]);
 
   // ─── Spin handlers ───────────────────────────────────────────────
   const incrementHours = () => {
@@ -196,7 +225,7 @@ const TimePicker = ({ value, onChange, placeholder = "Select time" }) => {
           <div className="border-t border-white/[0.06] px-3 py-2">
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={handleDone}
               className="w-full py-1.5 rounded-lg text-xs font-semibold
                 bg-white/[0.08] text-white/70 hover:bg-white/[0.12]
                 hover:text-white transition-all duration-150"

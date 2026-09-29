@@ -241,7 +241,7 @@ const CONFIG = {
   },
 
   // ── ALL REQUIRED RIDER DOCUMENTS ──────────────────────────
-  riderDocuments: [
+    riderDocuments: [
     {
       type: "PROFILE_PHOTO",
       storage_key: "rider_documents/asif_profile_photo.jpg",
@@ -252,22 +252,12 @@ const CONFIG = {
       back_storage_key: "rider_documents/asif_aadhaar_back.jpg",
     },
     {
-      type: "AADHAAR_BACK",
-      storage_key: "rider_documents/asif_aadhaar_back.jpg",
-      back_storage_key: "rider_documents/asif_aadhaar_back.jpg",
-    },
-    {
       type: "PAN_FRONT",
       storage_key: "rider_documents/asif_pan_front.jpg",
     },
     {
       type: "DRIVING_LICENSE_FRONT",
       storage_key: "rider_documents/asif_dl_front.jpg",
-      back_storage_key: "rider_documents/asif_dl_back.jpg",
-    },
-    {
-      type: "DRIVING_LICENSE_BACK",
-      storage_key: "rider_documents/asif_dl_back.jpg",
       back_storage_key: "rider_documents/asif_dl_back.jpg",
     },
     {

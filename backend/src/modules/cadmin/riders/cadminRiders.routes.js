@@ -17,6 +17,8 @@ import {
   editZone,
   getPendingReviews,
   convertRiderTypeController,
+  updateRider,
+  replaceRiderDocument,
 } from "./cadminRiders.controller.js";
 
 const router = Router();
@@ -52,6 +54,25 @@ const teamRiderUpload = multer({
   { name: "vehicle_rc",              maxCount: 1 },
 ]);
 
+// Multer parser for single document replacement (front & back)
+const replaceDocUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
+    files: 2,
+  },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIMES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type: ${file.mimetype}. Allowed: JPG, PNG, PDF.`));
+    }
+  },
+}).fields([
+  { name: "front", maxCount: 1 },
+  { name: "back",  maxCount: 1 },
+]);
+
 router.use(requireCAdmin);
 
 // ── Rider management ──────────────────────────────────────────
@@ -63,6 +84,13 @@ router.post("/riders",
 );
 router.get("/reviews",                      getPendingReviews);
 router.get("/riders/:riderId",              getRider);
+router.patch("/riders/:riderId",            updateRider);
+router.patch(
+  "/riders/:riderId/documents/:documentId",
+  replaceDocUpload,
+  handleMulterError,
+  replaceRiderDocument
+);
 router.post("/riders/:riderId/approve",     approveRiderApplication);
 router.post("/riders/:riderId/reject",      rejectRiderApplication);
 router.post("/riders/:riderId/suspend",     suspendRiderAccount);

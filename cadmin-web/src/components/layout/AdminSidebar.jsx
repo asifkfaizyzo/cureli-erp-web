@@ -82,13 +82,6 @@ const ADMIN_MENU_ITEMS = [
     permissionKey: "shops",
   },
   {
-    id: "orders",
-    label: "Orders",
-    icon: ClipboardList,
-    path: "/orders",
-    breadcrumbs: ["Orders"],
-  },
-  {
     id: "master-medicines",
     label: "Medicine Catalog",
     icon: Pill,

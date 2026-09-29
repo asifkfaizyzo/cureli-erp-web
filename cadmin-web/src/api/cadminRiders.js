@@ -11,6 +11,11 @@ export function getRiderDetail(riderId) {
   return CAdminAPI.get(`/fleet/riders/${riderId}`);
 }
 
+// ── Update Rider ──────────────────────────────────────────────
+export function updateRider(riderId, data) {
+  return CAdminAPI.patch(`/fleet/riders/${riderId}`, data);
+}
+
 // ── Create Team Rider ─────────────────────────────────────────
 export function createTeamRider(data) {
   return CAdminAPI.post("/fleet/riders", data);
@@ -48,6 +53,17 @@ export function reviewDocument(riderId, documentId, action, rejectionReason) {
   return CAdminAPI.patch(
     `/fleet/riders/${riderId}/documents/${documentId}/review`,
     { action, rejection_reason: rejectionReason }
+  );
+}
+
+// ── Replace Document (Manually Uploaded by Admin) ──────────────
+export function replaceRiderDocument(riderId, documentId, formData) {
+  return CAdminAPI.patch(
+    `/fleet/riders/${riderId}/documents/${documentId}`,
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
   );
 }
 
