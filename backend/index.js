@@ -124,6 +124,7 @@ import riderPresenceRoutes from "./src/modules/rider/presence/rider.presence.rou
 import riderDashboardRoutes from "./src/modules/rider/dashboard/rider.dashboard.routes.js";
 import riderShopsRoutes from "./src/modules/rider/shops/rider.shops.routes.js";
 import riderDeliveryRoutes from "./src/modules/rider/delivery/rider.delivery.routes.js";
+import riderProfileRoutes from "./src/modules/rider/profile/rider.profile.routes.js";
 
 // ============================================
 // APP SETUP
@@ -339,6 +340,7 @@ app.use("/rider", riderPresenceRoutes);
 app.use("/rider", riderDashboardRoutes);
 app.use("/rider", riderShopsRoutes);
 app.use("/rider/delivery", riderDeliveryRoutes);
+app.use("/rider/profile", riderProfileRoutes);
 // ============================================
 // HEALTH CHECK
 // ============================================

@@ -504,6 +504,7 @@ const BranchConfigCard = ({
                             value={config.opening_time || ""}
                             onChange={(val) => update({ opening_time: val })}
                             placeholder="Open time"
+                            defaultValue="09:00"
                           />
                         </div>
                         <div>
@@ -514,6 +515,7 @@ const BranchConfigCard = ({
                             value={config.closing_time || ""}
                             onChange={(val) => update({ closing_time: val })}
                             placeholder="Close time"
+                            defaultValue="21:00"
                           />
                         </div>
                       </div>

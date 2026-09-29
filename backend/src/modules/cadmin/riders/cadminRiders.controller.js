@@ -15,6 +15,8 @@ import {
   listZones,
   createZone,
   updateZone,
+  updateRiderDetail,
+  replaceDocument,
 } from "./cadminRiders.service.js";
 
 // ── Riders ────────────────────────────────────────────────────
@@ -35,6 +37,33 @@ export async function getRider(req, res) {
   } catch (err) {
     if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
     return fail(res, "Failed to fetch rider", 500);
+  }
+}
+
+export async function updateRider(req, res) {
+  try {
+    const updated = await updateRiderDetail(req.params.riderId, req.body);
+    return success(res, updated, "Rider updated successfully");
+  } catch (err) {
+    if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
+    if (err.code === "ALREADY_EXISTS") return fail(res, err.message, 409);
+    return fail(res, err.message || "Failed to update rider details", 500);
+  }
+}
+
+export async function replaceRiderDocument(req, res) {
+  try {
+    const updated = await replaceDocument(
+      req.params.riderId,
+      req.params.documentId,
+      req.files || {},
+      req.cadmin.cadmin_id
+    );
+    return success(res, updated, "Document replaced and approved successfully");
+  } catch (err) {
+    if (err.code === "NOT_FOUND") return fail(res, err.message, 404);
+    if (err.code === "BAD_REQUEST") return fail(res, err.message, 400);
+    return fail(res, err.message || "Failed to replace document", 500);
   }
 }
 
