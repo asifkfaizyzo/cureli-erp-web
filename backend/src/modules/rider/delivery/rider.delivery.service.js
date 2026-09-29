@@ -9,11 +9,11 @@ import {
 } from "../presence/rider.presence.service.js";
 
 // ── Developer / Local Testing Configuration ──────────────────────────────────
-const BYPASS_GEOFENCE_IN_DEV = true; // Set to true to bypass GPS distance validation during dev/test cycles
+const BYPASS_GEOFENCE_IN_DEV = true;
 
 // ── Geofence helper ──────────────────────────────────────────────────────────
 const EARTH_RADIUS_KM = 6371;
-const ARRIVAL_GEOFENCE_METERS = 200; // Generous threshold for GPS drift
+const ARRIVAL_GEOFENCE_METERS = 200;
 
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -23,19 +23,16 @@ function haversineMeters(lat1, lng1, lat2, lng2) {
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
-  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1000;
+  return (
+    EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1000
+  );
 }
 
-/**
- * Fetch the active ongoing delivery task for a rider.
- */
 export async function getActiveDelivery(rider_id) {
   const delivery = await prisma.delivery.findFirst({
     where: {
       rider_id,
-      status: {
-        notIn: ["DELIVERED", "FAILED", "CANCELLED"],
-      },
+      status: { notIn: ["DELIVERED", "FAILED", "CANCELLED"] },
     },
     include: {
       order: {
@@ -71,13 +68,9 @@ export async function getActiveDelivery(rider_id) {
   });
 
   if (!delivery) return null;
-
   return formatDeliveryForRider(delivery);
 }
 
-/**
- * Rider accepts the incoming assigned order.
- */
 export async function acceptDelivery(delivery_id, rider_id) {
   const delivery = await prisma.delivery.findUnique({
     where: { delivery_id },
@@ -87,7 +80,6 @@ export async function acceptDelivery(delivery_id, rider_id) {
   if (delivery.rider_id !== rider_id)
     throw new Error("Unauthorized assignment");
 
-  // ── Idempotency: if already accepted by this rider, return current state ──
   if (delivery.status === "ACCEPTED") {
     const alreadyAccepted = await prisma.delivery.findUnique({
       where: { delivery_id },
@@ -135,10 +127,7 @@ export async function acceptDelivery(delivery_id, rider_id) {
   const updated = await prisma.$transaction(async (tx) => {
     const res = await tx.delivery.update({
       where: { delivery_id },
-      data: {
-        status: "ACCEPTED",
-        accepted_at: now,
-      },
+      data: { status: "ACCEPTED", accepted_at: now },
       include: {
         order: {
           include: {
@@ -184,17 +173,14 @@ export async function acceptDelivery(delivery_id, rider_id) {
     return res;
   });
 
-  // ── Register SSE cache so rider GPS ticks broadcast to this customer ──
   registerActiveDelivery(rider_id, updated.order.customer_id, updated.order_id);
 
-  // ── Notify Customer: rider accepted, delivery is live ─────────────────
   sseService.notifyMobile(updated.order.customer_id, "delivery_update", {
     order_id: updated.order_id,
     order_number: updated.order.order_number,
     delivery_status: "ACCEPTED",
   });
 
-  // ── Notify CAdmin ─────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: updated.order_id,
     delivery_id: updated.delivery_id,
@@ -206,18 +192,14 @@ export async function acceptDelivery(delivery_id, rider_id) {
   return formatDeliveryForRider(updated);
 }
 
-/**
- * Rider declines incoming order assignment.
- */
 export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
   const delivery = await prisma.delivery.findUnique({
     where: { delivery_id },
     include: { order: true },
   });
 
-   if (!delivery) throw new Error("Delivery assignment not found");
+  if (!delivery) throw new Error("Delivery assignment not found");
 
-  // ── Idempotency: if already declined/reset, return success ────────────────
   if (delivery.status === "PENDING_ASSIGNMENT" && delivery.rider_id === null) {
     return { success: true, message: "Delivery already declined" };
   }
@@ -231,10 +213,7 @@ export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
   await prisma.$transaction(async (tx) => {
     await tx.delivery.update({
       where: { delivery_id },
-      data: {
-        rider_id: null,
-        status: "PENDING_ASSIGNMENT",
-      },
+      data: { rider_id: null, status: "PENDING_ASSIGNMENT" },
     });
 
     await tx.deliveryAssignmentLog.create({
@@ -247,10 +226,8 @@ export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
     });
   });
 
-  // ── Safety cleanup: ensure SSE cache is cleared for this rider ────────
   unregisterActiveDelivery(rider_id);
 
-  // ── Notify Customer: delivery declined, re-assignment in progress ─────
   if (delivery.order?.customer_id) {
     sseService.notifyMobile(delivery.order.customer_id, "delivery_update", {
       order_id: delivery.order_id,
@@ -259,7 +236,6 @@ export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
     });
   }
 
-  // ── Notify CAdmin to re-assign ────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: delivery.order_id,
     delivery_id: delivery.delivery_id,
@@ -272,9 +248,6 @@ export async function declineDelivery(delivery_id, rider_id, { reason, note }) {
   return { success: true, message: "Delivery declined successfully" };
 }
 
-/**
- * Advance delivery status with strict state guards.
- */
 export async function updateDeliveryStatus(
   delivery_id,
   rider_id,
@@ -323,10 +296,8 @@ export async function updateDeliveryStatus(
   const currentStatus = delivery.status;
   const updateData = { status: targetStatus };
 
-  // Helper inside status update to decide if we should strictly validate location
-  const isDevBypassEnabled = BYPASS_GEOFENCE_IN_DEV && process.env.NODE_ENV !== "production";
-
-  // ── State Machine Guards ──────────────────────────────────────────────────
+  const isDevBypassEnabled =
+    BYPASS_GEOFENCE_IN_DEV && process.env.NODE_ENV !== "production";
 
   if (targetStatus === "ARRIVED_AT_PHARMACY") {
     if (currentStatus !== "ACCEPTED") {
@@ -335,14 +306,17 @@ export async function updateDeliveryStatus(
       );
     }
 
-    // ── Server-side geofence: verify rider is near the pharmacy ────────────
     const rider = await prisma.rider.findUnique({
       where: { rider_id },
       select: { current_lat: true, current_lng: true },
     });
 
-    const pharmacyLat = delivery.pickup_lat ? Number(delivery.pickup_lat) : null;
-    const pharmacyLng = delivery.pickup_lng ? Number(delivery.pickup_lng) : null;
+    const pharmacyLat = delivery.pickup_lat
+      ? Number(delivery.pickup_lat)
+      : null;
+    const pharmacyLng = delivery.pickup_lng
+      ? Number(delivery.pickup_lng)
+      : null;
 
     if (
       rider?.current_lat != null &&
@@ -356,10 +330,11 @@ export async function updateDeliveryStatus(
         pharmacyLat,
         pharmacyLng,
       );
-
       if (distM > ARRIVAL_GEOFENCE_METERS) {
         if (isDevBypassEnabled) {
-          console.log(`[DEV BYPASS] Bypassed Pharmacy Geofence. Actual distance: ${Math.round(distM)}m`);
+          console.log(
+            `[DEV BYPASS] Bypassed Pharmacy Geofence. Actual distance: ${Math.round(distM)}m`,
+          );
         } else {
           throw new Error(
             `You are too far from the pharmacy (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
@@ -397,7 +372,6 @@ export async function updateDeliveryStatus(
       );
     }
 
-    // ── Server-side geofence: verify rider is near the customer ────────────
     const rider = await prisma.rider.findUnique({
       where: { rider_id },
       select: { current_lat: true, current_lng: true },
@@ -418,10 +392,11 @@ export async function updateDeliveryStatus(
         dropLat,
         dropLng,
       );
-
       if (distM > ARRIVAL_GEOFENCE_METERS) {
         if (isDevBypassEnabled) {
-          console.log(`[DEV BYPASS] Bypassed Customer Geofence. Actual distance: ${Math.round(distM)}m`);
+          console.log(
+            `[DEV BYPASS] Bypassed Customer Geofence. Actual distance: ${Math.round(distM)}m`,
+          );
         } else {
           throw new Error(
             `You are too far from the customer (${Math.round(distM)}m). Please get within ${ARRIVAL_GEOFENCE_METERS}m before confirming arrival.`,
@@ -471,7 +446,7 @@ export async function updateDeliveryStatus(
     },
   });
 
-  // Notify CAdmin
+  // ── Notify CAdmin ──────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: updated.order_id,
     delivery_id: updated.delivery_id,
@@ -480,7 +455,7 @@ export async function updateDeliveryStatus(
     timestamp: now.toISOString(),
   });
 
-  // Notify Customer on Mobile
+  // ── Notify Customer on Mobile ──────────────────────────────────────────
   if (delivery.order.customer_id) {
     sseService.notifyMobile(delivery.order.customer_id, "delivery_update", {
       order_id: delivery.order_id,
@@ -489,12 +464,29 @@ export async function updateDeliveryStatus(
     });
   }
 
+  // ── ★ NEW: Notify Pharmacy ERP via SSE on every rider milestone ────────
+  // This triggers the existing `marketplace_order_status_changed` SSE event
+  // that the pharmacy ERP already listens to, causing it to auto-refresh
+  // the order detail panel with the latest delivery progress.
+  try {
+    await fireOrderStatusChangedEvents({
+      order_id: updated.order_id,
+      order_number: updated.order.order_number,
+      shop_id: updated.order.shop_id,
+      customer_id: updated.order.customer_id,
+      new_status: updated.order.status, // Order status stays READY_FOR_PICKUP
+      customer_name: updated.order.customer_name_snapshot,
+    });
+  } catch (err) {
+    console.error(
+      "[RiderDelivery] Failed to notify ERP of delivery milestone:",
+      err.message,
+    );
+  }
+
   return formatDeliveryForRider(updated);
 }
 
-/**
- * Complete delivery with Customer's 4-digit Handover OTP.
- */
 export async function completeDeliveryWithOtp(
   delivery_id,
   rider_id,
@@ -509,9 +501,7 @@ export async function completeDeliveryWithOtp(
   if (delivery.rider_id !== rider_id)
     throw new Error("Unauthorized assignment");
 
-   if (
-    !["ARRIVED_AT_CUSTOMER", "EN_ROUTE"].includes(delivery.status)
-  ) {
+  if (!["ARRIVED_AT_CUSTOMER", "EN_ROUTE"].includes(delivery.status)) {
     throw new Error(
       `Cannot complete delivery in '${delivery.status}' status. You must arrive at the customer location first.`,
     );
@@ -526,25 +516,16 @@ export async function completeDeliveryWithOtp(
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
-    // 1. Mark Delivery as DELIVERED
     await tx.delivery.update({
       where: { delivery_id },
-      data: {
-        status: "DELIVERED",
-        delivered_at: now,
-      },
+      data: { status: "DELIVERED", delivered_at: now },
     });
 
-    // 2. Mark Order as COMPLETED
     await tx.marketplaceOrder.update({
       where: { order_id: delivery.order_id },
-      data: {
-        status: "COMPLETED",
-        completed_at: now,
-      },
+      data: { status: "COMPLETED", completed_at: now },
     });
 
-    // 3. Status History
     await tx.marketplaceOrderStatusHistory.create({
       data: {
         order_id: delivery.order_id,
@@ -557,10 +538,8 @@ export async function completeDeliveryWithOtp(
     });
   });
 
-  // ── Clear SSE tracking cache ──────────────────────────────────────────
   unregisterActiveDelivery(rider_id);
 
-  // ── Fire loyalty, push notifications, and ERP status change ───────────
   await fireOrderStatusChangedEvents({
     order_id: delivery.order_id,
     order_number: delivery.order.order_number,
@@ -570,14 +549,12 @@ export async function completeDeliveryWithOtp(
     customer_name: delivery.order.customer_name_snapshot,
   });
 
-  // ── Notify Customer: delivery complete ────────────────────────────────
   sseService.notifyMobile(delivery.order.customer_id, "delivery_update", {
     order_id: delivery.order_id,
     order_number: delivery.order.order_number,
     delivery_status: "DELIVERED",
   });
 
-  // ── Notify CAdmin ─────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: delivery.order_id,
     delivery_id: delivery.delivery_id,
@@ -594,9 +571,7 @@ export async function completeDeliveryWithOtp(
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FORMATTER: Protects customer privacy until medicines are picked up
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Formatter ────────────────────────────────────────────────────────────────
 
 function formatDeliveryForRider(delivery) {
   const order = delivery.order;

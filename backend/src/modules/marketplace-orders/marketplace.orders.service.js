@@ -7,7 +7,10 @@ import {
 import { resolveAssetUrl } from "../../services/assetUrl.service.js";
 import { deleteFile } from "../../services/fileStorage.service.js";
 import { getDrivingDistance } from "../../services/distance.service.js";
-import { computePricing, normaliseConfig } from "../mobile/checkout/pricing.engine.js";
+import {
+  computePricing,
+  normaliseConfig,
+} from "../mobile/checkout/pricing.engine.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -231,20 +234,29 @@ export async function placeOrder({
     );
   }
 
-// ── 6. Calculate real driving distance + pricing ──────────
+  // ── 6. Calculate real driving distance + pricing ──────────
   const subtotal = resolvedItems.reduce(
     (sum, item) => sum + item.line_total,
     0,
   );
 
-  const branchLat = branchSettings.latitude ? Number(branchSettings.latitude) : null;
-  const branchLng = branchSettings.longitude ? Number(branchSettings.longitude) : null;
+  const branchLat = branchSettings.latitude
+    ? Number(branchSettings.latitude)
+    : null;
+  const branchLng = branchSettings.longitude
+    ? Number(branchSettings.longitude)
+    : null;
   const addrLat = address.latitude ? Number(address.latitude) : null;
   const addrLng = address.longitude ? Number(address.longitude) : null;
 
   let distanceKm = 0;
   if (branchLat && branchLng && addrLat && addrLng) {
-    const dist = await getDrivingDistance(branchLat, branchLng, addrLat, addrLng);
+    const dist = await getDrivingDistance(
+      branchLat,
+      branchLng,
+      addrLat,
+      addrLng,
+    );
     distanceKm = dist.distanceKm;
   }
 
@@ -257,7 +269,12 @@ export async function placeOrder({
 
   if (pricingConfigRow) {
     const config = normaliseConfig(pricingConfigRow);
-    const pricing = computePricing({ subtotal, distance_km: distanceKm, tip: 0, config });
+    const pricing = computePricing({
+      subtotal,
+      distance_km: distanceKm,
+      tip: 0,
+      config,
+    });
 
     if (!pricing.delivery_available) {
       throw new Error(pricing.unavailable_reason);
@@ -567,7 +584,8 @@ export async function transitionOrderStatus({
     }
 
     if (target_status === "CANCELLED" || target_status === "REJECTED") {
-      const { unregisterActiveDelivery } = await import("../rider/presence/rider.presence.service.js");
+      const { unregisterActiveDelivery } =
+        await import("../rider/presence/rider.presence.service.js");
       unregisterActiveDelivery(delivery.rider_id);
 
       sseService.notifyRider(delivery.rider_id, "delivery_cancelled", {
@@ -712,6 +730,37 @@ export async function getErpOrderDetail(order_id, shop_id) {
       },
       statusHistory: {
         orderBy: { created_at: "asc" },
+      },
+      delivery: {
+        select: {
+          delivery_id: true,
+          status: true,
+          assigned_at: true,
+          accepted_at: true,
+          arrived_at_pharmacy_at: true,
+          picked_up_at: true,
+          arrived_at_customer_at: true,
+          delivered_at: true,
+          rider: {
+            select: {
+              rider_id: true,
+              full_name: true,
+              phone: true,
+              vehicle_type: true,
+              vehicle_number: true,
+            },
+          },
+        },
+      },
+      branch: {
+        select: {
+          branch_name: true,
+          marketplaceSettings: {
+            select: {
+              delivery_mode: true,
+            },
+          },
+        },
       },
     },
   });
@@ -1253,6 +1302,11 @@ function formatErpOrderSummary(order) {
 }
 
 function formatErpOrderDetail(order) {
+  const delivery = order.delivery;
+  const rider = delivery?.rider;
+  const deliveryMode =
+    order.branch?.marketplaceSettings?.delivery_mode || "CURELI";
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1301,6 +1355,35 @@ function formatErpOrderDetail(order) {
       reason: h.reason,
       created_at: h.created_at,
     })),
+    // ★ NEW: Delivery progress data for real-time pharmacy feedback
+    delivery: delivery
+      ? {
+          delivery_id: delivery.delivery_id,
+          status: delivery.status,
+          delivery_mode: deliveryMode,
+          rider_name: rider?.full_name ?? null,
+          rider_phone: rider?.phone ?? null,
+          rider_vehicle: rider?.vehicle_type
+            ? `${rider.vehicle_type} ${rider.vehicle_number || ""}`.trim()
+            : null,
+          timestamps: {
+            assigned_at: delivery.assigned_at,
+            accepted_at: delivery.accepted_at,
+            arrived_at_pharmacy_at: delivery.arrived_at_pharmacy_at,
+            picked_up_at: delivery.picked_up_at,
+            arrived_at_customer_at: delivery.arrived_at_customer_at,
+            delivered_at: delivery.delivered_at,
+          },
+        }
+      : {
+          delivery_id: null,
+          status: null,
+          delivery_mode: deliveryMode,
+          rider_name: null,
+          rider_phone: null,
+          rider_vehicle: null,
+          timestamps: {},
+        },
   };
 }
 

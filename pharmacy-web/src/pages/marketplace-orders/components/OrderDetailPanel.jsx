@@ -18,6 +18,11 @@ import {
   Download,
   RefreshCw,
   KeyRound,
+  Bike,
+  Phone,
+  Navigation,
+  Store,
+  CircleDot,
 } from "lucide-react";
 
 const STATUS_LABELS = {
@@ -31,12 +36,9 @@ const STATUS_LABELS = {
 
 const SEX_LABEL = { MALE: "Male", FEMALE: "Female", OTHER: "Other" };
 
-// ── Safe Currency/Price Formatting Helper ────────────────────────────────────
 function formatPrice(value) {
   const num = Number(value);
-  if (value === null || value === undefined || isNaN(num)) {
-    return "0.00";
-  }
+  if (value === null || value === undefined || isNaN(num)) return "0.00";
   return num.toFixed(2);
 }
 
@@ -46,6 +48,15 @@ function formatDateTime(isoString) {
     day: "numeric",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function formatTimeOnly(isoString) {
+  if (!isoString) return null;
+  return new Date(isoString).toLocaleString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -71,25 +82,225 @@ const InfoRow = ({ label, value }) => (
   </div>
 );
 
-function PickupPinCard({ pin, isReady }) {
+// ── Delivery Progress Milestones ─────────────────────────────────────────────
+
+const DELIVERY_MILESTONES = [
+  { key: "accepted_at", label: "Rider Assigned", icon: Bike },
+  { key: "arrived_at_pharmacy_at", label: "Arrived at Pharmacy", icon: Store },
+  { key: "picked_up_at", label: "Picked Up", icon: Package },
+  {
+    key: "arrived_at_customer_at",
+    label: "At Customer Location",
+    icon: Navigation,
+  },
+  { key: "delivered_at", label: "Delivered", icon: CheckCircle },
+];
+
+function DeliveryProgressTracker({ delivery }) {
+  if (
+    !delivery ||
+    !delivery.status ||
+    delivery.status === "PENDING_ASSIGNMENT"
+  ) {
+    return null;
+  }
+
+  const timestamps = delivery.timestamps || {};
+  const riderName = delivery.rider_name;
+  const riderPhone = delivery.rider_phone;
+  const riderVehicle = delivery.rider_vehicle;
+
+  // Determine which milestones are complete based on delivery status
+  const statusOrder = [
+    "ACCEPTED",
+    "ARRIVED_AT_PHARMACY",
+    "PICKED_UP",
+    "EN_ROUTE",
+    "ARRIVED_AT_CUSTOMER",
+    "DELIVERED",
+  ];
+  const currentIdx = statusOrder.indexOf(delivery.status);
+
+  return (
+    <SectionCard title="Delivery Progress" icon={Bike}>
+      {/* Rider Info */}
+      {riderName && (
+        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/[0.06]">
+          <div className="w-8 h-8 rounded-full bg-blue-500/15 border border-blue-500/25 flex items-center justify-center flex-shrink-0">
+            <Bike size={14} className="text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white truncate">
+              {riderName}
+            </p>
+            <p className="text-[11px] text-white/40">
+              {riderVehicle || "Cureli Rider"}
+            </p>
+          </div>
+          {riderPhone && (
+            <a
+              href={`tel:${riderPhone}`}
+              className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] flex items-center justify-center transition-colors"
+            >
+              <Phone size={13} className="text-white/60" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Milestone Timeline */}
+      <div className="space-y-0">
+        {DELIVERY_MILESTONES.map((milestone, idx) => {
+          const isComplete = timestamps[milestone.key] != null;
+          const isCurrent =
+            !isComplete &&
+            idx <= currentIdx + 1 &&
+            idx ===
+              DELIVERY_MILESTONES.findIndex((m) => timestamps[m.key] == null);
+          const isPending = !isComplete && !isCurrent;
+          const Icon = milestone.icon;
+
+          return (
+            <div key={milestone.key} className="flex items-start gap-3">
+              {/* Timeline connector */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border ${
+                    isComplete
+                      ? "bg-emerald-500/20 border-emerald-500/40"
+                      : isCurrent
+                        ? "bg-blue-500/20 border-blue-500/40 animate-pulse"
+                        : "bg-white/[0.04] border-white/[0.08]"
+                  }`}
+                >
+                  {isComplete ? (
+                    <CheckCircle size={13} className="text-emerald-400" />
+                  ) : (
+                    <Icon
+                      size={12}
+                      className={isCurrent ? "text-blue-400" : "text-white/25"}
+                    />
+                  )}
+                </div>
+                {idx < DELIVERY_MILESTONES.length - 1 && (
+                  <div
+                    className={`w-px h-5 ${
+                      isComplete ? "bg-emerald-500/30" : "bg-white/[0.06]"
+                    }`}
+                  />
+                )}
+              </div>
+
+              {/* Label + timestamp */}
+              <div className="flex-1 pb-3">
+                <p
+                  className={`text-xs font-semibold ${
+                    isComplete
+                      ? "text-emerald-300"
+                      : isCurrent
+                        ? "text-blue-300"
+                        : "text-white/30"
+                  }`}
+                >
+                  {milestone.label}
+                </p>
+                {isComplete && timestamps[milestone.key] && (
+                  <p className="text-[10px] text-white/35 mt-0.5">
+                    {formatTimeOnly(timestamps[milestone.key])}
+                  </p>
+                )}
+                {isCurrent && (
+                  <p className="text-[10px] text-blue-400/60 mt-0.5">
+                    In progress...
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
+// ── Pickup PIN Card (Transforms based on delivery status) ────────────────────
+
+function PickupPinCard({ pin, isReady, delivery }) {
   if (!pin) return null;
+
+  const deliveryStatus = delivery?.status;
+  const riderName = delivery?.rider_name;
+
+  // ★ Rider has picked up the order — show confirmation instead of PIN
+  const isPickedUp =
+    deliveryStatus &&
+    ["PICKED_UP", "EN_ROUTE", "ARRIVED_AT_CUSTOMER", "DELIVERED"].includes(
+      deliveryStatus,
+    );
+
+  if (isPickedUp) {
+    return (
+      <div className="rounded-xl p-4 border bg-emerald-500/10 border-emerald-500/25">
+        <div className="flex items-center gap-2 mb-2">
+          <CheckCircle size={16} className="text-emerald-400" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+            Handover Complete
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+            <Bike size={16} className="text-emerald-300" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-emerald-200">
+              Picked up by {riderName || "rider"}
+            </p>
+            <p className="text-[11px] text-emerald-400/70 mt-0.5">
+              {deliveryStatus === "DELIVERED"
+                ? "Order has been delivered to the customer"
+                : deliveryStatus === "ARRIVED_AT_CUSTOMER"
+                  ? "Rider is at the customer's location"
+                  : deliveryStatus === "EN_ROUTE"
+                    ? "Rider is on the way to the customer"
+                    : "Rider has collected the order"}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ★ Rider arrived at pharmacy — pulsing warning to share PIN
+  const isRiderAtPharmacy = deliveryStatus === "ARRIVED_AT_PHARMACY";
 
   return (
     <div
       className={`rounded-xl p-4 border ${
         isReady
-          ? "bg-emerald-500/10 border-emerald-500/25"
+          ? isRiderAtPharmacy
+            ? "bg-amber-500/10 border-amber-500/25"
+            : "bg-emerald-500/10 border-emerald-500/25"
           : "bg-white/[0.03] border-white/[0.06]"
       }`}
     >
       <div className="flex items-center gap-2 mb-2">
         <KeyRound
           size={14}
-          className={isReady ? "text-emerald-300" : "text-white/45"}
+          className={
+            isReady
+              ? isRiderAtPharmacy
+                ? "text-amber-300"
+                : "text-emerald-300"
+              : "text-white/45"
+          }
         />
         <span
           className={`text-[10px] font-bold uppercase tracking-wider ${
-            isReady ? "text-emerald-300" : "text-white/45"
+            isReady
+              ? isRiderAtPharmacy
+                ? "text-amber-300"
+                : "text-emerald-300"
+              : "text-white/45"
           }`}
         >
           Pickup PIN
@@ -100,8 +311,14 @@ function PickupPinCard({ pin, isReady }) {
           {pin}
         </span>
         {isReady && (
-          <span className="text-[10px] text-emerald-300/80 text-right max-w-[130px] leading-tight">
-            Give this to the delivery rider on pickup
+          <span
+            className={`text-[10px] text-right max-w-[150px] leading-tight ${
+              isRiderAtPharmacy ? "text-amber-300/80" : "text-emerald-300/80"
+            }`}
+          >
+            {isRiderAtPharmacy
+              ? "Rider is at your location — share this PIN on handover"
+              : "Give this to the delivery rider on pickup"}
           </span>
         )}
       </div>
@@ -196,7 +413,6 @@ const OrderDetailPanel = ({
     try {
       const success = await onRegenerateInvoice(orderId);
       if (success) {
-        // Wait a moment for S3 to settle, then try download
         setTimeout(async () => {
           const result = await onGetInvoiceUrl(orderId);
           if (result?.url) {
@@ -270,17 +486,27 @@ const OrderDetailPanel = ({
     payment_method,
     patient,
     pickup_otp,
+    delivery,
   } = orderDetail;
 
   const canBillAndAccept = status === "PLACED";
   const canReject = status === "PLACED";
   const canMarkReady = status === "ACCEPTED";
-  const canComplete = status === "READY_FOR_PICKUP";
+
+  // ★ "Mark Completed" is now only available for SELF delivery mode.
+  // For CURELI orders, the rider app drives the order to COMPLETED
+  // via customer OTP verification. Button is commented out for future
+  // SELF delivery module integration.
+  const deliveryMode = delivery?.delivery_mode || "CURELI";
+  const canComplete = status === "READY_FOR_PICKUP" && deliveryMode === "SELF";
+
   const isTerminal = ["COMPLETED", "REJECTED", "CANCELLED"].includes(status);
   const hasInvoice = ["READY_FOR_PICKUP", "COMPLETED"].includes(status);
 
   const showPickupPin =
-    !!pickup_otp && (status === "ACCEPTED" || status === "READY_FOR_PICKUP");
+    !!pickup_otp &&
+    (status === "ACCEPTED" || status === "READY_FOR_PICKUP") &&
+    !isTerminal;
 
   const hasFeeBreakdown =
     (service_charge && Number(service_charge) > 0) ||
@@ -307,8 +533,8 @@ const OrderDetailPanel = ({
         </button>
       </div>
 
-      {/* Scrollable body with layout safeguards and customized scrollbar */}
-           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+      {/* Scrollable body */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {actionError && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-300">
             <AlertCircle size={14} className="flex-shrink-0" />
@@ -316,8 +542,18 @@ const OrderDetailPanel = ({
           </div>
         )}
 
+        {/* ★ Delivery Progress Tracker (real-time rider milestones) */}
+        {delivery && delivery.status && (
+          <DeliveryProgressTracker delivery={delivery} />
+        )}
+
+        {/* ★ Pickup PIN Card (transforms when rider picks up) */}
         {showPickupPin && (
-          <PickupPinCard pin={pickup_otp} isReady={status === "READY_FOR_PICKUP"} />
+          <PickupPinCard
+            pin={pickup_otp}
+            isReady={status === "READY_FOR_PICKUP"}
+            delivery={delivery}
+          />
         )}
 
         <SectionCard title="Customer" icon={User}>
@@ -520,7 +756,6 @@ const OrderDetailPanel = ({
 
       {/* Sticky Action Footer */}
       <div className="flex-shrink-0 px-5 py-4 border-t border-white/[0.06] space-y-2 bg-black/20">
-        {/* Invoice Download Action */}
         {hasInvoice && onGetInvoiceUrl && (
           <>
             {invoicePending ? (
@@ -561,7 +796,6 @@ const OrderDetailPanel = ({
 
         {!isTerminal && (
           <>
-            {/* PLACED Stage Actions */}
             {canBillAndAccept && (
               <div className="flex gap-2">
                 <button
@@ -587,7 +821,6 @@ const OrderDetailPanel = ({
               </div>
             )}
 
-            {/* ACCEPTED Stage Actions */}
             {canMarkReady && (
               <button
                 onClick={() => onMarkReady(orderDetail.order_id)}
@@ -603,7 +836,9 @@ const OrderDetailPanel = ({
               </button>
             )}
 
-            {/* READY FOR PICKUP Stage Actions */}
+            {/* ★ Mark Completed — disabled for CURELI delivery mode.
+                The rider app completes the order via customer OTP.
+                Uncomment when SELF delivery module is built. */}
             {canComplete && (
               <button
                 onClick={() => onComplete(orderDetail.order_id)}
