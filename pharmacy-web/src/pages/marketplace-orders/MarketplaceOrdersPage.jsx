@@ -1,6 +1,4 @@
 // pharmacy-web/src/pages/marketplace-orders/MarketplaceOrdersPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/marketplace-orders/MarketplaceOrdersPage.jsx
-
 import { useState, useEffect } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -12,8 +10,6 @@ import RejectModal       from './components/RejectModal';
 import PrescriptionRequestsTab from '../prescription-requests/PrescriptionRequestsTab';
 import usePrescriptionRequestAlertStore from '../../store/usePrescriptionRequestAlertStore';
 import { getInvoiceUrl, regenerateInvoice } from '../../api/marketplaceOrders';
-
-// Banking Banner and Stores
 import BankingPendingBanner from '../../components/common/BankingPendingBanner';
 import { useMarketplaceStore } from '../../store/useMarketplaceStore';
 import { useAuthStore, selectIsSuperAdmin } from '../../store/useAuthStore';
@@ -29,14 +25,10 @@ const MarketplaceOrdersPage = () => {
   const isStatusLoading = useMarketplaceStore((s) => s.isStatusLoading);
   const loadStatus = useMarketplaceStore((s) => s.loadStatus);
 
-  // Self-heal status fetch if deep-linked directly here
   useEffect(() => {
-    if (!isStatusLoaded && !isStatusLoading) {
-      loadStatus();
-    }
+    if (!isStatusLoaded && !isStatusLoading) loadStatus();
   }, [isStatusLoaded, isStatusLoading, loadStatus]);
 
-  // Set default initialTab to 'all' if no specific query parameter is provided
   const initialTab = searchParams.get('tab') === 'prescriptions'
     ? PRESCRIPTION_TAB_ID
     : searchParams.get('tab') === 'active'
@@ -56,107 +48,99 @@ const MarketplaceOrdersPage = () => {
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
-    if (tabId !== PRESCRIPTION_TAB_ID) {
-      page.onTabChange(tabId);
-    }
+    if (tabId !== PRESCRIPTION_TAB_ID) page.onTabChange(tabId);
   };
 
   const newOrdersCount = page.activeTab === 'new' ? page.total : 0;
-  const tabCounts = {
-    new:                   newOrdersCount,
-    [PRESCRIPTION_TAB_ID]: prescriptionCount,
-  };
-
+  const tabCounts = { new: newOrdersCount, [PRESCRIPTION_TAB_ID]: prescriptionCount };
   const isPrescriptionTab = activeTab === PRESCRIPTION_TAB_ID;
+  const bankingPending = isSuperAdmin && !banking.bank_account_holder;
 
-  // ── Get invoice signed URL (returns { url, pending }) ──────────────────
   const handleGetInvoiceUrl = async (orderId) => {
     try {
       const res = await getInvoiceUrl(orderId);
-      return {
-        url: res.data?.url || null,
-        pending: res.data?.pending || false,
-      };
-    } catch (err) {
-      console.error('[MarketplaceOrdersPage] getInvoiceUrl error:', err);
-      return { url: null, pending: false };
-    }
+      return { url: res.data?.url || null, pending: res.data?.pending || false };
+    } catch { return { url: null, pending: false }; }
   };
 
-  // ── Regenerate invoice PDF ─────────────────────────────────────────────
   const handleRegenerateInvoice = async (orderId) => {
     try {
       const res = await regenerateInvoice(orderId);
       return res.success;
-    } catch (err) {
-      console.error('[MarketplaceOrdersPage] regenerateInvoice error:', err);
-      return false;
-    }
+    } catch { return false; }
   };
 
-  const bankingPending = isSuperAdmin && !banking.bank_account_holder;
-
   return (
-    <div className="h-full flex flex-col bg-[#010015] overflow-hidden">
-
-      <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-white/[0.06]">
+    <div className="h-screen flex flex-col bg-[#010015] overflow-hidden">
+      {/* ── Sticky Page Header ── */}
+      <div className="flex-shrink-0 px-5 pt-4 pb-3 border-b border-white/[0.08] bg-[#010015] z-20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
-            <ShoppingBag size={18} className="text-white/60" />
+          <div className="w-9 h-9 rounded-xl bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+            <ShoppingBag size={16} className="text-white/80" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Marketplace Orders</h1>
-            <p className="text-[12px] text-white/35 mt-0.5">
+            <h1 className="text-lg font-bold text-white tracking-tight">Marketplace Orders</h1>
+            <p className="text-[11px] text-white/50 mt-0.5">
               Review and manage customer orders and prescription requests
             </p>
           </div>
         </div>
       </div>
 
-      {/* ── Optional Banking Pending Banner ── */}
       {bankingPending && (
-        <div className="flex-shrink-0 px-6 pt-4">
+        <div className="flex-shrink-0 px-5 pt-3">
           <BankingPendingBanner onAction={() => navigate("/marketplace/storefront")} />
         </div>
       )}
 
-      <div className="flex-shrink-0">
+      {/* ── Sticky Tab Bar ── */}
+      <div className="flex-shrink-0 bg-[#010015] z-10">
         <OrdersTabBar activeTab={activeTab} onTabChange={handleTabChange} counts={tabCounts} />
       </div>
 
+      {/* ── Main Content Area ── */}
       {isPrescriptionTab ? (
-        <PrescriptionRequestsTab />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <PrescriptionRequestsTab />
+        </div>
       ) : (
-        <div className="flex-1 overflow-hidden grid grid-cols-[380px_1fr]">
-          <OrderListPanel
-            activeTab={page.activeTab}
-            orders={page.orders}
-            isLoading={page.isLoading}
-            error={page.error}
-            selectedOrderId={page.selectedOrderId}
-            onSelectOrder={page.onSelectOrder}
-            page={page.page}
-            totalPages={page.totalPages}
-            total={page.total}
-            onPageChange={page.onPageChange}
-            onRefresh={page.onRefresh}
-          />
-          <OrderDetailPanel
-            orderId={page.selectedOrderId}
-            orderDetail={page.orderDetail}
-            isLoading={page.isDetailLoading}
-            error={page.detailError}
-            actionLoading={page.actionLoading}
-            actionError={page.actionError}
-            onClose={page.onCloseDetail}
-            onBillAndAccept={page.onAccept}
-            onOpenReject={page.onOpenReject}
-            onMarkReady={page.onMarkReady}
-            onComplete={page.onComplete}
-            onGetPrescriptionUrl={page.onGetPrescriptionUrl}
-            onGetInvoiceUrl={handleGetInvoiceUrl}
-            onRegenerateInvoice={handleRegenerateInvoice}
-          />
+        <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr]">
+          {/* Left: Order List (isolated scroll) */}
+          <div className="min-h-0 overflow-hidden border-r border-white/[0.08]">
+            <OrderListPanel
+              activeTab={page.activeTab}
+              orders={page.orders}
+              isLoading={page.isLoading}
+              error={page.error}
+              selectedOrderId={page.selectedOrderId}
+              onSelectOrder={page.onSelectOrder}
+              page={page.page}
+              totalPages={page.totalPages}
+              total={page.total}
+              onPageChange={page.onPageChange}
+              onRefresh={page.onRefresh}
+            />
+          </div>
+
+          {/* Right: Order Detail (isolated scroll) */}
+          <div className="min-h-0 overflow-hidden">
+            <OrderDetailPanel
+              orderId={page.selectedOrderId}
+              orderDetail={page.orderDetail}
+              isLoading={page.isDetailLoading}
+              error={page.detailError}
+              actionLoading={page.actionLoading}
+              actionError={page.actionError}
+              onClose={page.onCloseDetail}
+              onBillAndAccept={page.onAccept}
+              onOpenReject={page.onOpenReject}
+              onMarkReady={page.onMarkReady}
+              onComplete={page.onComplete}
+              onGetPrescriptionUrl={page.onGetPrescriptionUrl}
+              onGetInvoiceUrl={handleGetInvoiceUrl}
+              onRegenerateInvoice={handleRegenerateInvoice}
+            />
+          </div>
         </div>
       )}
 

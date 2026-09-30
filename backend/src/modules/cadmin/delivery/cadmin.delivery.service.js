@@ -371,3 +371,111 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     assigned_at: result.assigned_at,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNASSIGN RIDER FROM ORDER (CAdmin Override)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
+  const order = await prisma.marketplaceOrder.findUnique({
+    where: { order_id },
+    include: {
+      delivery: true,
+    },
+  });
+
+  if (!order) throw new Error("Order not found");
+
+  const delivery = order.delivery;
+
+  if (!delivery || !delivery.rider_id) {
+    throw new Error("No rider is currently assigned to this order.");
+  }
+
+  const TERMINAL_DELIVERY = ["DELIVERED", "FAILED", "CANCELLED"];
+  if (TERMINAL_DELIVERY.includes(delivery.status)) {
+    throw new Error(
+      `Cannot unassign — delivery is already in terminal state '${delivery.status}'.`,
+    );
+  }
+
+  const oldRiderId = delivery.rider_id;
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Reset delivery to unassigned state
+    await tx.delivery.update({
+      where: { delivery_id: delivery.delivery_id },
+      data: {
+        rider_id: null,
+        status: "PENDING_ASSIGNMENT",
+        assigned_at: null,
+        accepted_at: null,
+        arrived_at_pharmacy_at: null,
+        pharmacy_confirmed_at: null,
+        picked_up_at: null,
+        arrived_at_customer_at: null,
+      },
+    });
+
+    // 2. Write audit log
+    await tx.deliveryAssignmentLog.create({
+      data: {
+        delivery_id: delivery.delivery_id,
+        rider_id: oldRiderId,
+        action: "REJECTED",
+        reason: `Unassigned by CAdmin (${unassigned_by || "admin"})`,
+      },
+    });
+  });
+
+  // 3. Clear rider's active delivery cache
+  const { unregisterActiveDelivery } = await import(
+    "../../rider/presence/rider.presence.service.js"
+  );
+  unregisterActiveDelivery(oldRiderId);
+
+  // 4. Notify the unassigned rider instantly
+  sseService.notifyRider(oldRiderId, "delivery_cancelled", {
+    delivery_id: delivery.delivery_id,
+    order_id,
+    order_number: order.order_number,
+    reason: `Unassigned by admin: ${unassigned_by || "CAdmin"}`,
+  });
+
+  // 5. Broadcast to all CAdmins
+  sseService.notifyAllCAdmins("delivery_status_changed", {
+    order_id,
+    delivery_id: delivery.delivery_id,
+    rider_id: null,
+    status: "PENDING_ASSIGNMENT",
+    timestamp: now.toISOString(),
+  });
+
+  // 6. Notify pharmacy ERP operators so their delivery progress resets
+  try {
+    const { fireOrderStatusChangedEvents } = await import(
+      "../../marketplace-orders/marketplace.orders.events.js"
+    );
+    await fireOrderStatusChangedEvents({
+      order_id,
+      order_number: order.order_number,
+      shop_id: order.shop_id,
+      customer_id: order.customer_id,
+      new_status: order.status,
+      customer_name: order.customer_name_snapshot,
+    });
+  } catch (err) {
+    console.error(
+      "[CAdmin Delivery] Failed to notify ERP after unassign:",
+      err.message,
+    );
+  }
+
+  return {
+    delivery_id: delivery.delivery_id,
+    order_id,
+    previous_rider_id: oldRiderId,
+    status: "PENDING_ASSIGNMENT",
+  };
+}

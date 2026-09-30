@@ -635,3 +635,225 @@ function formatDeliveryForRider(delivery) {
     },
   };
 }
+
+
+// ── NEW: Delivery History Functions (append to rider.delivery.service.js) ────
+
+/**
+ * Get paginated delivery history for a rider.
+ * Includes DELIVERED, FAILED, CANCELLED by default (terminal states only).
+ */
+export async function getDeliveryHistory(rider_id, filters) {
+  const { page, limit, status, from_date, to_date } = filters;
+
+  const statusFilter = status && status.length > 0
+    ? status
+    : ["DELIVERED", "FAILED", "CANCELLED"];
+
+  const where = {
+    rider_id,
+    status: { in: statusFilter },
+  };
+
+  // Date range filter based on the terminal timestamp (delivered_at/failed_at/created_at fallback)
+  if (from_date || to_date) {
+    where.created_at = {};
+    if (from_date) where.created_at.gte = new Date(from_date);
+    if (to_date) where.created_at.lte = new Date(to_date);
+  }
+
+  const [total, deliveries] = await prisma.$transaction([
+    prisma.delivery.count({ where }),
+    prisma.delivery.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        order: {
+          select: {
+            order_number: true,
+            customer_name_snapshot: true,
+            total_amount: true,
+            payment_method: true,
+            shop: { select: { business_name: true } },
+            branch: { select: { branch_name: true } },
+            items: { select: { item_id: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    deliveries: deliveries.map((d) => ({
+      delivery_id: d.delivery_id,
+      order_id: d.order_id,
+      order_number: d.order?.order_number,
+      status: d.status,
+      pharmacy_name: d.order?.shop?.business_name || null,
+      branch_name: d.order?.branch?.branch_name || null,
+      customer_name: d.order?.customer_name_snapshot || null,
+      total_amount: d.order?.total_amount ? Number(d.order.total_amount) : 0,
+      payment_method: d.order?.payment_method || "COD",
+      item_count: d.order?.items?.length || 0,
+      total_rider_earning: d.total_rider_earning
+        ? Number(d.total_rider_earning)
+        : 0,
+      tip_amount: d.tip_amount ? Number(d.tip_amount) : 0,
+      total_distance_km: d.total_distance_km
+        ? Number(d.total_distance_km)
+        : 0,
+      failure_reason: d.failure_reason || null,
+      delivered_at: d.delivered_at,
+      failed_at: d.failed_at,
+      created_at: d.created_at,
+    })),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+/**
+ * Get full delivery detail with earnings breakdown, timestamps, items, ratings.
+ */
+export async function getDeliveryHistoryDetail(delivery_id, rider_id) {
+  const delivery = await prisma.delivery.findUnique({
+    where: { delivery_id },
+    include: {
+      order: {
+        include: {
+          shop: { select: { business_name: true } },
+          branch: {
+            select: {
+              branch_name: true,
+              address_line_1: true,
+              city: true,
+              contact_number: true,
+              marketplaceSettings: {
+                select: {
+                  latitude: true,
+                  longitude: true,
+                  formatted_address: true,
+                  contact_override: true,
+                },
+              },
+            },
+          },
+          items: {
+            select: {
+              item_id: true,
+              medicine_name_snapshot: true,
+              pack_size_snapshot: true,
+              brand_snapshot: true,
+              quantity: true,
+              unit_price_snapshot: true,
+              line_total: true,
+            },
+          },
+        },
+      },
+      riderRating: {
+        select: { stars: true, created_at: true },
+      },
+    },
+  });
+
+  if (!delivery) throw new Error("Delivery not found");
+  if (delivery.rider_id !== rider_id) throw new Error("Unauthorized");
+
+  const order = delivery.order;
+  const addressSnapshot = order?.delivery_address_snapshot || {};
+  const pharmacyContact =
+    order?.branch?.marketplaceSettings?.contact_override ||
+    order?.branch?.contact_number ||
+    null;
+  const pharmacyAddress =
+    order?.branch?.marketplaceSettings?.formatted_address ||
+    [order?.branch?.address_line_1, order?.branch?.city]
+      .filter(Boolean)
+      .join(", ") ||
+    null;
+
+  return {
+    delivery_id: delivery.delivery_id,
+    order_id: delivery.order_id,
+    order_number: order?.order_number,
+    status: delivery.status,
+    payment_method: order?.payment_method || "COD",
+    order_total: order?.total_amount ? Number(order.total_amount) : 0,
+
+    pharmacy: {
+      shop_name: order?.shop?.business_name || null,
+      branch_name: order?.branch?.branch_name || null,
+      contact_number: pharmacyContact,
+      address: pharmacyAddress,
+      latitude: delivery.pickup_lat ? Number(delivery.pickup_lat) : null,
+      longitude: delivery.pickup_lng ? Number(delivery.pickup_lng) : null,
+    },
+    customer: {
+      name: order?.customer_name_snapshot || null,
+      phone: order?.customer_phone_snapshot || null,
+      address_line_1: addressSnapshot.address_line_1 || null,
+      address_line_2: addressSnapshot.address_line_2 || null,
+      landmark: addressSnapshot.landmark || null,
+      city: addressSnapshot.city || null,
+      latitude: delivery.drop_lat ? Number(delivery.drop_lat) : null,
+      longitude: delivery.drop_lng ? Number(delivery.drop_lng) : null,
+    },
+    items: (order?.items || []).map((i) => ({
+      item_id: i.item_id,
+      medicine_name: i.medicine_name_snapshot,
+      brand: i.brand_snapshot || null,
+      pack_size: i.pack_size_snapshot || null,
+      quantity: i.quantity,
+      unit_price: i.unit_price_snapshot ? Number(i.unit_price_snapshot) : 0,
+      line_total: i.line_total ? Number(i.line_total) : 0,
+    })),
+    earnings: {
+      pickup_fee: delivery.pickup_fee ? Number(delivery.pickup_fee) : 0,
+      drop_fee: delivery.drop_fee ? Number(delivery.drop_fee) : 0,
+      surge_fee: delivery.surge_fee ? Number(delivery.surge_fee) : 0,
+      floor_topup_fee: delivery.floor_topup_fee
+        ? Number(delivery.floor_topup_fee)
+        : 0,
+      tip_amount: delivery.tip_amount ? Number(delivery.tip_amount) : 0,
+      total_earning: delivery.total_rider_earning
+        ? Number(delivery.total_rider_earning)
+        : 0,
+    },
+    distances: {
+      pickup_km: delivery.pickup_distance_km
+        ? Number(delivery.pickup_distance_km)
+        : 0,
+      drop_km: delivery.drop_distance_km
+        ? Number(delivery.drop_distance_km)
+        : 0,
+      total_km: delivery.total_distance_km
+        ? Number(delivery.total_distance_km)
+        : 0,
+    },
+    timestamps: {
+      assigned_at: delivery.assigned_at,
+      accepted_at: delivery.accepted_at,
+      arrived_at_pharmacy_at: delivery.arrived_at_pharmacy_at,
+      picked_up_at: delivery.picked_up_at,
+      arrived_at_customer_at: delivery.arrived_at_customer_at,
+      delivered_at: delivery.delivered_at,
+      failed_at: delivery.failed_at,
+    },
+    failure_reason: delivery.failure_reason || null,
+    failure_note: delivery.failure_note || null,
+    rating: delivery.riderRating
+      ? {
+          stars: delivery.riderRating.stars,
+          created_at: delivery.riderRating.created_at,
+        }
+      : null,
+    created_at: delivery.created_at,
+  };
+}

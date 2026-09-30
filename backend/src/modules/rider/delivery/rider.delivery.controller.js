@@ -4,6 +4,7 @@ import {
   declineDeliverySchema,
   updateDeliveryStatusSchema,
   completeDeliverySchema,
+  historyQuerySchema,
 } from "./rider.delivery.schema.js";
 
 export async function getActiveDelivery(req, res) {
@@ -58,6 +59,29 @@ export async function completeDelivery(req, res) {
     const validated = completeDeliverySchema.parse(req.body);
     const result = await service.completeDeliveryWithOtp(deliveryId, riderId, validated);
     return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
+
+// ── NEW: Delivery History ──────────────────────────────────────────────────
+export async function getDeliveryHistory(req, res) {
+  try {
+    const riderId = req.rider.rider_id;
+    const validated = historyQuerySchema.parse(req.query);
+    const result = await service.getDeliveryHistory(riderId, validated);
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
+
+export async function getDeliveryHistoryDetail(req, res) {
+  try {
+    const riderId = req.rider.rider_id;
+    const { deliveryId } = req.params;
+    const detail = await service.getDeliveryHistoryDetail(deliveryId, riderId);
+    return res.status(200).json({ success: true, data: detail });
   } catch (err) {
     return res.status(400).json({ success: false, message: err.message });
   }
