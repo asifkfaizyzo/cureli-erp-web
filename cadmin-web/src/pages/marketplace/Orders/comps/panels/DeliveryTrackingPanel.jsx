@@ -1,6 +1,11 @@
 // cadmin-web/src/pages/marketplace/Orders/comps/panels/DeliveryTrackingPanel.jsx (do not remove this comment)
 import { useState, useEffect, useCallback, useRef } from "react";
-import { GoogleMap, Marker, Polyline, InfoWindow } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  Marker,
+  Polyline,
+  InfoWindow,
+} from "@react-google-maps/api";
 import {
   Truck,
   RefreshCw,
@@ -15,7 +20,10 @@ import {
   UserCheck,
   Store,
 } from "lucide-react";
-import { getAvailableRidersForOrder, assignRiderToOrder } from "../../../../../api/cadminDelivery";
+import {
+  getAvailableRidersForOrder,
+  assignRiderToOrder,
+} from "../../../../../api/cadminDelivery";
 import { useToast } from "../../../../../components/common/Toast";
 import { useGoogleMaps } from "../../../../../hooks/useGoogleMaps";
 import { lightMapStyle } from "../../../../../constants/mapStyle";
@@ -40,7 +48,9 @@ const SectionTitle = ({ icon: Icon, title, action = null }) => (
 );
 
 const Card = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm ${className}`}>
+  <div
+    className={`bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm ${className}`}
+  >
     {children}
   </div>
 );
@@ -123,7 +133,10 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3 * 100) / 100;
+  return (
+    Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3 * 100) /
+    100
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -160,15 +173,24 @@ const RiderMapView = ({
     const bounds = new window.google.maps.LatLngBounds();
 
     if (pharmacy?.latitude && pharmacy?.longitude) {
-      bounds.extend({ lat: Number(pharmacy.latitude), lng: Number(pharmacy.longitude) });
+      bounds.extend({
+        lat: Number(pharmacy.latitude),
+        lng: Number(pharmacy.longitude),
+      });
     }
     if (customerAddress?.latitude && customerAddress?.longitude) {
-      bounds.extend({ lat: Number(customerAddress.latitude), lng: Number(customerAddress.longitude) });
+      bounds.extend({
+        lat: Number(customerAddress.latitude),
+        lng: Number(customerAddress.longitude),
+      });
     }
 
     riders.forEach((rider) => {
       if (rider.current_lat && rider.current_lng && rider.is_online) {
-        bounds.extend({ lat: Number(rider.current_lat), lng: Number(rider.current_lng) });
+        bounds.extend({
+          lat: Number(rider.current_lat),
+          lng: Number(rider.current_lng),
+        });
       }
     });
 
@@ -180,16 +202,29 @@ const RiderMapView = ({
     if (mapRef.current && isLoaded && !hasFitBoundsRef.current) {
       const bounds = getBounds();
       if (bounds && !bounds.isEmpty()) {
-        console.log("🗺️ [Map Engine] Constraints initialized. Adjusting map boundaries.");
-        mapRef.current.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+        console.log(
+          "🗺️ [Map Engine] Constraints initialized. Adjusting map boundaries.",
+        );
+        mapRef.current.fitBounds(bounds, {
+          top: 50,
+          right: 50,
+          bottom: 50,
+          left: 50,
+        });
         hasFitBoundsRef.current = true; // Lock boundaries. Allow smooth marker panning on following ticks
       }
     }
   }, [getBounds, isLoaded]);
 
   useEffect(() => {
-    if (mapRef.current && selectedRider?.current_lat && selectedRider?.current_lng) {
-      console.log(`🗺️ [Map Engine] Panning camera to active rider tracking target: ${selectedRider.rider_id}`);
+    if (
+      mapRef.current &&
+      selectedRider?.current_lat &&
+      selectedRider?.current_lng
+    ) {
+      console.log(
+        `🗺️ [Map Engine] Panning camera to active rider tracking target: ${selectedRider.rider_id}`,
+      );
       mapRef.current.panTo({
         lat: Number(selectedRider.current_lat),
         lng: Number(selectedRider.current_lng),
@@ -203,7 +238,9 @@ const RiderMapView = ({
       <div className="h-full w-full rounded-2xl bg-gray-50 border border-gray-200 flex flex-col items-center justify-center p-6 text-center">
         <AlertCircle size={28} className="text-red-500 mb-2" />
         <p className="text-xs font-semibold text-gray-700">Map Loading Error</p>
-        <p className="text-[10px] text-gray-400 mt-0.5 max-w-xs">{loadError.message}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5 max-w-xs">
+          {loadError.message}
+        </p>
       </div>
     );
   }
@@ -212,7 +249,9 @@ const RiderMapView = ({
     return (
       <div className="h-full w-full rounded-2xl bg-gray-50 border border-gray-200 flex flex-col items-center justify-center p-6 text-center">
         <Loader2 size={24} className="animate-spin text-[#05015A] mb-2" />
-        <p className="text-xs text-gray-500 font-semibold">Initializing Logistics Map...</p>
+        <p className="text-xs text-gray-500 font-semibold">
+          Initializing Logistics Map...
+        </p>
       </div>
     );
   }
@@ -225,7 +264,10 @@ const RiderMapView = ({
     pharmacy?.latitude && customerAddress?.latitude
       ? [
           { lat: Number(pharmacy.latitude), lng: Number(pharmacy.longitude) },
-          { lat: Number(customerAddress.latitude), lng: Number(customerAddress.longitude) },
+          {
+            lat: Number(customerAddress.latitude),
+            lng: Number(customerAddress.longitude),
+          },
         ]
       : [];
 
@@ -242,7 +284,10 @@ const RiderMapView = ({
       >
         {pharmacy?.latitude && (
           <Marker
-            position={{ lat: Number(pharmacy.latitude), lng: Number(pharmacy.longitude) }}
+            position={{
+              lat: Number(pharmacy.latitude),
+              lng: Number(pharmacy.longitude),
+            }}
             icon={PHARMACY_MARKER_SVG}
             title={pharmacy.shop_name || "Pharmacy"}
           />
@@ -250,13 +295,18 @@ const RiderMapView = ({
 
         {customerAddress?.latitude && (
           <Marker
-            position={{ lat: Number(customerAddress.latitude), lng: Number(customerAddress.longitude) }}
+            position={{
+              lat: Number(customerAddress.latitude),
+              lng: Number(customerAddress.longitude),
+            }}
             icon={CUSTOMER_MARKER_SVG}
             title="Destination"
           />
         )}
 
-        {polylinePath.length > 0 && <Polyline path={polylinePath} options={ROUTE_LINE_OPTIONS} />}
+        {polylinePath.length > 0 && (
+          <Polyline path={polylinePath} options={ROUTE_LINE_OPTIONS} />
+        )}
 
         {riders
           .filter((r) => r.current_lat && r.current_lng && r.is_online)
@@ -265,7 +315,10 @@ const RiderMapView = ({
             return (
               <Marker
                 key={rider.rider_id}
-                position={{ lat: Number(rider.current_lat), lng: Number(rider.current_lng) }}
+                position={{
+                  lat: Number(rider.current_lat),
+                  lng: Number(rider.current_lng),
+                }}
                 icon={RIDER_DOT_SVG(rider.has_active_delivery, isSelected)}
                 onClick={() => {
                   onRiderSelect(rider);
@@ -284,14 +337,18 @@ const RiderMapView = ({
             onCloseClick={() => setActiveInfoWindowRider(null)}
           >
             <div className="p-2 font-poppins min-w-[160px] text-slate-800">
-              <h5 className="text-[11px] font-bold">{activeInfoWindowRider.full_name}</h5>
+              <h5 className="text-[11px] font-bold">
+                {activeInfoWindowRider.full_name}
+              </h5>
               <p className="text-[9px] text-slate-500 font-mono mt-0.5">
                 {activeInfoWindowRider.phone}
               </p>
               <div className="flex items-center gap-1.5 mt-2 pt-1 border-t border-slate-100">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    activeInfoWindowRider.has_active_delivery ? "bg-amber-500" : "bg-emerald-500"
+                    activeInfoWindowRider.has_active_delivery
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
                   }`}
                 />
                 <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-600">
@@ -376,7 +433,10 @@ const RiderAssignList = ({
       {/* Search & Filter Header */}
       <div className="space-y-2 mt-1 mb-4 flex-shrink-0">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
             type="text"
             placeholder="Search partners by name, phone..."
@@ -390,7 +450,9 @@ const RiderAssignList = ({
           <button
             onClick={() => setTypeFilter("TEAM")}
             className={`flex-1 py-1.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-all text-center ${
-              typeFilter === "TEAM" ? "bg-white text-[#05015A] shadow-sm" : "text-gray-500 hover:text-gray-700"
+              typeFilter === "TEAM"
+                ? "bg-white text-[#05015A] shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Fixed (Team)
@@ -398,7 +460,9 @@ const RiderAssignList = ({
           <button
             onClick={() => setTypeFilter("INDEPENDENT")}
             className={`flex-1 py-1.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-all text-center ${
-              typeFilter === "INDEPENDENT" ? "bg-white text-[#05015A] shadow-sm" : "text-gray-500 hover:text-gray-700"
+              typeFilter === "INDEPENDENT"
+                ? "bg-white text-[#05015A] shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Independent
@@ -407,17 +471,26 @@ const RiderAssignList = ({
       </div>
 
       {/* Scrollable list */}
-      <div ref={listContainerRef} className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0">
+      <div
+        ref={listContainerRef}
+        className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0"
+      >
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 size={24} className="animate-spin text-[#05015A] mb-2" />
-            <p className="text-xs text-gray-400 font-medium">Scanning logistics grid...</p>
+            <p className="text-xs text-gray-400 font-medium">
+              Scanning logistics grid...
+            </p>
           </div>
         ) : riders.length === 0 ? (
           <div className="text-center py-16 bg-gray-50/50 rounded-xl border border-dashed border-gray-100">
             <Search size={20} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-xs font-bold text-gray-600">No active drivers found</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Check spelling or online statuses.</p>
+            <p className="text-xs font-bold text-gray-600">
+              No active drivers found
+            </p>
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Check spelling or online statuses.
+            </p>
           </div>
         ) : (
           riders.map((rider) => {
@@ -433,20 +506,26 @@ const RiderAssignList = ({
                   isBusy
                     ? "bg-gray-50/50 border-gray-100 opacity-60 pointer-events-none"
                     : isSelected
-                    ? "bg-[#05015A]/[0.02] border-[#05015A]/40 shadow-sm"
-                    : "bg-white border-gray-100 hover:border-[#05015A]/25"
+                      ? "bg-[#05015A]/[0.02] border-[#05015A]/40 shadow-sm"
+                      : "bg-white border-gray-100 hover:border-[#05015A]/25"
                 }`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h4 className="text-xs font-bold text-gray-800 truncate">{rider.full_name}</h4>
+                    <h4 className="text-xs font-bold text-gray-800 truncate">
+                      {rider.full_name}
+                    </h4>
                     <span
                       className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        rider.is_online ? "bg-emerald-500 animate-pulse" : "bg-gray-300"
+                        rider.is_online
+                          ? "bg-emerald-500 animate-pulse"
+                          : "bg-gray-300"
                       }`}
                     />
                   </div>
-                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{rider.phone}</p>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">
+                    {rider.phone}
+                  </p>
 
                   <div className="flex flex-wrap items-center gap-1.5 mt-2 font-semibold">
                     {rider.distance_to_pharmacy_km != null ? (
@@ -456,7 +535,9 @@ const RiderAssignList = ({
                         {rider.distance_to_pharmacy_km} km
                       </span>
                     ) : (
-                      <span className="text-[10px] text-gray-400 font-medium">GPS missing</span>
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        GPS missing
+                      </span>
                     )}
 
                     {rider.has_active_delivery ? (
@@ -535,7 +616,8 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
 
   useEffect(() => {
     if (
-      (!order.delivery?.rider_id && ["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status)) ||
+      (!order.delivery?.rider_id &&
+        ["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status)) ||
       forceReassign
     ) {
       fetchRiders();
@@ -548,7 +630,9 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     console.log(`👤 [DeliveryPanel] Rider availability changed:`, payload);
     setRiders((prev) =>
       prev.map((r) =>
-        r.rider_id === payload.rider_id ? { ...r, is_online: payload.is_online } : r,
+        r.rider_id === payload.rider_id
+          ? { ...r, is_online: payload.is_online }
+          : r,
       ),
     );
   }, []);
@@ -559,7 +643,9 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     const pLng = pharmacyRef.current.longitude;
     if (!pLat || !pLng) return;
 
-    console.log(`📍 [DeliveryPanel] Rider GPS tick received: ${payload.rider_id}`);
+    console.log(
+      `📍 [DeliveryPanel] Rider GPS tick received: ${payload.rider_id}`,
+    );
 
     setRiders((prev) =>
       prev.map((r) => {
@@ -577,19 +663,25 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   }, []);
 
   // ── Real-time delivery status updates ──────────────────────────────
-  const handleDeliveryChanged = useCallback((payload) => {
-    if (!payload?.order_id || payload.order_id !== order.order_id) return;
-    console.log(`📦 [DeliveryPanel] Delivery status changed:`, payload);
-    // Trigger parent to re-fetch order data so milestones update
-    onUpdated();
-  }, [order.order_id, onUpdated]);
+  const handleDeliveryChanged = useCallback(
+    (payload) => {
+      if (!payload?.order_id || payload.order_id !== order.order_id) return;
+      console.log(`📦 [DeliveryPanel] Delivery status changed:`, payload);
+      // Trigger parent to re-fetch order data so milestones update
+      onUpdated();
+    },
+    [order.order_id, onUpdated],
+  );
 
   // ── Real-time order status updates ─────────────────────────────────
-  const handleStatusChanged = useCallback((payload) => {
-    if (!payload?.order_id || payload.order_id !== order.order_id) return;
-    console.log(`📋 [DeliveryPanel] Order status changed:`, payload);
-    onUpdated();
-  }, [order.order_id, onUpdated]);
+  const handleStatusChanged = useCallback(
+    (payload) => {
+      if (!payload?.order_id || payload.order_id !== order.order_id) return;
+      console.log(`📋 [DeliveryPanel] Order status changed:`, payload);
+      onUpdated();
+    },
+    [order.order_id, onUpdated],
+  );
 
   useMarketplaceSSE({
     onRiderAvailability: handleRiderAvailability,
@@ -607,7 +699,10 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
       setForceReassign(false);
       onUpdated();
     } catch (err) {
-      toast.error("Failed", err.response?.data?.message || "Assignment failed.");
+      toast.error(
+        "Failed",
+        err.response?.data?.message || "Assignment failed.",
+      );
     } finally {
       setAssigningId(null);
     }
@@ -618,16 +713,22 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
         <Store size={36} className="text-amber-400 mb-3" />
-        <h3 className="text-sm font-bold text-gray-700">Awaiting Shop Acceptance</h3>
+        <h3 className="text-sm font-bold text-gray-700">
+          Awaiting Shop Acceptance
+        </h3>
         <p className="text-xs text-gray-400 mt-1 max-w-sm px-6">
-          The pharmacy must accept this order before a delivery partner can be assigned.
+          The pharmacy must accept this order before a delivery partner can be
+          assigned.
         </p>
       </div>
     );
   }
 
   // ── Guard 2: Terminal status ──
-  if (["REJECTED", "CANCELLED"].includes(order.status) && !order.delivery?.rider_id) {
+  if (
+    ["REJECTED", "CANCELLED"].includes(order.status) &&
+    !order.delivery?.rider_id
+  ) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
         <AlertCircle size={36} className="text-red-400 mb-3" />
@@ -721,36 +822,90 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                 <div className="flex justify-between">
                   <span className="text-gray-400 font-medium">Type</span>
                   <span>
-                    {delivery.rider?.rider_type === "TEAM" ? "Salary Team" : "Independent"}
+                    {delivery.rider?.rider_type === "TEAM"
+                      ? "Salary Team"
+                      : "Independent"}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400 font-medium">Connection</span>
-                  <span className={delivery.rider?.is_online ? "text-emerald-600" : "text-gray-400"}>
+                  <span
+                    className={
+                      delivery.rider?.is_online
+                        ? "text-emerald-600"
+                        : "text-gray-400"
+                    }
+                  >
                     {delivery.rider?.is_online ? "Online" : "Offline"}
                   </span>
                 </div>
                 {delivery.total_distance_km != null && (
                   <div className="flex justify-between">
-                    <span className="text-gray-400 font-medium">Total Route</span>
-                    <span className="text-[#05015A]">{delivery.total_distance_km} km</span>
+                    <span className="text-gray-400 font-medium">
+                      Total Route
+                    </span>
+                    <span className="text-[#05015A]">
+                      {delivery.total_distance_km} km
+                    </span>
                   </div>
                 )}
                 {delivery.total_rider_earning != null && (
                   <div className="flex justify-between">
-                    <span className="text-gray-400 font-medium">Rider Earning</span>
-                    <span className="text-emerald-600">₹{delivery.total_rider_earning}</span>
+                    <span className="text-gray-400 font-medium">
+                      Rider Earning
+                    </span>
+                    <span className="text-emerald-600">
+                      ₹{delivery.total_rider_earning}
+                    </span>
                   </div>
                 )}
               </div>
 
-              {["ACCEPTED", "ARRIVED_AT_PHARMACY", "PENDING_ASSIGNMENT", "RIDER_NOTIFIED"].includes(delivery.status) && (
-                <button
-                  onClick={() => setForceReassign(true)}
-                  className="w-full mt-2 py-2 border border-dashed border-gray-200 hover:border-[#05015A]/30 text-[11px] font-bold text-gray-600 hover:text-[#05015A] rounded-lg transition-all"
-                >
-                  Reassign Driver
-                </button>
+              {[
+                "ACCEPTED",
+                "ARRIVED_AT_PHARMACY",
+                "PENDING_ASSIGNMENT",
+                "RIDER_NOTIFIED",
+                "PICKED_UP",
+                "EN_ROUTE",
+                "ARRIVED_AT_CUSTOMER",
+              ].includes(delivery.status) && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setForceReassign(true)}
+                    className="flex-1 py-2 border border-dashed border-gray-200 hover:border-[#05015A]/30 text-[11px] font-bold text-gray-600 hover:text-[#05015A] rounded-lg transition-all"
+                  >
+                    Reassign
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Unassign ${delivery.rider?.full_name || "rider"}?`,
+                        )
+                      )
+                        return;
+                      try {
+                        const { unassignRiderFromOrder } =
+                          await import("../../../../../api/cadminDelivery");
+                        await unassignRiderFromOrder(order.order_id);
+                        toast.success(
+                          "Unassigned",
+                          "Rider removed from delivery.",
+                        );
+                        onUpdated();
+                      } catch (err) {
+                        toast.error(
+                          "Failed",
+                          err.response?.data?.message || "Could not unassign.",
+                        );
+                      }
+                    }}
+                    className="flex-1 py-2 border border-dashed border-red-200 hover:border-red-400 text-[11px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50/50 rounded-lg transition-all"
+                  >
+                    Unassign
+                  </button>
+                </div>
               )}
             </div>
           </Card>
@@ -788,7 +943,10 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                   const completed = idx <= activeIndex;
                   const active = idx === activeIndex;
                   return (
-                    <div key={step.key} className="relative flex items-start gap-4">
+                    <div
+                      key={step.key}
+                      className="relative flex items-start gap-4"
+                    >
                       {idx < milestones.length - 1 && (
                         <div
                           className={`absolute left-3 top-6 w-0.5 h-11 -translate-x-1/2 ${
@@ -801,14 +959,16 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                           completed
                             ? "bg-emerald-500 border-emerald-500 text-white"
                             : active
-                            ? "bg-white border-[#05015A] text-[#05015A]"
-                            : "bg-white border-gray-200 text-gray-300"
+                              ? "bg-white border-[#05015A] text-[#05015A]"
+                              : "bg-white border-gray-200 text-gray-300"
                         }`}
                       >
                         {completed ? (
                           <CheckCircle2 size={13} />
                         ) : (
-                          <span className="text-[10px] font-bold">{idx + 1}</span>
+                          <span className="text-[10px] font-bold">
+                            {idx + 1}
+                          </span>
                         )}
                       </div>
                       <div className="pt-0.5">
@@ -835,14 +995,20 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                           {idx === 4 &&
                             delivery.delivered_at &&
                             `Delivered: ${fmtTime(delivery.delivered_at)}`}
-                          {!completed && idx === 3 && order.status !== "READY_FOR_PICKUP" && (
-                            <span className="text-amber-600">Awaiting shop READY FOR PICKUP</span>
-                          )}
-                          {!completed && idx === 3 && order.status === "READY_FOR_PICKUP" && (
-                            <span className="text-violet-600">
-                              Shop ready! Awaiting rider pickup
-                            </span>
-                          )}
+                          {!completed &&
+                            idx === 3 &&
+                            order.status !== "READY_FOR_PICKUP" && (
+                              <span className="text-amber-600">
+                                Awaiting shop READY FOR PICKUP
+                              </span>
+                            )}
+                          {!completed &&
+                            idx === 3 &&
+                            order.status === "READY_FOR_PICKUP" && (
+                              <span className="text-violet-600">
+                                Shop ready! Awaiting rider pickup
+                              </span>
+                            )}
                         </p>
                       </div>
                     </div>
@@ -852,7 +1018,8 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
             </div>
             <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400 font-semibold">
               <span>
-                Delivery ID: <span className="font-mono">{delivery.delivery_id}</span>
+                Delivery ID:{" "}
+                <span className="font-mono">{delivery.delivery_id}</span>
               </span>
               <span>Attempts: {delivery.assignment_attempts}</span>
             </div>

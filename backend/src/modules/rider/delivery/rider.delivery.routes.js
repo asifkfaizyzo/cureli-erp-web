@@ -8,6 +8,10 @@ const router = Router();
 router.use(riderAuth);
 
 router.get("/active", controller.getActiveDelivery);
+
+router.get("/history", controller.getDeliveryHistory);
+router.get("/history/:deliveryId", controller.getDeliveryHistoryDetail);
+
 router.post("/:deliveryId/accept", controller.acceptDelivery);
 router.post("/:deliveryId/decline", controller.declineDelivery);
 router.post("/:deliveryId/status", controller.updateDeliveryStatus);

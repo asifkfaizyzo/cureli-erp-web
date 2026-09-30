@@ -1,4 +1,3 @@
-// cadmin-web/src/api/cadminDelivery.js (do not remove this comment)
 import CAdminAPI from "./axios";
 
 /**
@@ -24,5 +23,15 @@ export function assignRiderToOrder(orderId, riderId) {
   return CAdminAPI.post("/delivery/assign", {
     order_id: orderId,
     rider_id: riderId,
+  });
+}
+
+/**
+ * Unassign the current rider from a delivery order (CAdmin override).
+ * @param {string} orderId
+ */
+export function unassignRiderFromOrder(orderId) {
+  return CAdminAPI.post("/delivery/unassign", {
+    order_id: orderId,
   });
 }

@@ -358,7 +358,6 @@ export const updateOrderStatus = async ({
           ...(new_status === "CANCELLED" && {
             cancelled_at: now,
             cancelled_by: "cadmin",
-            ...(reason.trim() && { cancellation_reason: reason.trim() }),
           }),
           updated_at: now,
         },
@@ -375,15 +374,31 @@ export const updateOrderStatus = async ({
         },
       });
 
-      // Sync delivery cancellation if cancelled or rejected
-      if (["CANCELLED", "REJECTED"].includes(new_status) && currentDelivery) {
+      // ── Sync delivery record for ALL terminal order states ──────────
+      if (
+        ["COMPLETED", "CANCELLED", "REJECTED"].includes(new_status) &&
+        currentDelivery
+      ) {
+        const deliveryUpdate = {};
+
+        if (new_status === "COMPLETED") {
+          deliveryUpdate.status = "DELIVERED";
+          deliveryUpdate.delivered_at = now;
+        } else if (new_status === "CANCELLED") {
+          deliveryUpdate.status = "CANCELLED";
+          deliveryUpdate.failed_at = now;
+          deliveryUpdate.failure_reason = "OTHER";
+          deliveryUpdate.failure_note = `Order cancelled by CAdmin: ${reason.trim()}`;
+        } else if (new_status === "REJECTED") {
+          deliveryUpdate.status = "FAILED";
+          deliveryUpdate.failed_at = now;
+          deliveryUpdate.failure_reason = "OTHER";
+          deliveryUpdate.failure_note = `Order rejected by CAdmin: ${reason.trim()}`;
+        }
+
         await tx.delivery.update({
           where: { order_id },
-          data: {
-            status: "CANCELLED",
-            failed_at: now,
-            failure_note: `Order marked as ${new_status} by CAdmin: ${reason.trim()}`,
-          },
+          data: deliveryUpdate,
         });
       }
 
@@ -399,21 +414,59 @@ export const updateOrderStatus = async ({
     },
   );
 
-  // ── 1. If cancelled/rejected, clear old rider active task cache ────────
+  // ── 1. If terminal state, clear rider active task & notify all systems ──
   if (
-    ["CANCELLED", "REJECTED"].includes(new_status) &&
+    ["COMPLETED", "CANCELLED", "REJECTED"].includes(new_status) &&
     previousDelivery?.rider_id
   ) {
     const { unregisterActiveDelivery } =
       await import("../../rider/presence/rider.presence.service.js");
     unregisterActiveDelivery(previousDelivery.rider_id);
 
-    // Notify Rider of cancellation
-    sseService.notifyRider(previousDelivery.rider_id, "delivery_cancelled", {
-      delivery_id: previousDelivery.delivery_id,
+    // Notify Rider
+    if (new_status === "COMPLETED") {
+      sseService.notifyRider(previousDelivery.rider_id, "delivery_completed", {
+        delivery_id: previousDelivery.delivery_id,
+        order_id,
+        order_number: order.order_number,
+      });
+    } else {
+      sseService.notifyRider(previousDelivery.rider_id, "delivery_cancelled", {
+        delivery_id: previousDelivery.delivery_id,
+        order_id,
+        order_number: order.order_number,
+        reason: `Order ${new_status.toLowerCase()} by admin: ${reason.trim()}`,
+      });
+    }
+
+    // Notify Mobile Customer of delivery status change
+    if (order.customer_id) {
+      const deliverySseStatus =
+        new_status === "COMPLETED"
+          ? "DELIVERED"
+          : new_status === "CANCELLED"
+            ? "CANCELLED"
+            : "FAILED";
+      sseService.notifyMobile(order.customer_id, "delivery_update", {
+        order_id,
+        order_number: order.order_number,
+        delivery_status: deliverySseStatus,
+      });
+    }
+
+    // Broadcast delivery status change to all CAdmins (updates tracking panels)
+    const deliverySseStatus =
+      new_status === "COMPLETED"
+        ? "DELIVERED"
+        : new_status === "CANCELLED"
+          ? "CANCELLED"
+          : "FAILED";
+    sseService.notifyAllCAdmins("delivery_status_changed", {
       order_id,
-      order_number: order.order_number,
-      reason: `Order cancelled by admin: ${reason.trim()}`,
+      delivery_id: previousDelivery.delivery_id,
+      rider_id: previousDelivery.rider_id,
+      status: deliverySseStatus,
+      timestamp: now.toISOString(),
     });
   }
 
