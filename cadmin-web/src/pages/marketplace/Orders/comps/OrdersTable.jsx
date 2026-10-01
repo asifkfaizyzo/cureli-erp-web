@@ -1,6 +1,6 @@
 // cadmin-web/src/pages/marketplace/Orders/comps/OrdersTable.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
-import { ShoppingBag, Eye, AlertTriangle } from "lucide-react";
+import { ShoppingBag, FileText, Eye } from "lucide-react";
 import Pagination from "../../../../components/common/Pagination";
 import TableSkeleton from "../../../../components/common/TableSkeleton";
 import TableEmptyState from "../../../../components/common/TableEmptyState";
@@ -9,7 +9,8 @@ import {
   getClickableRowClass,
 } from "../../../../config/tableConfig";
 
-const COLUMNS = {
+// ── Order Columns ──────────────────────────────────────────
+const ORDER_COLUMNS = {
   slNo: { key: "slNo", label: "#", width: 50, sortable: false, align: "left" },
   order: {
     key: "order",
@@ -69,7 +70,62 @@ const COLUMNS = {
   },
 };
 
-const STATUS_BADGE_CONFIG = {
+// ── Prescription Request Columns ───────────────────────────
+const RX_COLUMNS = {
+  slNo: { key: "slNo", label: "#", width: 50, sortable: false, align: "left" },
+  request: {
+    key: "request",
+    label: "Request #",
+    width: 140,
+    sortable: false,
+    align: "left",
+  },
+  customer: {
+    key: "customer",
+    label: "Customer",
+    width: 180,
+    sortable: false,
+    align: "left",
+  },
+  pharmacies: {
+    key: "pharmacies",
+    label: "Pharmacies",
+    width: 160,
+    sortable: false,
+    align: "center",
+  },
+  files: {
+    key: "files",
+    label: "Files",
+    width: 70,
+    sortable: false,
+    align: "center",
+  },
+  status: {
+    key: "status",
+    label: "Status",
+    width: 160,
+    sortable: false,
+    align: "center",
+  },
+  date: {
+    key: "date",
+    label: "Created At",
+    width: 110,
+    sortable: false,
+    align: "left",
+  },
+  actions: {
+    key: "actions",
+    label: "",
+    width: 60,
+    sortable: false,
+    align: "center",
+  },
+};
+
+// ── Order Status Badges ────────────────────────────────────
+const ORDER_STATUS_BADGE = {
   PLACED: {
     label: "Placed",
     cls: "bg-amber-100 text-amber-800 border-amber-200",
@@ -102,6 +158,45 @@ const STATUS_BADGE_CONFIG = {
   },
 };
 
+// ── Prescription Request Status Badges ─────────────────────
+const RX_STATUS_BADGE = {
+  PENDING: {
+    label: "Pending",
+    cls: "bg-amber-100 text-amber-800 border-amber-200",
+    dot: "bg-amber-500",
+  },
+  PARTIALLY_RESPONDED: {
+    label: "Partial",
+    cls: "bg-blue-100 text-blue-800 border-blue-200",
+    dot: "bg-blue-500",
+  },
+  FULLY_RESPONDED: {
+    label: "Responded",
+    cls: "bg-violet-100 text-violet-800 border-violet-200",
+    dot: "bg-violet-500",
+  },
+  ACCEPTED: {
+    label: "Accepted",
+    cls: "bg-teal-100 text-teal-800 border-teal-200",
+    dot: "bg-teal-500",
+  },
+  COMPLETED: {
+    label: "Completed",
+    cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    dot: "bg-emerald-500",
+  },
+  EXPIRED: {
+    label: "Expired",
+    cls: "bg-gray-100 text-gray-600 border-gray-200",
+    dot: "bg-gray-400",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    cls: "bg-red-100 text-red-700 border-red-200",
+    dot: "bg-red-400",
+  },
+};
+
 const fmtAmount = (n) =>
   `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -118,6 +213,7 @@ const needsRider = (order) =>
   !order.has_rider && ["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status);
 
 const OrdersTable = ({
+  viewMode = "orders",
   orders = [],
   loading = false,
   currentPage,
@@ -125,8 +221,12 @@ const OrdersTable = ({
   totalItems,
   rowsPerPage,
   onSelectOrder,
+  onSelectRequest,
 }) => {
   const { styles, heights } = TABLE_CONFIG;
+  const isOrders = viewMode === "orders";
+  const COLUMNS = isOrders ? ORDER_COLUMNS : RX_COLUMNS;
+
   const [columnWidths, setColumnWidths] = useState(() => {
     const widths = {};
     Object.values(COLUMNS).forEach((col) => {
@@ -135,6 +235,15 @@ const OrdersTable = ({
     return widths;
   });
   const [resizing, setResizing] = useState(null);
+
+  // Reset column widths when viewMode changes
+  useEffect(() => {
+    const widths = {};
+    Object.values(COLUMNS).forEach((col) => {
+      widths[col.key] = col.width;
+    });
+    setColumnWidths(widths);
+  }, [viewMode]);
 
   const handleMouseDown = (column, e) => {
     e.preventDefault();
@@ -190,6 +299,202 @@ const OrdersTable = ({
     );
   };
 
+  // ── Render Order Row ─────────────────────────────────────
+  const renderOrderRow = (order, index) => {
+    const isNeedsRider = needsRider(order);
+    const statusCfg = ORDER_STATUS_BADGE[order.status] || {
+      label: order.status,
+      cls: "bg-gray-100 text-gray-700 border-gray-200",
+      dot: "bg-gray-400",
+    };
+
+    return (
+      <tr
+        key={order.order_id}
+        onClick={() => onSelectOrder(order.order_id)}
+        className={`${getClickableRowClass(index)} ${
+          isNeedsRider ? "border-l-4 border-l-amber-400 bg-amber-50/30" : ""
+        }`}
+        style={{ height: `${heights.bodyRow}px` }}
+      >
+        <td className={`${styles.cell.base} ${styles.cell.muted} font-medium`}>
+          {startIndex + index + 1}
+        </td>
+        <td
+          className={`${styles.cell.base} font-mono text-xs text-gray-800 font-semibold`}
+        >
+          {order.order_number}
+        </td>
+        <td className={styles.cell.base}>
+          <div className="flex flex-col">
+            <span className="font-semibold text-gray-900 truncate">
+              {order.customer_name || "—"}
+            </span>
+            <span className="text-[11px] text-gray-400 font-mono">
+              {order.customer_phone || ""}
+            </span>
+          </div>
+        </td>
+        <td className={styles.cell.base}>
+          <div className="flex flex-col">
+            <span className="font-semibold text-gray-900 truncate">
+              {order.shop?.business_name || "—"}
+            </span>
+            <span className="text-[11px] text-gray-400 truncate">
+              {order.branch?.branch_name || ""}
+            </span>
+          </div>
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.center}`}>
+          <div className="flex items-center justify-center gap-1">
+            <span className="font-medium text-gray-800">
+              {order.item_count ?? "—"}
+            </span>
+            {order.requires_prescription && (
+              <span className="px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-bold">
+                Rx
+              </span>
+            )}
+          </div>
+        </td>
+        <td className={`${styles.cell.base} font-semibold text-gray-900`}>
+          {order.total_amount != null ? fmtAmount(order.total_amount) : "—"}
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.center}`}>
+          <div className="flex flex-col items-center gap-0.5">
+            <span
+              className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusCfg.cls}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+              {statusCfg.label}
+            </span>
+            {isNeedsRider && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Needs Rider
+              </span>
+            )}
+            {order.delivery_status && !isNeedsRider && order.has_rider && (
+              <span className="text-[9px] text-gray-400 font-medium">
+                {order.delivery_status.replace(/_/g, " ")}
+              </span>
+            )}
+          </div>
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.muted}`}>
+          {fmtDate(order.placed_at)}
+        </td>
+        <td className={styles.cell.base}>
+          <div className={styles.actions.container}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectOrder(order.order_id);
+              }}
+              className={`${styles.actions.button.base} ${styles.actions.button.view}`}
+              title="View Details"
+            >
+              <Eye size={15} />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  // ── Render Prescription Request Row ──────────────────────
+  const renderRxRow = (req, index) => {
+    const statusCfg = RX_STATUS_BADGE[req.status] || {
+      label: req.status,
+      cls: "bg-gray-100 text-gray-700 border-gray-200",
+      dot: "bg-gray-400",
+    };
+
+    const isPending =
+      req.status === "PENDING" || req.status === "PARTIALLY_RESPONDED";
+    const rowHighlight = isPending
+      ? "border-l-4 border-l-teal-400 bg-teal-50/30"
+      : "";
+
+    return (
+      <tr
+        key={req.request_id}
+        onClick={() => onSelectRequest(req.request_id)}
+        className={`${getClickableRowClass(index)} ${rowHighlight}`}
+        style={{ height: `${heights.bodyRow}px` }}
+      >
+        <td className={`${styles.cell.base} ${styles.cell.muted} font-medium`}>
+          {startIndex + index + 1}
+        </td>
+        <td
+          className={`${styles.cell.base} font-mono text-xs text-teal-800 font-semibold`}
+        >
+          {req.request_number}
+        </td>
+        <td className={styles.cell.base}>
+          <div className="flex flex-col">
+            <span className="font-semibold text-gray-900 truncate">
+              {req.customer_name || "—"}
+            </span>
+            <span className="text-[11px] text-gray-400 font-mono">
+              {req.customer_phone || ""}
+            </span>
+          </div>
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.center}`}>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-xs font-semibold text-gray-800">
+              {req.quoted_count}/{req.recipient_count}
+            </span>
+            <span className="text-[9px] text-gray-400">
+              {req.pending_count > 0
+                ? `${req.pending_count} pending`
+                : "all responded"}
+            </span>
+          </div>
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.center}`}>
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-teal-50 text-teal-700 text-xs font-bold border border-teal-100">
+            {req.file_count}
+          </span>
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.center}`}>
+          <div className="flex flex-col items-center gap-0.5">
+            <span
+              className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusCfg.cls}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+              {statusCfg.label}
+            </span>
+            {isPending && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-teal-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                Awaiting
+              </span>
+            )}
+          </div>
+        </td>
+        <td className={`${styles.cell.base} ${styles.cell.muted}`}>
+          {fmtDate(req.created_at)}
+        </td>
+        <td className={styles.cell.base}>
+          <div className={styles.actions.container}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectRequest(req.request_id);
+              }}
+              className={`${styles.actions.button.base} ${styles.actions.button.view}`}
+              title="View Details"
+            >
+              <Eye size={15} />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className={styles.container.wrapper}>
       {showTable && (
@@ -213,134 +518,10 @@ const OrdersTable = ({
                     (k) => k !== "slNo" && k !== "actions",
                   )}
                 />
+              ) : isOrders ? (
+                orders.map((order, index) => renderOrderRow(order, index))
               ) : (
-                orders.map((order, index) => {
-                  const isNeedsRider = needsRider(order);
-                  const statusCfg = STATUS_BADGE_CONFIG[order.status] || {
-                    label: order.status,
-                    cls: "bg-gray-100 text-gray-700 border-gray-200",
-                    dot: "bg-gray-400",
-                  };
-
-                  return (
-                    <tr
-                      key={order.order_id}
-                      onClick={() => onSelectOrder(order.order_id)}
-                      className={`${getClickableRowClass(index)} ${
-                        isNeedsRider
-                          ? "border-l-4 border-l-amber-400 bg-amber-50/30"
-                          : ""
-                      }`}
-                      style={{ height: `${heights.bodyRow}px` }}
-                    >
-                      <td
-                        className={`${styles.cell.base} ${styles.cell.muted} font-medium`}
-                      >
-                        {startIndex + index + 1}
-                      </td>
-
-                      <td
-                        className={`${styles.cell.base} font-mono text-xs text-gray-800 font-semibold`}
-                      >
-                        {order.order_number}
-                      </td>
-
-                      <td className={styles.cell.base}>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-gray-900 truncate">
-                            {order.customer_name || "—"}
-                          </span>
-                          <span className="text-[11px] text-gray-400 font-mono">
-                            {order.customer_phone || ""}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className={styles.cell.base}>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-gray-900 truncate">
-                            {order.shop?.business_name || "—"}
-                          </span>
-                          <span className="text-[11px] text-gray-400 truncate">
-                            {order.branch?.branch_name || ""}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td
-                        className={`${styles.cell.base} ${styles.cell.center}`}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="font-medium text-gray-800">
-                            {order.item_count ?? "—"}
-                          </span>
-                          {order.requires_prescription && (
-                            <span className="px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-bold">
-                              Rx
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td
-                        className={`${styles.cell.base} font-semibold text-gray-900`}
-                      >
-                        {order.total_amount != null
-                          ? fmtAmount(order.total_amount)
-                          : "—"}
-                      </td>
-
-                      <td
-                        className={`${styles.cell.base} ${styles.cell.center}`}
-                      >
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span
-                            className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusCfg.cls}`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`}
-                            />
-                            {statusCfg.label}
-                          </span>
-                          {isNeedsRider && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Needs Rider
-                            </span>
-                          )}
-                          {order.delivery_status &&
-                            !isNeedsRider &&
-                            order.has_rider && (
-                              <span className="text-[9px] text-gray-400 font-medium">
-                                {order.delivery_status.replace(/_/g, " ")}
-                              </span>
-                            )}
-                        </div>
-                      </td>
-
-                      <td
-                        className={`${styles.cell.base} ${styles.cell.muted}`}
-                      >
-                        {fmtDate(order.placed_at)}
-                      </td>
-
-                      <td className={styles.cell.base}>
-                        <div className={styles.actions.container}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectOrder(order.order_id);
-                            }}
-                            className={`${styles.actions.button.base} ${styles.actions.button.view}`}
-                            title="View Details"
-                          >
-                            <Eye size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                orders.map((req, index) => renderRxRow(req, index))
               )}
             </tbody>
           </table>
@@ -349,8 +530,12 @@ const OrdersTable = ({
 
       {showEmptyState && (
         <TableEmptyState
-          icon={ShoppingBag}
-          title="No marketplace orders found"
+          icon={isOrders ? ShoppingBag : FileText}
+          title={
+            isOrders
+              ? "No marketplace orders found"
+              : "No prescription requests found"
+          }
           subtitle="Try adjusting your search or status filter."
         />
       )}

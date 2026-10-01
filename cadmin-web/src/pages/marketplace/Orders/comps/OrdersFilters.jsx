@@ -3,7 +3,7 @@ import { Search, X, Filter } from "lucide-react";
 import { useState, useMemo } from "react";
 import StyledSelect from "../../../../components/common/StyledSelect";
 
-const STATUS_OPTIONS = [
+const ORDER_STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "PLACED", label: "Placed" },
   { value: "ACCEPTED", label: "Accepted" },
@@ -13,8 +13,26 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
-const OrdersFilters = ({ search, setSearch, statusFilter, setStatusFilter }) => {
+const RX_STATUS_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "PENDING", label: "Pending" },
+  { value: "PARTIALLY_RESPONDED", label: "Partially Responded" },
+  { value: "FULLY_RESPONDED", label: "Fully Responded" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const OrdersFilters = ({
+  viewMode,
+  search,
+  setSearch,
+  statusFilter,
+  setStatusFilter,
+}) => {
   const [showFilters, setShowFilters] = useState(false);
+  const isOrders = viewMode === "orders";
 
   const activeFiltersCount = useMemo(() => {
     return [statusFilter].filter(Boolean).length;
@@ -29,10 +47,17 @@ const OrdersFilters = ({ search, setSearch, statusFilter, setStatusFilter }) => 
     <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 space-y-3 flex-shrink-0 shadow-sm">
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search
+            size={18}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
             type="text"
-            placeholder="Search by Order ID, Customer, or Shop..."
+            placeholder={
+              isOrders
+                ? "Search by Order ID, Customer, or Shop..."
+                : "Search by Request ID or Customer..."
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-10 sm:h-11 pl-10 pr-10 border border-gray-300 rounded-lg text-sm 
@@ -56,7 +81,8 @@ const OrdersFilters = ({ search, setSearch, statusFilter, setStatusFilter }) => 
           onClick={() => setShowFilters(!showFilters)}
           className={`px-3 sm:px-4 h-10 sm:h-11 rounded-lg text-sm font-medium flex items-center gap-2
                      transition-all shadow-sm relative flex-shrink-0
-                     ${showFilters || activeFiltersCount > 0
+                     ${
+                       showFilters || activeFiltersCount > 0
                          ? "bg-indigo-50 text-indigo-700 border-2 border-indigo-200"
                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                      }`}
@@ -64,8 +90,10 @@ const OrdersFilters = ({ search, setSearch, statusFilter, setStatusFilter }) => 
           <Filter size={18} />
           <span className="hidden sm:inline">Filters</span>
           {activeFiltersCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white 
-                             text-xs font-bold rounded-full flex items-center justify-center">
+            <span
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white 
+                             text-xs font-bold rounded-full flex items-center justify-center"
+            >
               {activeFiltersCount}
             </span>
           )}
@@ -76,10 +104,10 @@ const OrdersFilters = ({ search, setSearch, statusFilter, setStatusFilter }) => 
         <div className="pt-3 border-t border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <StyledSelect
-              label="Order Status"
+              label={isOrders ? "Order Status" : "Request Status"}
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
-              options={STATUS_OPTIONS}
+              options={isOrders ? ORDER_STATUS_OPTIONS : RX_STATUS_OPTIONS}
               placeholder="All Statuses"
             />
           </div>

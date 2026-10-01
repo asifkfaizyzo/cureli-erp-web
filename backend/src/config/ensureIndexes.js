@@ -53,12 +53,21 @@ export async function ensureIndexes() {
   const startTime = Date.now();
 
   try {
-    // Ensure pg_trgm extension exists
+    // 1. Ensure pg_trgm extension exists
     await prisma.$executeRawUnsafe(`
       CREATE EXTENSION IF NOT EXISTS pg_trgm
     `);
 
-    // Check existing trigram indexes
+    // 2. Ensure application sequences exist (for order & prescription numbering)
+    await prisma.$executeRawUnsafe(`
+      CREATE SEQUENCE IF NOT EXISTS marketplace_order_seq START WITH 1 INCREMENT BY 1
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE SEQUENCE IF NOT EXISTS prescription_request_seq START WITH 1 INCREMENT BY 1
+    `);
+    console.log("  ✓ verified required database sequence loops.");
+
+    // 3. Check existing trigram indexes
     const existing = await prisma.$queryRaw`
       SELECT indexname::text
       FROM pg_indexes

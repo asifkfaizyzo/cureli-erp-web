@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/prescription-requests/PrescriptionRequestsTab.jsx (do not remove this comment)
-// pharmacy-web/src/pages/prescription-requests/PrescriptionRequestsTab.jsx
 
 import { usePrescriptionRequestsPage, REQUEST_TABS }
   from '../../hooks/marketplace/usePrescriptionRequestsPage';
@@ -7,10 +6,8 @@ import RequestListPanel    from './components/RequestListPanel';
 import RequestDetailPanel  from './components/RequestDetailPanel';
 import DeclineModal        from './components/DeclineModal';
 
-// Tab bar for requests — reuses the same visual style as OrdersTabBar
-// but is self-contained since it uses different tab definitions
 const RequestsTabBar = ({ activeTab, onTabChange, counts = {} }) => (
-  <div className="flex items-center gap-1 border-b border-white/[0.06] px-4 flex-shrink-0">
+  <div className="flex items-center gap-1 border-b border-white/[0.06] px-4 flex-shrink-0 bg-[#010015]">
     {REQUEST_TABS.map((tab) => {
       const isActive = activeTab === tab.id;
       const count    = counts[tab.id];
@@ -19,10 +16,10 @@ const RequestsTabBar = ({ activeTab, onTabChange, counts = {} }) => (
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
           className={`
-            relative flex items-center gap-2 px-3 py-2.5 text-xs font-medium
-            border-b-2 transition-all duration-150
+            relative flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold
+            border-b-2 transition-all duration-150 focus:outline-none
             ${isActive
-              ? 'border-white text-white'
+              ? 'border-indigo-400 text-white'
               : 'border-transparent text-white/40 hover:text-white/70 hover:border-white/20'}
           `}
         >
@@ -55,8 +52,7 @@ const PrescriptionRequestsTab = () => {
   };
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col">
-
+    <div className="flex-1 overflow-hidden flex flex-col bg-[#010015]">
       {/* Sub-tab bar */}
       <RequestsTabBar
         activeTab={page.activeTab}
@@ -64,41 +60,45 @@ const PrescriptionRequestsTab = () => {
         counts={tabCounts}
       />
 
-      {/* Two-panel layout */}
-      <div className="flex-1 overflow-hidden grid grid-cols-[380px_1fr]">
-
+      {/* Two-panel layout with isolated scroll containment */}
+      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr] min-h-0">
+        
         {/* Left: request list */}
-        <RequestListPanel
-          activeTab={page.activeTab}
-          recipients={page.recipients}
-          isLoading={page.isLoading}
-          error={page.error}
-          selectedId={page.selectedId}
-          onSelectRequest={page.onSelectRequest}
-          page={page.page}
-          totalPages={page.totalPages}
-          total={page.total}
-          onPageChange={page.onPageChange}
-          onRefresh={page.onRefresh}
-          pendingRequestIds={page.pendingRequestIds}
-          mutedRequestIds={page.mutedRequestIds}
-          onMuteRequest={page.onMuteRequest}
-          onUnmuteRequest={page.onUnmuteRequest}
-        />
+        <div className="min-h-0 overflow-hidden border-r border-white/[0.06]">
+          <RequestListPanel
+            activeTab={page.activeTab}
+            recipients={page.recipients}
+            isLoading={page.isLoading}
+            error={page.error}
+            selectedId={page.selectedId}
+            onSelectRequest={page.onSelectRequest}
+            page={page.page}
+            totalPages={page.totalPages}
+            total={page.total}
+            onPageChange={page.onPageChange}
+            onRefresh={page.onRefresh}
+            pendingRequestIds={page.pendingRequestIds}
+            mutedRequestIds={page.mutedRequestIds}
+            onMuteRequest={page.onMuteRequest}
+            onUnmuteRequest={page.onUnmuteRequest}
+          />
+        </div>
 
         {/* Right: request detail + quote builder */}
-        <RequestDetailPanel
-          recipientId={page.selectedId}
-          detail={page.detail}
-          isLoading={page.isDetailLoading}
-          error={page.detailError}
-          actionLoading={page.actionLoading}
-          actionError={page.actionError}
-          onClose={page.onCloseDetail}
-          onGetFileUrl={page.onGetFileUrl}
-          onSubmitQuote={page.onSubmitQuote}
-          onOpenDecline={page.onOpenDecline}
-        />
+        <div className="min-h-0 overflow-hidden">
+          <RequestDetailPanel
+            recipientId={page.selectedId}
+            detail={page.detail}
+            isLoading={page.isDetailLoading}
+            error={page.detailError}
+            actionLoading={page.actionLoading}
+            actionError={page.actionError}
+            onClose={page.onCloseDetail}
+            onGetFileUrl={page.onGetFileUrl}
+            onSubmitQuote={page.onSubmitQuote}
+            onOpenDecline={page.onOpenDecline}
+          />
+        </div>
       </div>
 
       {/* Decline modal */}

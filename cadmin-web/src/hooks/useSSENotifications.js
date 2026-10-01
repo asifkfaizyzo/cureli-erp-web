@@ -1,19 +1,23 @@
 // cadmin-web/src/hooks/useSSENotifications.js (do not remove this comment)
 import { useEffect, useRef } from 'react';
 import { useCAdminNotificationStore } from '../store/useCAdminNotificationStore';
+import usePrescriptionRequestAlertStore from '../store/usePrescriptionRequestAlertStore';
 import useOrderAlertStore from '../store/useOrderAlertStore';
 
 export const useSSENotifications = () => {
   const receiveSSE = useCAdminNotificationStore((s) => s.receiveSSENotification);
   const onNewOrderSSE = useOrderAlertStore((s) => s.onNewOrderSSE);
+  const onNewPrescriptionRequestSSE = usePrescriptionRequestAlertStore((s) => s.onNewPrescriptionRequestSSE);
   
   const receiveSSERef = useRef(receiveSSE);
   const onNewOrderSSERef = useRef(onNewOrderSSE);
+  const onNewPrescriptionRequestSSERef = useRef(onNewPrescriptionRequestSSE);
 
   useEffect(() => {
     receiveSSERef.current = receiveSSE;
     onNewOrderSSERef.current = onNewOrderSSE;
-  }, [receiveSSE, onNewOrderSSE]);
+    onNewPrescriptionRequestSSERef.current = onNewPrescriptionRequestSSE;
+  }, [receiveSSE, onNewOrderSSE, onNewPrescriptionRequestSSE]);
 
   const eventSourceRef = useRef(null);
 
@@ -23,7 +27,7 @@ export const useSSENotifications = () => {
     const connect = () => {
       const token = localStorage.getItem('cadmin_access_token');
       if (!token) {
-        console.warn("⚠️ [CAdmin SSE] Missing cadmin_access_token. Postponing registration.");
+        console.warn(" [CAdmin SSE] Missing cadmin_access_token. Postponing registration.");
         return;
       }
 
@@ -35,81 +39,81 @@ export const useSSENotifications = () => {
       es.addEventListener('connected', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`💚 [CAdmin SSE] Stream established. Unread items count: ${data.unread_count}`);
+          console.log(` [CAdmin SSE] Stream established. Unread items count: ${data.unread_count}`);
           useCAdminNotificationStore.setState({ unreadCount: data.unread_count });
         } catch (err) {
-          console.error("❌ [CAdmin SSE] Connection parser failure:", err);
+          console.error(" [CAdmin SSE] Connection parser failure:", err);
         }
       });
 
       es.addEventListener('new_notification', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log("🔔 [CAdmin SSE Event] Dispatching administrative alert:", data);
+          console.log(" [CAdmin SSE Event] Dispatching administrative alert:", data);
           receiveSSERef.current?.(data);
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Dispatch parser failure:", err);
+          console.error(" [CAdmin SSE Event] Dispatch parser failure:", err);
         }
       });
 
       es.addEventListener('marketplace_new_order', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log("🛍️ [CAdmin SSE Event] Marketplace Order Placed (Global Dispatch):", data);
+          console.log(" [CAdmin SSE Event] Marketplace Order Placed (Global Dispatch):", data);
           onNewOrderSSERef.current?.();
           window.dispatchEvent(
             new CustomEvent('sse-marketplace-new-order', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Marketplace payload failure:", err);
+          console.error(" [CAdmin SSE Event] Marketplace payload failure:", err);
         }
       });
 
       es.addEventListener('marketplace_order_status_changed', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`📦 [CAdmin SSE Event] Order Status Transition for ${data.order_number} to ${data.new_status}`);
+          console.log(` [CAdmin SSE Event] Order Status Transition for ${data.order_number} to ${data.new_status}`);
           window.dispatchEvent(
             new CustomEvent('sse-marketplace-order-status-changed', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Status payload failure:", err);
+          console.error(" [CAdmin SSE Event] Status payload failure:", err);
         }
       });
 
       es.addEventListener('delivery_status_changed', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`🚚 [CAdmin SSE Event] Delivery Progress update for Order ${data.order_id}:`, data.status);
+          console.log(` [CAdmin SSE Event] Delivery Progress update for Order ${data.order_id}:`, data.status);
           window.dispatchEvent(
             new CustomEvent('sse-delivery-status-changed', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Delivery status payload failure:", err);
+          console.error(" [CAdmin SSE Event] Delivery status payload failure:", err);
         }
       });
 
       es.addEventListener('rider_location_update', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`📍 [CAdmin SSE Event] Rider GPS Ping (${data.rider_id}): [${data.lat}, ${data.lng}]`);
+          console.log(` [CAdmin SSE Event] Rider GPS Ping (${data.rider_id}): [${data.lat}, ${data.lng}]`);
           window.dispatchEvent(
             new CustomEvent('sse-rider-location-update', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Location payload failure:", err);
+          console.error(" [CAdmin SSE Event] Location payload failure:", err);
         }
       });
 
       es.addEventListener('rider_availability_changed', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`👤 [CAdmin SSE Event] Rider Online State Adjusted. Rider ID: ${data.rider_id}, Online: ${data.is_online}`);
+          console.log(` [CAdmin SSE Event] Rider Online State Adjusted. Rider ID: ${data.rider_id}, Online: ${data.is_online}`);
           window.dispatchEvent(
             new CustomEvent('sse-rider-availability-changed', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Availability payload failure:", err);
+          console.error(" [CAdmin SSE Event] Availability payload failure:", err);
         }
       });
 
@@ -117,12 +121,12 @@ export const useSSENotifications = () => {
       es.addEventListener('delivery_assignment_stale', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`⚠️ [CAdmin SSE Event] Delivery assignment stale for Order ${data.order_number}`);
+          console.log(` [CAdmin SSE Event] Delivery assignment stale for Order ${data.order_number}`);
           window.dispatchEvent(
             new CustomEvent('sse-delivery-assignment-stale', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Stale assignment payload failure:", err);
+          console.error(" [CAdmin SSE Event] Stale assignment payload failure:", err);
         }
       });
 
@@ -130,17 +134,43 @@ export const useSSENotifications = () => {
       es.addEventListener('delivery_rider_stale', (e) => {
         try {
           const data = JSON.parse(e.data);
-          console.log(`🚨 [CAdmin SSE Event] Active delivery rider went offline. Delivery: ${data.delivery_id}`);
+          console.log(` [CAdmin SSE Event] Active delivery rider went offline. Delivery: ${data.delivery_id}`);
           window.dispatchEvent(
             new CustomEvent('sse-delivery-rider-stale', { detail: data })
           );
         } catch (err) {
-          console.error("❌ [CAdmin SSE Event] Rider stale payload failure:", err);
+          console.error(" [CAdmin SSE Event] Rider stale payload failure:", err);
+        }
+      });
+
+      // ── NEW: Prescription Request Alerts ────────────────────────────────
+      es.addEventListener('prescription_request_new', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log(` [CAdmin SSE Event] New Prescription Request: ${data.request_number} (${data.recipient_count} pharmacies)`);
+          onNewPrescriptionRequestSSERef.current?.();
+          window.dispatchEvent(
+            new CustomEvent('sse-prescription-request-new', { detail: data })
+          );
+        } catch (err) {
+          console.error(" [CAdmin SSE Event] Prescription request payload failure:", err);
+        }
+      });
+
+      es.addEventListener('prescription_request_responded', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log(` [CAdmin SSE Event] Prescription Request ${data.action} — ${data.shop_name} for ${data.request_number}`);
+          window.dispatchEvent(
+            new CustomEvent('sse-prescription-request-responded', { detail: data })
+          );
+        } catch (err) {
+          console.error(" [CAdmin SSE Event] Prescription responded payload failure:", err);
         }
       });
 
       es.onerror = (err) => {
-        console.error("🚨 [CAdmin SSE] Stream disconnected. Scheduling auto-reconnect in 5000ms...", err);
+        console.error(" [CAdmin SSE] Stream disconnected. Scheduling auto-reconnect in 5000ms...", err);
         es.close();
         reconnectTimeout = setTimeout(connect, 5000);
       };

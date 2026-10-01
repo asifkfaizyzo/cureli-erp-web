@@ -30,6 +30,8 @@ const useMarketplaceSSE = ({
   onRiderAvailability,
   onAssignmentStale,
   onRiderStale,
+  onPrescriptionRequestNew,
+  onPrescriptionRequestResponded,
   debounceMs = 500,
 } = {}) => {
   // Store callbacks in refs so we never re-subscribe when callbacks change identity
@@ -41,6 +43,8 @@ const useMarketplaceSSE = ({
     onRiderAvailability,
     onAssignmentStale,
     onRiderStale,
+    onPrescriptionRequestNew,
+    onPrescriptionRequestResponded,
   });
 
   // Keep refs in sync without triggering effect re-runs
@@ -53,8 +57,10 @@ const useMarketplaceSSE = ({
       onRiderAvailability,
       onAssignmentStale,
       onRiderStale,
+      onPrescriptionRequestNew,
+      onPrescriptionRequestResponded,
     };
-  }, [onNewOrder, onStatusChanged, onDeliveryChanged, onRiderLocation, onRiderAvailability, onAssignmentStale, onRiderStale]);
+  }, [onNewOrder, onStatusChanged, onDeliveryChanged, onRiderLocation, onRiderAvailability, onAssignmentStale, onRiderStale, onPrescriptionRequestNew, onPrescriptionRequestResponded]);
 
   // Debounce timers per event type to prevent burst re-renders
   const timersRef = useRef({});
@@ -139,12 +145,27 @@ const useMarketplaceSSE = ({
 
     // ── Cleanup ─────────────────────────────────────────────
 
+    // ── Prescription Request Handlers ─────────────────────
+    const handlePrescriptionRequestNew = (e) => {
+      immediateCall('onPrescriptionRequestNew', e.detail);
+    };
+
+    const handlePrescriptionRequestResponded = (e) => {
+      debouncedCall('onPrescriptionRequestResponded', e.detail);
+    };
+
+    // ── Subscribe ─────────────────────────────────────────
+    window.addEventListener('sse-prescription-request-new', handlePrescriptionRequestNew);
+    window.addEventListener('sse-prescription-request-responded', handlePrescriptionRequestResponded);
+
     return () => {
       window.removeEventListener('sse-marketplace-new-order', handleNewOrder);
       window.removeEventListener('sse-marketplace-order-status-changed', handleStatusChanged);
       window.removeEventListener('sse-delivery-status-changed', handleDeliveryChanged);
       window.removeEventListener('sse-rider-location-update', handleRiderLocation);
       window.removeEventListener('sse-rider-availability-changed', handleRiderAvailability);
+      window.removeEventListener('sse-prescription-request-new', handlePrescriptionRequestNew);
+      window.removeEventListener('sse-prescription-request-responded', handlePrescriptionRequestResponded);
 
       // Clear all pending debounce timers
       Object.values(timersRef.current).forEach(clearTimeout);
