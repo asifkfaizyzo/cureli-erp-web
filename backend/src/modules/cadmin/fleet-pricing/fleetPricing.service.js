@@ -1,8 +1,24 @@
-// backend/src/modules/cadmin/fleet-pricing/fleetPricing.service.js (do not remove this comment)
 // backend/src/modules/cadmin/fleet-pricing/fleetPricing.service.js
 
 import prisma from "../../../config/prisma.js";
 import { calculateDeliveryEarnings } from "./pricingEngine.service.js";
+
+/**
+ * Resolves a list of CAdmin UUIDs to a { uuid: name } map.
+ */
+async function resolveAdminNames(adminIds) {
+  const uniqueIds = [...new Set(adminIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return {};
+  const admins = await prisma.cAdmin.findMany({
+    where: { cadmin_id: { in: uniqueIds } },
+    select: { cadmin_id: true, name: true },
+  });
+  const map = {};
+  admins.forEach((a) => {
+    map[a.cadmin_id] = a.name;
+  });
+  return map;
+}
 
 /**
  * Auto-seeds default Pricing Config v1 if database has no active config.
@@ -24,12 +40,9 @@ async function ensureDefaultConfigExists() {
         effective_from: new Date(),
         slabs: {
           create: [
-            // Leg 1: Pickup slabs
             { leg_type: "LEG_1_PICKUP", from_km: 0.0, to_km: 2.0, rate_type: "FLAT_FIXED", rate: 5.0 },
             { leg_type: "LEG_1_PICKUP", from_km: 2.0, to_km: 5.0, rate_type: "PER_KM", rate: 4.0 },
             { leg_type: "LEG_1_PICKUP", from_km: 5.0, to_km: null, rate_type: "PER_KM", rate: 6.0 },
-
-            // Leg 2: Drop slabs
             { leg_type: "LEG_2_DROP", from_km: 0.0, to_km: 2.0, rate_type: "FLAT_FIXED", rate: 10.0 },
             { leg_type: "LEG_2_DROP", from_km: 2.0, to_km: 6.0, rate_type: "PER_KM", rate: 8.0 },
             { leg_type: "LEG_2_DROP", from_km: 6.0, to_km: null, rate_type: "PER_KM", rate: 12.0 },
@@ -59,7 +72,6 @@ export async function checkAndActivateScheduledConfigs() {
 
   if (dueScheduled) {
     await prisma.$transaction([
-      // Archive existing active
       prisma.riderPricingConfig.updateMany({
         where: { status: "ACTIVE" },
         data: {
@@ -67,7 +79,6 @@ export async function checkAndActivateScheduledConfigs() {
           effective_until: dueScheduled.effective_from,
         },
       }),
-      // Activate scheduled
       prisma.riderPricingConfig.update({
         where: { config_id: dueScheduled.config_id },
         data: { status: "ACTIVE" },
@@ -95,9 +106,13 @@ export async function getPricingConfigData() {
     orderBy: { effective_from: "asc" },
   });
 
+  // ── Resolve created_by names for active + scheduled ──
+  const allConfigs = [activeConfig, ...scheduledConfigs].filter(Boolean);
+  const nameMap = await resolveAdminNames(allConfigs.map((c) => c.created_by));
+
   return {
-    active_config: formatPricingConfig(activeConfig),
-    scheduled_configs: scheduledConfigs.map(formatPricingConfig),
+    active_config: activeConfig ? { ...formatPricingConfig(activeConfig), created_by_name: nameMap[activeConfig.created_by] || null } : null,
+    scheduled_configs: scheduledConfigs.map((c) => ({ ...formatPricingConfig(c), created_by_name: nameMap[c.created_by] || null })),
   };
 }
 
@@ -108,7 +123,6 @@ export async function createPricingConfig(data, adminId) {
   const isImmediate = data.is_immediate || !data.effective_from || new Date(data.effective_from) <= new Date();
   const effectiveDate = isImmediate ? new Date() : new Date(data.effective_from);
 
-  // Determine next version number
   const latest = await prisma.riderPricingConfig.findFirst({
     orderBy: { version: "desc" },
     select: { version: true },
@@ -117,7 +131,6 @@ export async function createPricingConfig(data, adminId) {
 
   return await prisma.$transaction(async (tx) => {
     if (isImmediate) {
-      // Archive current active
       await tx.riderPricingConfig.updateMany({
         where: { status: "ACTIVE" },
         data: {
@@ -164,7 +177,7 @@ export async function createPricingConfig(data, adminId) {
 }
 
 /**
- * Fetches paginated version history of past configs.
+ * Fetches paginated version history of past configs with admin names.
  */
 export async function getPricingHistory({ page = 1, limit = 10 }) {
   const skip = (Number(page) - 1) * Number(limit);
@@ -180,8 +193,14 @@ export async function getPricingHistory({ page = 1, limit = 10 }) {
     prisma.riderPricingConfig.count({ where: { status: "ARCHIVED" } }),
   ]);
 
+  // ── Resolve created_by names ──
+  const nameMap = await resolveAdminNames(configs.map((c) => c.created_by));
+
   return {
-    items: configs.map(formatPricingConfig),
+    items: configs.map((c) => ({
+      ...formatPricingConfig(c),
+      created_by_name: nameMap[c.created_by] || null,
+    })),
     meta: {
       total,
       page: Number(page),
@@ -224,6 +243,7 @@ function formatPricingConfig(config) {
     drop_base_fee: Number(config.drop_base_fee),
     effective_from: config.effective_from,
     effective_until: config.effective_until,
+    created_by: config.created_by,
     pickup_slabs: (config.slabs || [])
       .filter((s) => s.leg_type === "LEG_1_PICKUP")
       .map((s) => ({

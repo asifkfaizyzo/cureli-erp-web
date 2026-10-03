@@ -1,4 +1,3 @@
-// cadmin-web/src/pages/Fleet/Pricing/comps/BasePay/SurgeRuleModal.jsx (do not remove this comment)
 // cadmin-web/src/pages/Fleet/Pricing/comps/BasePay/SurgeRuleModal.jsx
 import { useState } from "react";
 import { X } from "lucide-react";
@@ -9,12 +8,23 @@ const CALC_TYPE_OPTIONS = [
   { value: "FLAT_ADDITION", label: "Flat Addition (₹)" },
 ];
 
+const DURATION_OPTIONS = [
+  { value: "", label: "No auto-expiry (manual)" },
+  { value: "30", label: "30 minutes" },
+  { value: "60", label: "1 hour" },
+  { value: "120", label: "2 hours" },
+  { value: "360", label: "6 hours" },
+  { value: "720", label: "12 hours" },
+  { value: "1440", label: "24 hours" },
+];
+
 export default function SurgeRuleModal({ open, onClose, onSubmit, saving }) {
   const [form, setForm] = useState({
     name: "",
     description: "",
     calc_type: "MULTIPLIER",
     value: 1.5,
+    duration_minutes: "",
   });
 
   if (!open) return null;
@@ -23,7 +33,22 @@ export default function SurgeRuleModal({ open, onClose, onSubmit, saving }) {
 
   const handleSubmit = () => {
     if (!form.name.trim() || !form.value) return;
-    onSubmit(form);
+
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      calc_type: form.calc_type,
+      value: form.value,
+      expires_at: null,
+    };
+
+    // Compute expires_at from duration if selected
+    if (form.duration_minutes) {
+      const ms = Number(form.duration_minutes) * 60 * 1000;
+      payload.expires_at = new Date(Date.now() + ms).toISOString();
+    }
+
+    onSubmit(payload);
   };
 
   return (
@@ -57,6 +82,7 @@ export default function SurgeRuleModal({ open, onClose, onSubmit, saving }) {
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
               maxLength={255}
+              placeholder="e.g. Heavy rain forecast for next 6 hours"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none
                          focus:outline-none focus:ring-2 focus:ring-[#05015A]/20 focus:border-[#05015A]"
             />
@@ -88,6 +114,21 @@ export default function SurgeRuleModal({ open, onClose, onSubmit, saving }) {
                 : `e.g., 25 = flat ₹25 added to every delivery`}
             </p>
           </div>
+
+          {/* ── NEW: Auto-expiry duration ── */}
+          <StyledSelect
+            label="Auto-Expire After"
+            value={form.duration_minutes}
+            onChange={(v) => handleChange("duration_minutes", v)}
+            options={DURATION_OPTIONS}
+          />
+          {form.duration_minutes && (
+            <p className="text-[10px] text-amber-600 -mt-2">
+              Rule will auto-deactivate {form.duration_minutes >= 60
+                ? `${form.duration_minutes / 60} hour(s)`
+                : `${form.duration_minutes} minute(s)`} after activation.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-3 bg-gray-50 border-t border-gray-100">

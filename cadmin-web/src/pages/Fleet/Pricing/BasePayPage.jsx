@@ -4,16 +4,32 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BadgeIndianRupee, ArrowLeft, RefreshCw, Save, Loader2,
-  Package, Truck, Shield, Zap, Plus, Info, AlertCircle, CheckCircle2,
+  BadgeIndianRupee,
+  ArrowLeft,
+  RefreshCw,
+  Save,
+  Loader2,
+  Package,
+  Truck,
+  Shield,
+  Zap,
+  Plus,
+  Info,
+  CheckCircle2,
+  History,
+  Calendar,
 } from "lucide-react";
 
 import { useToast } from "../../../components/common/Toast";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
 
 import {
-  getPricingConfig, createPricingConfig,
-  getSurgeRules, createSurgeRule, toggleSurgeRule, deleteSurgeRule,
+  getPricingConfig,
+  createPricingConfig,
+  getSurgeRules,
+  createSurgeRule,
+  toggleSurgeRule,
+  deleteSurgeRule,
 } from "../../../api/cadminFleetPricing";
 
 import TeamRiderNotice from "./comps/TeamRiderNotice";
@@ -22,6 +38,8 @@ import LiveFarePreview from "./comps/BasePay/LiveFarePreview";
 import EffectiveDateModal from "./comps/BasePay/EffectiveDateModal";
 import SurgeRuleCard from "./comps/BasePay/SurgeRuleCard";
 import SurgeRuleModal from "./comps/BasePay/SurgeRuleModal";
+import SurgeActivationModal from "./comps/BasePay/SurgeActivationModal";
+import VersionHistoryPanel from "./comps/BasePay/VersionHistoryPanel";
 
 const Section = ({ title, icon: Icon, description, children, action }) => (
   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -32,7 +50,9 @@ const Section = ({ title, icon: Icon, description, children, action }) => (
         </div>
         <div>
           <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-          {description && <p className="text-xs text-gray-400 mt-0.5">{description}</p>}
+          {description && (
+            <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+          )}
         </div>
       </div>
       {action}
@@ -47,7 +67,9 @@ const InfoBanner = ({ children, variant = "blue" }) => {
     amber: "bg-amber-50 border-amber-100 text-amber-700",
   };
   return (
-    <div className={`flex items-start gap-2.5 px-4 py-3 border rounded-xl ${styles[variant]}`}>
+    <div
+      className={`flex items-start gap-2.5 px-4 py-3 border rounded-xl ${styles[variant]}`}
+    >
       <Info size={14} className="mt-0.5 flex-shrink-0" />
       <p className="text-xs leading-relaxed">{children}</p>
     </div>
@@ -60,7 +82,9 @@ const SkeletonSection = () => (
       <div className="h-4 w-40 bg-gray-200 rounded" />
     </div>
     <div className="p-5 space-y-3">
-      {[1, 2, 3].map((i) => <div key={i} className="h-9 bg-gray-100 rounded-lg" />)}
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-9 bg-gray-100 rounded-lg" />
+      ))}
     </div>
   </div>
 );
@@ -88,6 +112,7 @@ export default function BasePayPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showEffectiveModal, setShowEffectiveModal] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
   const [activeConfig, setActiveConfig] = useState(null);
   const [scheduledConfigs, setScheduledConfigs] = useState([]);
@@ -98,12 +123,16 @@ export default function BasePayPage() {
   const [showSurgeModal, setShowSurgeModal] = useState(false);
   const [surgeBusy, setSurgeBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [surgeActivationRule, setSurgeActivationRule] = useState(null);
 
   // Load both configs and surge rules
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const [cfg, surge] = await Promise.all([getPricingConfig(), getSurgeRules()]);
+      const [cfg, surge] = await Promise.all([
+        getPricingConfig(),
+        getSurgeRules(),
+      ]);
       const active = cfg.data.data.active_config;
       const scheduled = cfg.data.data.scheduled_configs || [];
 
@@ -124,15 +153,21 @@ export default function BasePayPage() {
 
       setSurgeRules(surge.data.data || []);
     } catch (err) {
-      toast.error("Load Failed", err.response?.data?.message || "Could not load pricing data");
+      toast.error(
+        "Load Failed",
+        err.response?.data?.message || "Could not load pricing data",
+      );
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => { fetchAll(); }, []); // eslint-disable-line
+  useEffect(() => {
+    fetchAll();
+  }, []); // eslint-disable-line
 
-  const handleChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const handleChange = (key, value) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(original);
 
@@ -144,10 +179,18 @@ export default function BasePayPage() {
       const payload = { ...form, is_immediate, effective_from, name };
       await createPricingConfig(payload);
       setShowEffectiveModal(false);
-      toast.success("Saved", is_immediate ? "New pricing is now live" : "Pricing scheduled successfully");
+      toast.success(
+        "Saved",
+        is_immediate
+          ? "New pricing is now live"
+          : "Pricing scheduled successfully",
+      );
       await fetchAll();
     } catch (err) {
-      toast.error("Save Failed", err.response?.data?.message || "Could not save configuration");
+      toast.error(
+        "Save Failed",
+        err.response?.data?.message || "Could not save configuration",
+      );
     } finally {
       setSaving(false);
     }
@@ -157,7 +200,7 @@ export default function BasePayPage() {
     if (original) setForm(original);
   };
 
-  // Surge handlers
+  // ── Surge handlers ──────────────────────────────────────────────
   const handleCreateSurge = async (payload) => {
     try {
       setSurgeBusy(true);
@@ -166,20 +209,52 @@ export default function BasePayPage() {
       setShowSurgeModal(false);
       await fetchAll();
     } catch (err) {
-      toast.error("Failed", err.response?.data?.message || "Could not create surge rule");
+      toast.error(
+        "Failed",
+        err.response?.data?.message || "Could not create surge rule",
+      );
     } finally {
       setSurgeBusy(false);
     }
   };
 
   const handleToggleSurge = async (rule) => {
+    if (rule.is_active) {
+      // Turning OFF — immediate, no modal needed
+      try {
+        setSurgeBusy(true);
+        await toggleSurgeRule(rule.rule_id, { is_active: false });
+        toast.success("Updated", "Surge deactivated");
+        await fetchAll();
+      } catch (err) {
+        toast.error(
+          "Failed",
+          err.response?.data?.message || "Could not update surge",
+        );
+      } finally {
+        setSurgeBusy(false);
+      }
+    } else {
+      // Turning ON — open activation modal to pick duration
+      setSurgeActivationRule(rule);
+    }
+  };
+
+  const handleConfirmActivation = async (rule, expiresAt) => {
     try {
       setSurgeBusy(true);
-      await toggleSurgeRule(rule.rule_id, { is_active: !rule.is_active });
-      toast.success("Updated", `Surge ${!rule.is_active ? "activated" : "deactivated"}`);
+      await toggleSurgeRule(rule.rule_id, {
+        is_active: true,
+        expires_at: expiresAt,
+      });
+      toast.success("Activated", `Surge "${rule.name}" is now live`);
+      setSurgeActivationRule(null);
       await fetchAll();
     } catch (err) {
-      toast.error("Failed", err.response?.data?.message || "Could not update surge");
+      toast.error(
+        "Failed",
+        err.response?.data?.message || "Could not activate surge",
+      );
     } finally {
       setSurgeBusy(false);
     }
@@ -194,7 +269,10 @@ export default function BasePayPage() {
       setConfirmDelete(null);
       await fetchAll();
     } catch (err) {
-      toast.error("Failed", err.response?.data?.message || "Could not delete surge");
+      toast.error(
+        "Failed",
+        err.response?.data?.message || "Could not delete surge",
+      );
     } finally {
       setSurgeBusy(false);
     }
@@ -216,33 +294,69 @@ export default function BasePayPage() {
               <BadgeIndianRupee size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Base Pay & Surge Rules</h1>
-              <p className="text-xs text-gray-500">Two-leg fare model with floor payout guarantee and manual surge presets</p>
+              <h1 className="text-lg font-bold text-gray-900">
+                Base Pay & Surge Rules
+              </h1>
+              <p className="text-xs text-gray-500">
+                Two-leg fare model with floor payout guarantee and manual surge
+                presets
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={fetchAll} disabled={saving}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50">
+            {/* ── NEW: History button ── */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowHistoryPanel(true)}
+              disabled={saving}
+              title="View pricing version history"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100
+                         hover:bg-gray-200 rounded-lg disabled:opacity-50"
+            >
+              <History size={14} />
+              History
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={fetchAll}
+              disabled={saving}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+            >
               <RefreshCw size={16} />
             </motion.button>
 
             <AnimatePresence>
               {isDirty && (
-                <motion.button initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
-                  onClick={handleDiscard} disabled={saving}
-                  className="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                <motion.button
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 8 }}
+                  onClick={handleDiscard}
+                  disabled={saving}
+                  className="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                >
                   Discard
                 </motion.button>
               )}
             </AnimatePresence>
 
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-              onClick={handleSave} disabled={saving || !isDirty}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSave}
+              disabled={saving || !isDirty}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white rounded-lg
-                ${isDirty ? "bg-[#05015A] hover:bg-[#05015A]/90" : "bg-gray-300 cursor-not-allowed"}`}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                ${isDirty ? "bg-[#05015A] hover:bg-[#05015A]/90" : "bg-gray-300 cursor-not-allowed"}`}
+            >
+              {saving ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Save size={14} />
+              )}
               Save New Version
             </motion.button>
           </div>
@@ -266,15 +380,57 @@ export default function BasePayPage() {
                     Active: {activeConfig.name} (v{activeConfig.version})
                   </p>
                   <p className="text-[10px] text-emerald-700">
-                    Effective since {new Date(activeConfig.effective_from).toLocaleString()}
+                    Effective since{" "}
+                    {new Date(activeConfig.effective_from).toLocaleString()}
+                    {activeConfig.created_by_name && (
+                      <> • Created by {activeConfig.created_by_name}</>
+                    )}
                   </p>
                 </div>
               </div>
               {scheduledConfigs.length > 0 && (
-                <p className="text-[10px] text-emerald-700">
-                  {scheduledConfigs.length} scheduled version{scheduledConfigs.length > 1 ? "s" : ""}
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowHistoryPanel(true)}
+                  className="text-[10px] font-medium text-emerald-700 hover:text-emerald-900 underline"
+                >
+                  {scheduledConfigs.length} scheduled version
+                  {scheduledConfigs.length > 1 ? "s" : ""}
+                </button>
               )}
+            </div>
+          )}
+
+          {/* ── NEW: Scheduled configs list ── */}
+          {!loading && scheduledConfigs.length > 0 && (
+            <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar size={14} className="text-amber-600" />
+                <p className="text-xs font-semibold text-amber-900">
+                  Upcoming Scheduled Pricing
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {scheduledConfigs.map((cfg) => (
+                  <div
+                    key={cfg.config_id}
+                    className="flex items-center justify-between px-3 py-2 bg-white border border-amber-100 rounded-lg"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="px-1.5 py-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 rounded uppercase">
+                        v{cfg.version}
+                      </span>
+                      <p className="text-xs font-medium text-gray-800 truncate">
+                        {cfg.name}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-amber-700 flex-shrink-0">
+                      <Calendar size={9} />
+                      Activates {new Date(cfg.effective_from).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -285,24 +441,40 @@ export default function BasePayPage() {
                 <SkeletonSection />
                 <SkeletonSection />
               </div>
-              <div><SkeletonSection /></div>
+              <div>
+                <SkeletonSection />
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
               {/* LEFT: config sections */}
               <div className="xl:col-span-2 space-y-5">
                 {/* Floor payout */}
-                <Section title="Minimum Floor Payout" icon={Shield}
-                  description="Every delivery must pay at least this amount to the rider">
+                <Section
+                  title="Minimum Floor Payout"
+                  icon={Shield}
+                  description="Every delivery must pay at least this amount to the rider"
+                >
                   <InfoBanner>
-                    If the calculated fare (base + slabs + surge) is below this minimum, Cureli automatically tops up the difference to guarantee rider earnings.
+                    If the calculated fare (base + slabs + surge) is below this
+                    minimum, Cureli automatically tops up the difference to
+                    guarantee rider earnings.
                   </InfoBanner>
                   <div className="max-w-xs">
-                    <label className="text-xs text-gray-500 font-medium mb-1 block">Floor Amount (₹)</label>
+                    <label className="text-xs text-gray-500 font-medium mb-1 block">
+                      Floor Amount (₹)
+                    </label>
                     <input
-                      type="number" min={0} step={1}
+                      type="number"
+                      min={0}
+                      step={1}
                       value={form.min_floor_payout}
-                      onChange={(e) => handleChange("min_floor_payout", parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        handleChange(
+                          "min_floor_payout",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-[#05015A]/20 focus:border-[#05015A]"
                     />
@@ -310,14 +482,26 @@ export default function BasePayPage() {
                 </Section>
 
                 {/* Leg 1 */}
-                <Section title="Leg 1: Pickup Fare (Rider → Pharmacy)" icon={Package}
-                  description="Fare for the rider reaching and collecting the order from the pharmacy">
+                <Section
+                  title="Leg 1: Pickup Fare (Rider → Pharmacy)"
+                  icon={Package}
+                  description="Fare for the rider reaching and collecting the order from the pharmacy"
+                >
                   <div className="max-w-xs">
-                    <label className="text-xs text-gray-500 font-medium mb-1 block">Base Pickup Fee (₹)</label>
+                    <label className="text-xs text-gray-500 font-medium mb-1 block">
+                      Base Pickup Fee (₹)
+                    </label>
                     <input
-                      type="number" min={0} step={1}
+                      type="number"
+                      min={0}
+                      step={1}
                       value={form.pickup_base_fee}
-                      onChange={(e) => handleChange("pickup_base_fee", parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        handleChange(
+                          "pickup_base_fee",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-[#05015A]/20 focus:border-[#05015A]"
                     />
@@ -330,14 +514,26 @@ export default function BasePayPage() {
                 </Section>
 
                 {/* Leg 2 */}
-                <Section title="Leg 2: Drop Fare (Pharmacy → Customer)" icon={Truck}
-                  description="Fare for the last-mile delivery to the customer">
+                <Section
+                  title="Leg 2: Drop Fare (Pharmacy → Customer)"
+                  icon={Truck}
+                  description="Fare for the last-mile delivery to the customer"
+                >
                   <div className="max-w-xs">
-                    <label className="text-xs text-gray-500 font-medium mb-1 block">Base Drop Fee (₹)</label>
+                    <label className="text-xs text-gray-500 font-medium mb-1 block">
+                      Base Drop Fee (₹)
+                    </label>
                     <input
-                      type="number" min={0} step={1}
+                      type="number"
+                      min={0}
+                      step={1}
                       value={form.drop_base_fee}
-                      onChange={(e) => handleChange("drop_base_fee", parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        handleChange(
+                          "drop_base_fee",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-[#05015A]/20 focus:border-[#05015A]"
                     />
@@ -366,12 +562,14 @@ export default function BasePayPage() {
                   }
                 >
                   <InfoBanner variant="amber">
-                    Only one surge rule can be active at a time. Toggling on a new rule automatically disables any currently active one.
+                    Only one surge rule can be active at a time. Toggling on a
+                    new rule automatically disables any currently active one.
                   </InfoBanner>
                   <div className="space-y-2">
                     {surgeRules.length === 0 ? (
                       <div className="text-center py-6 text-xs text-gray-400">
-                        No surge rules configured. Click "Add Rule" to create your first one.
+                        No surge rules configured. Click "Add Rule" to create
+                        your first one.
                       </div>
                     ) : (
                       surgeRules.map((rule) => (
@@ -392,7 +590,8 @@ export default function BasePayPage() {
               <div className="space-y-5">
                 <LiveFarePreview form={form} />
                 <InfoBanner variant="amber">
-                  Preview uses the values currently in the form (unsaved). Save to persist and apply changes.
+                  Preview uses the values currently in the form (unsaved). Save
+                  to persist and apply changes.
                 </InfoBanner>
               </div>
             </div>
@@ -414,10 +613,27 @@ export default function BasePayPage() {
         saving={surgeBusy}
       />
 
+      <SurgeActivationModal
+        open={Boolean(surgeActivationRule)}
+        rule={surgeActivationRule}
+        onClose={() => setSurgeActivationRule(null)}
+        onConfirm={handleConfirmActivation}
+        saving={surgeBusy}
+      />
+
+      <VersionHistoryPanel
+        open={showHistoryPanel}
+        onClose={() => setShowHistoryPanel(false)}
+      />
+
       <ConfirmDialog
         open={Boolean(confirmDelete)}
         title="Delete Surge Rule?"
-        message={confirmDelete ? `Delete "${confirmDelete.name}"? This cannot be undone.` : ""}
+        message={
+          confirmDelete
+            ? `Delete "${confirmDelete.name}"? This cannot be undone.`
+            : ""
+        }
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
