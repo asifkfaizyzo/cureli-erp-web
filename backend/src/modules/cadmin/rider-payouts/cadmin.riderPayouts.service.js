@@ -1217,6 +1217,19 @@ export async function getRiderPayoutHistory(riderId, { page = 1, limit = 10 }) {
     prisma.riderPayout.count({ where }),
     prisma.riderPayout.findMany({
       where,
+      select: {
+        payout_id: true,
+        week_start: true,
+        week_end: true,
+        gross_amount: true,
+        net_amount: true,
+        status: true,
+        manual_reference: true,
+        manual_bank_used: true,
+        manual_payment_date: true,
+        processed_at: true,
+        created_at: true,
+      },
       orderBy: { week_start: "desc" },
       skip: (page - 1) * limit,
       take: limit,
@@ -1231,8 +1244,8 @@ export async function getRiderPayoutHistory(riderId, { page = 1, limit = 10 }) {
       gross_amount: Number(p.gross_amount),
       net_amount: Number(p.net_amount),
       status: p.status,
-      manual_reference: p.manual_reference,
-      manual_bank_used: p.manual_bank_used,
+      manual_reference: p.manual_reference || null,
+      manual_bank_used: p.manual_bank_used || null,
       manual_payment_date: p.manual_payment_date
         ? new Date(p.manual_payment_date).toISOString().split("T")[0]
         : null,
@@ -1240,8 +1253,8 @@ export async function getRiderPayoutHistory(riderId, { page = 1, limit = 10 }) {
       created_at: p.created_at.toISOString(),
     })),
     pagination: {
-      page,
-      limit,
+      page: Number(page),
+      limit: Number(limit),
       total,
       totalPages: Math.ceil(total / limit),
     },

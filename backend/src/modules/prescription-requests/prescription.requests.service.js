@@ -26,8 +26,8 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PRESCRIPTION_REQUEST_FOLDER = "prescription_requests";
-const QUOTE_EXPIRY_MINUTES = 15;
-const REQUEST_EXPIRY_HOURS = 48;
+const QUOTE_EXPIRY_MINUTES = 30;
+const REQUEST_EXPIRY_MINUTES = 180; 
 
 const TERMINAL_REQUEST_STATUSES = new Set([
   "ACCEPTED",
@@ -60,7 +60,7 @@ function computeQuoteExpiry(from = new Date()) {
 }
 
 function computeRequestExpiry(from = new Date()) {
-  return new Date(from.getTime() + REQUEST_EXPIRY_HOURS * 60 * 60 * 1000);
+  return new Date(from.getTime() + REQUEST_EXPIRY_MINUTES * 60 * 1000);
 }
 
 function deriveRequestStatus(recipients) {

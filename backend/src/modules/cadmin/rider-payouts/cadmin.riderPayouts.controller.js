@@ -212,6 +212,7 @@ export async function getRiderHistoryHandler(req, res) {
     const result = await service.getRiderPayoutHistory(riderId, req.query);
     return success(res, result, "Rider payout history fetched");
   } catch (err) {
+    console.error("[RiderPayoutHistory] Error:", err.message);
     return fail(res, err.message || "Failed to fetch history", 500);
   }
 }

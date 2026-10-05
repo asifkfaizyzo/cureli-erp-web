@@ -19,6 +19,7 @@ import {
   Compass,
   UserCheck,
   Store,
+  Coins, // ── NEW: Earning badge icon
 } from "lucide-react";
 import {
   getAvailableRidersForOrder,
@@ -87,7 +88,6 @@ const CUSTOMER_MARKER_SVG = {
   anchor: { x: 12, y: 22 },
 };
 
-// Pure SVG circle path — works consistently without depending on window.google at parse time
 const CIRCLE_SVG_PATH = "M 0, 0 m -6, 0 a 6,6 0 1,0 12,0 a 6,6 0 1,0 -12,0";
 
 const RIDER_DOT_SVG = (isBusy, isSelected) => ({
@@ -154,11 +154,8 @@ const RiderMapView = ({
 }) => {
   const mapRef = useRef(null);
   const [activeInfoWindowRider, setActiveInfoWindowRider] = useState(null);
-
-  // Track if we have already fitted the map boundary constraints during this order lifecycle
   const hasFitBoundsRef = useRef(false);
 
-  // If selecting a different order or changing pharmacy/customer locations, reset tracking flag
   useEffect(() => {
     hasFitBoundsRef.current = false;
   }, [
@@ -197,21 +194,17 @@ const RiderMapView = ({
     return bounds;
   }, [pharmacy, customerAddress, riders]);
 
-  // Execute boundary auto-zoom ONCE. Do NOT let recurring GPS location ticks snap the user's viewport constraints!
   useEffect(() => {
     if (mapRef.current && isLoaded && !hasFitBoundsRef.current) {
       const bounds = getBounds();
       if (bounds && !bounds.isEmpty()) {
-        console.log(
-          "🗺️ [Map Engine] Constraints initialized. Adjusting map boundaries.",
-        );
         mapRef.current.fitBounds(bounds, {
           top: 50,
           right: 50,
           bottom: 50,
           left: 50,
         });
-        hasFitBoundsRef.current = true; // Lock boundaries. Allow smooth marker panning on following ticks
+        hasFitBoundsRef.current = true;
       }
     }
   }, [getBounds, isLoaded]);
@@ -222,9 +215,6 @@ const RiderMapView = ({
       selectedRider?.current_lat &&
       selectedRider?.current_lng
     ) {
-      console.log(
-        `🗺️ [Map Engine] Panning camera to active rider tracking target: ${selectedRider.rider_id}`,
-      );
       mapRef.current.panTo({
         lat: Number(selectedRider.current_lat),
         lng: Number(selectedRider.current_lng),
@@ -343,6 +333,19 @@ const RiderMapView = ({
               <p className="text-[9px] text-slate-500 font-mono mt-0.5">
                 {activeInfoWindowRider.phone}
               </p>
+
+              {/* ── NEW: Earning display in Map InfoWindow ── */}
+              {activeInfoWindowRider.rider_type === "INDEPENDENT" &&
+                activeInfoWindowRider.estimated_earning && (
+                  <p className="text-[10px] font-bold text-emerald-700 mt-1 flex items-center gap-1">
+                    <Coins size={10} />₹
+                    {activeInfoWindowRider.estimated_earning.total_earning.toFixed(
+                      2,
+                    )}{" "}
+                    est. pay
+                  </p>
+                )}
+
               <div className="flex items-center gap-1.5 mt-2 pt-1 border-t border-slate-100">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
@@ -510,7 +513,7 @@ const RiderAssignList = ({
                       : "bg-white border-gray-100 hover:border-[#05015A]/25"
                 }`}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <h4 className="text-xs font-bold text-gray-800 truncate">
                       {rider.full_name}
@@ -552,6 +555,32 @@ const RiderAssignList = ({
                       )
                     )}
                   </div>
+
+                  {/* ── NEW: Estimated Payout Badge with Transparent Breakdown ── */}
+                  {rider.rider_type === "INDEPENDENT" &&
+                    rider.estimated_earning && (
+                      <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50/90 border border-emerald-200/70 px-2 py-1 rounded-md">
+                        <Coins
+                          size={11}
+                          className="text-emerald-600 flex-shrink-0"
+                        />
+                        <span>
+                          ₹{rider.estimated_earning.total_earning.toFixed(2)}{" "}
+                          est.
+                        </span>
+                        <span className="text-emerald-600/80 font-medium text-[9px] ml-0.5">
+                          (₹{rider.estimated_earning.base_earning.toFixed(2)}{" "}
+                          base
+                          {rider.estimated_earning.surge_fee > 0
+                            ? ` · +₹${rider.estimated_earning.surge_fee} surge`
+                            : ""}
+                          {rider.estimated_earning.tip_amount > 0
+                            ? ` · +₹${rider.estimated_earning.tip_amount} tip`
+                            : ""}
+                          )
+                        </span>
+                      </div>
+                    )}
                 </div>
 
                 <button
@@ -627,7 +656,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   // ── 2. Real-time SSE updates (No polling!) ──
   const handleRiderAvailability = useCallback((payload) => {
     if (!payload?.rider_id) return;
-    console.log(`👤 [DeliveryPanel] Rider availability changed:`, payload);
     setRiders((prev) =>
       prev.map((r) =>
         r.rider_id === payload.rider_id
@@ -642,10 +670,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     const pLat = pharmacyRef.current.latitude;
     const pLng = pharmacyRef.current.longitude;
     if (!pLat || !pLng) return;
-
-    console.log(
-      `📍 [DeliveryPanel] Rider GPS tick received: ${payload.rider_id}`,
-    );
 
     setRiders((prev) =>
       prev.map((r) => {
@@ -666,8 +690,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   const handleDeliveryChanged = useCallback(
     (payload) => {
       if (!payload?.order_id || payload.order_id !== order.order_id) return;
-      console.log(`📦 [DeliveryPanel] Delivery status changed:`, payload);
-      // Trigger parent to re-fetch order data so milestones update
       onUpdated();
     },
     [order.order_id, onUpdated],
@@ -677,7 +699,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   const handleStatusChanged = useCallback(
     (payload) => {
       if (!payload?.order_id || payload.order_id !== order.order_id) return;
-      console.log(`📋 [DeliveryPanel] Order status changed:`, payload);
       onUpdated();
     },
     [order.order_id, onUpdated],
@@ -849,16 +870,28 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                     </span>
                   </div>
                 )}
-                {delivery.total_rider_earning != null && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400 font-medium">
-                      Rider Earning
-                    </span>
-                    <span className="text-emerald-600">
-                      ₹{delivery.total_rider_earning}
-                    </span>
-                  </div>
-                )}
+                {delivery.total_rider_earning != null &&
+                  delivery.rider?.rider_type !== "TEAM" && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">
+                        Rider Base Pay
+                      </span>
+                      <span className="text-emerald-600">
+                        ₹{delivery.total_rider_earning}
+                      </span>
+                    </div>
+                  )}
+                {delivery.tip_amount != null &&
+                  Number(delivery.tip_amount) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">
+                        Customer Tip
+                      </span>
+                      <span className="text-emerald-600">
+                        + ₹{delivery.tip_amount}
+                      </span>
+                    </div>
+                  )}
               </div>
 
               {[

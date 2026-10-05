@@ -12,7 +12,7 @@ import {
   Download,
   Loader2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   finalizeRiderPayoutWeek,
   refreshAllRiderPayouts,
@@ -39,25 +39,45 @@ function getLast12Weeks() {
   const now = new Date();
   const day = now.getDay();
   const diff = day === 0 ? -6 : 1 - day;
-  const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  const thisMonday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + diff,
+  );
 
   for (let i = 0; i < 12; i++) {
     const monday = new Date(thisMonday);
     monday.setDate(monday.getDate() - i * 7);
     const str = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
-    weeks.push({ value: str, label: getWeekLabel(str) + (i === 0 ? " (Current)" : "") });
+    weeks.push({
+      value: str,
+      label: getWeekLabel(str) + (i === 0 ? " (Current)" : ""),
+    });
   }
   return weeks;
 }
 
-const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab, weekInfo, summary, onRefreshAll }) => {
+const PayoutsHeader = ({
+  selectedWeek,
+  setSelectedWeek,
+  activeTab,
+  setActiveTab,
+  weekInfo,
+  summary,
+  onRefreshAll,
+}) => {
   const toast = useToast();
   const [showDropdown, setShowDropdown] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const weeks = useMemo(getLast12Weeks, []);
 
   const handleFinalize = async () => {
-    if (!confirm("Finalize all DRAFT payouts for this week? This will lock the amounts and move them to PENDING.")) return;
+    if (
+      !confirm(
+        "Finalize all DRAFT payouts for this week? This will lock the amounts and move them to PENDING.",
+      )
+    )
+      return;
     setActionLoading("finalize");
     try {
       const resp = await finalizeRiderPayoutWeek(selectedWeek);
@@ -79,7 +99,10 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
       toast.success("Refreshed", `${data?.refreshed || 0} riders refreshed`);
       onRefreshAll();
     } catch (err) {
-      toast.error("Error", err.response?.data?.message || "Failed to refresh all");
+      toast.error(
+        "Error",
+        err.response?.data?.message || "Failed to refresh all",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -97,7 +120,10 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `rider_payouts_${selectedWeek}_${activeTab.toLowerCase()}.csv`);
+      link.setAttribute(
+        "download",
+        `rider_payouts_${selectedWeek}_${activeTab.toLowerCase()}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -105,7 +131,10 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
 
       toast.success("Exported", "Payout CSV file downloaded");
     } catch (err) {
-      toast.error("Error", err.response?.data?.message || "Failed to export CSV");
+      toast.error(
+        "Error",
+        err.response?.data?.message || "Failed to export CSV",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -132,7 +161,10 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
             >
               <CalendarDays size={16} className="text-gray-500" />
               {getWeekLabel(selectedWeek)}
-              <ChevronDown size={14} className={`transition-transform ${showDropdown ? "rotate-180" : ""}`} />
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${showDropdown ? "rotate-180" : ""}`}
+              />
             </button>
 
             <AnimatePresence>
@@ -146,7 +178,10 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
                   {weeks.map((w) => (
                     <button
                       key={w.value}
-                      onClick={() => { setSelectedWeek(w.value); setShowDropdown(false); }}
+                      onClick={() => {
+                        setSelectedWeek(w.value);
+                        setShowDropdown(false);
+                      }}
                       className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${w.value === selectedWeek ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700"}`}
                     >
                       {w.label}
@@ -165,7 +200,9 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
           </button>
 
           {weekInfo?.is_current_week && (
-            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">In Progress</span>
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+              In Progress
+            </span>
           )}
         </div>
 
@@ -215,20 +252,41 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
       </div>
 
       {/* Row 2: Tabs */}
-      <div className="flex items-center gap-1 border-b border-gray-100">
-        {["INDEPENDENT", "TEAM"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`relative px-4 py-2 text-sm font-semibold transition-colors ${activeTab === tab ? "text-[#05015A]" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            {tab === "INDEPENDENT" ? "Independent Riders" : "Team Riders"}
-            {activeTab === tab && (
-              <motion.div layoutId="payout-tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#05015A]" />
-            )}
-          </button>
-        ))}
-      </div>
+      <LayoutGroup id="payout-header-tabs">
+        <div className="flex items-stretch gap-2 border-b border-gray-100 h-10">
+          {["INDEPENDENT", "TEAM"].map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`relative flex items-center px-4 h-full text-sm font-semibold transition-colors duration-150 ${
+                  isActive
+                    ? "text-[#05015A]"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                <span>
+                  {tab === "INDEPENDENT" ? "Independent Riders" : "Team Riders"}
+                </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="payout-active-tab-indicator"
+                    layout="x" // <-- LOCKS animation to the X-axis, preventing diagonal slide
+                    layoutDependency={activeTab}
+                    transition={{
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 35,
+                    }}
+                    className="absolute -bottom-px left-0 right-0 h-0.5 bg-[#05015A] z-10"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </LayoutGroup>
 
       {/* Row 3: Summary Cards */}
       {summary && (
@@ -244,14 +302,18 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, activeTab, setActiveTab,
             <IndianRupee size={16} className="text-gray-400" />
             <div>
               <p className="text-xs text-gray-500">Gross</p>
-              <p className="text-sm font-bold">₹{summary.total_gross.toLocaleString("en-IN")}</p>
+              <p className="text-sm font-bold">
+                ₹{summary.total_gross.toLocaleString("en-IN")}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
             <IndianRupee size={16} className="text-green-500" />
             <div>
               <p className="text-xs text-gray-500">Net</p>
-              <p className="text-sm font-bold text-green-700">₹{summary.total_net.toLocaleString("en-IN")}</p>
+              <p className="text-sm font-bold text-green-700">
+                ₹{summary.total_net.toLocaleString("en-IN")}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">

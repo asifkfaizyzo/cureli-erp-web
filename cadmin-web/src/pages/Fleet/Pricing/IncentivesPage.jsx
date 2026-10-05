@@ -1,6 +1,5 @@
 // cadmin-web/src/pages/Fleet/Pricing/IncentivesPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/Fleet/Pricing/IncentivesPage.jsx
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Trophy, ArrowLeft, LayoutGrid, CalendarClock } from "lucide-react";
@@ -17,6 +16,21 @@ const TABS = [
 export default function IncentivesPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("calendar");
+  
+  // Refs to measure horizontal positions locally
+  const tabRefs = useRef({});
+  const [coords, setCoords] = useState(null);
+
+  // Update line coordinates when tab changes (guarantees local X-axis only)
+  useEffect(() => {
+    const activeEl = tabRefs.current[activeTab];
+    if (activeEl) {
+      setCoords({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth,
+      });
+    }
+  }, [activeTab]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-gray-50">
@@ -35,7 +49,9 @@ export default function IncentivesPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900">Incentives & Quests Engine</h1>
-              <p className="text-xs text-gray-500">Reusable templates, stepper rewards, gating conditions, and calendar scheduling</p>
+              <p className="text-xs text-gray-500">
+                Reusable templates, stepper rewards, gating conditions, and calendar scheduling
+              </p>
             </div>
           </div>
         </div>
@@ -43,29 +59,42 @@ export default function IncentivesPage() {
 
       {/* Tabs */}
       <div className="flex-shrink-0 bg-white border-b border-gray-100 px-6">
-        <div className="max-w-7xl mx-auto flex items-center gap-1">
+        {/* Parent container is 'relative' so absolute coordinates anchor to it */}
+        <div className="relative max-w-7xl mx-auto flex items-stretch gap-2 h-11">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
-              <motion.button
+              <button
                 key={tab.id}
+                ref={(el) => (tabRefs.current[tab.id] = el)}
                 onClick={() => setActiveTab(tab.id)}
-                whileTap={{ scale: 0.98 }}
-                className={`relative flex items-center gap-2 px-4 py-3 text-xs font-semibold transition-colors
+                className={`relative flex items-center gap-2 px-4 h-full text-xs font-semibold transition-colors duration-150
                   ${active ? "text-[#05015A]" : "text-gray-500 hover:text-gray-700"}`}
               >
                 <Icon size={14} />
-                {tab.label}
-                {active && (
-                  <motion.div
-                    layoutId="incentives-tab-indicator"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#05015A]"
-                  />
-                )}
-              </motion.button>
+                <span>{tab.label}</span>
+              </button>
             );
           })}
+
+          {/* Persistent single indicator - completely immune to vertical page shifts */}
+          {coords && (
+            <motion.div
+              initial={false} // Prevents an awkward initial swoop on page mount
+              animate={{
+                x: coords.left,
+                width: coords.width,
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 500,
+                damping: 38,
+              }}
+              className="absolute -bottom-px h-0.5 bg-[#05015A] z-10"
+              style={{ left: 0 }} // Base anchor remains at left: 0
+            />
+          )}
         </div>
       </div>
 

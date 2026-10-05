@@ -1,7 +1,7 @@
 // cadmin-web/src/pages/Fleet/Payouts/comps/PayoutDetailModal.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
-import { X, Loader2, User, CreditCard, FileText, CalendarDays, StickyNote, History } from "lucide-react";
-import { getRiderPayoutDetail } from "../../../../api/cadminFleetRiderPayouts";
+import { X, Loader2, User, CreditCard, FileText, CalendarDays, StickyNote, History, RefreshCw } from "lucide-react";
+import { getRiderPayoutDetail, refreshRiderPayout } from "../../../../api/cadminFleetRiderPayouts";
 import { useToast } from "../../../../components/common/Toast";
 import EarningsBreakdownTab from "./EarningsBreakdownTab";
 import AttendanceCalendarTab from "./AttendanceCalendarTab";
@@ -23,17 +23,32 @@ const PayoutDetailModal = ({ riderId, weekStart, riderType, onClose, onRefresh }
   const toast = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [activeTab, setActiveTab] = useState("earnings");
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const resp = await getRiderPayoutDetail(riderId, weekStart);
       setData(resp.data?.data);
     } catch (err) {
       toast.error("Error", err.response?.data?.message || "Failed to load detail");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    try {
+      await refreshRiderPayout(riderId, weekStart);
+      toast.success("Success", "Payout breakdown recalculated successfully");
+      await fetchData(true); // reload modal content silently
+      onRefresh(); // trigger parent dashboard list refresh
+    } catch (err) {
+      toast.error("Recalculation Failed", err.response?.data?.message || "Could not recompute payout details");
+    } finally {
+      setIsRecalculating(false);
     }
   };
 
@@ -48,6 +63,8 @@ const PayoutDetailModal = ({ riderId, weekStart, riderType, onClose, onRefresh }
       setActiveTab("amount");
     }
   }, [isTeam, activeTab]);
+
+  const isMutable = payout?.status === "DRAFT" || payout?.status === "PENDING" || payout?.status === "FAILED";
 
   const tabs = isTeam
     ? [
@@ -73,31 +90,47 @@ const PayoutDetailModal = ({ riderId, weekStart, riderType, onClose, onRefresh }
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isTeam ? "bg-purple-600" : "bg-[#05015A]"}`}>
               <User size={18} className="text-white" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">{rider?.full_name || "Loading..."}</h2>
-              <p className="text-xs text-gray-500">
-                {rider?.phone} · {data?.week_start} to {data?.week_end}
+              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                <span className="text-xs text-gray-500">
+                  {rider?.phone} · {data?.week_start} to {data?.week_end}
+                </span>
                 {payout && (
-                  <span className={`ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${STATUS_COLORS[payout.status] || "bg-gray-100"}`}>
+                  <span className={`inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_COLORS[payout.status] || "bg-gray-100"}`}>
                     {payout.status}
                   </span>
                 )}
                 {isTeam && (
-                  <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-700">
+                  <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">
                     TEAM
                   </span>
                 )}
-              </p>
+              </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <X size={18} />
-          </button>
+          
+          <div className="flex items-center gap-1.5">
+            {payout && isMutable && (
+              <button
+                onClick={handleRecalculate}
+                disabled={isRecalculating || loading}
+                title="Recalculate live stats and breakdown for this week"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={isRecalculating ? "animate-spin" : ""} />
+                Recalculate
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -118,7 +151,7 @@ const PayoutDetailModal = ({ riderId, weekStart, riderType, onClose, onRefresh }
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-white">
           {loading ? (
             <div className="flex items-center justify-center h-40">
               <Loader2 size={24} className="animate-spin text-gray-400" />
@@ -153,7 +186,13 @@ const PayoutDetailModal = ({ riderId, weekStart, riderType, onClose, onRefresh }
                 </div>
               )}
               {activeTab === "attendance" && isTeam && (
-                <AttendanceCalendarTab payout={payout} />
+                <AttendanceCalendarTab 
+                  payout={payout} 
+                  riderId={riderId}
+                  weekStart={weekStart}
+                  onRecalculate={handleRecalculate}
+                  isCalculating={isRecalculating}
+                />
               )}
               {activeTab === "deductions" && (
                 <DeductionsEditor

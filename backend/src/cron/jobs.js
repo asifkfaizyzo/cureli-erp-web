@@ -505,54 +505,60 @@ function initializeMarketplaceSchedulerJob() {
 
 async function runQuoteExpiryJob() {
   try {
-    const result = await expireStaleQuotes();
-    if (result.expired > 0) {
+    // 1. Expire stale quotes (15-30 min window)
+    const quoteResult = await expireStaleQuotes();
+    if (quoteResult.expired > 0) {
       cronLogger.info(
-        `[PRx] Expired ${result.expired} stale quote recipient(s)`,
+        `[PRx] Expired ${quoteResult.expired} stale quote recipient(s)`,
+      );
+    }
+
+    // 2. Expire stale requests (30 min window)
+    const requestResult = await expireStaleRequests();
+    if (requestResult.expired > 0) {
+      cronLogger.info(
+        `[PRx] Expired ${requestResult.expired} stale prescription request(s)`,
       );
     }
   } catch (err) {
-    cronLogger.error("Prescription quote expiry job failed", err);
+    cronLogger.error("Prescription expiry job failed", err);
   }
 }
 
 function initializePrescriptionQuoteExpiryJob() {
-  cron.schedule("*/5 * * * *", () =>
-    withCronLock("prescription-quote-expiry", 4, runQuoteExpiryJob),
+  // Runs every 2 minutes so requests expire promptly
+  cron.schedule("*/2 * * * *", () =>
+    withCronLock("prescription-expiry", 2, runQuoteExpiryJob),
   );
-  cronLogger.info("Prescription quote expiry job scheduled (every 5 minutes)");
+  cronLogger.info("Prescription quote & request expiry job scheduled (every 2 minutes)");
 }
 
 async function runPrescriptionRequestCleanupJob() {
   try {
-    cronLogger.info("[PRx] Starting prescription request cleanup run");
-
-    const requestResult = await expireStaleRequests();
-    cronLogger.info(
-      `[PRx] Expired ${requestResult.expired} stale prescription request(s)`,
-    );
+    cronLogger.info("[PRx] Starting daily prescription file cleanup");
 
     const fileResult = await cleanupExpiredRequestFiles();
     cronLogger.info(
       `[PRx] File cleanup: ${fileResult.deleted} deleted, ${fileResult.failed} failed`,
     );
   } catch (err) {
-    cronLogger.error("Prescription request cleanup job failed", err);
+    cronLogger.error("Prescription file cleanup job failed", err);
   }
 }
 
 function initializePrescriptionRequestCleanupJob() {
   cron.schedule("30 20 * * *", () =>
     withCronLock(
-      "prescription-request-cleanup",
+      "prescription-file-cleanup",
       30,
       runPrescriptionRequestCleanupJob,
     ),
   );
   cronLogger.info(
-    "Prescription request cleanup job scheduled (daily at 02:00 IST / 20:30 UTC)",
+    "Prescription file cleanup job scheduled (daily at 02:00 IST / 20:30 UTC)",
   );
 }
+
 
 function initializeLoyaltyPointsExpiryJob() {
   cron.schedule("0 2 * * *", () =>

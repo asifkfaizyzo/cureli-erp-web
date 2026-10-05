@@ -84,7 +84,33 @@ const PayoutsTable = ({
 
   const selectedRiders = riders.filter((r) => r.payout_id && selectedIds.has(r.payout_id));
 
-  if (loading) return <TableSkeleton rows={rowsPerPage} cols={8} />;
+  // ── FIX 1: Wrap skeleton in proper <table><tbody> to fix DOM nesting ──
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 flex flex-col h-full overflow-hidden">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <tr>
+                <th className="w-10 px-3 py-3 text-center" />
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Rider</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Type</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600">{isTeam ? "Amount" : "Deliveries"}</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600">Gross</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600">Net</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              <TableSkeleton rows={rowsPerPage} columns={Array(6).fill({ key: "col", width: "auto" })} />
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   if (riders.length === 0) return <TableEmptyState message="No riders found for this week" />;
 
   return (
