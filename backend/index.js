@@ -1,4 +1,4 @@
-// index.js
+// backend/index.js 
 
 import "./env.js";
 import express from "express";
@@ -96,6 +96,7 @@ import fleetPricingRoutes from "./src/modules/cadmin/fleet-pricing/fleetPricing.
 import fleetIncentivesRoutes from "./src/modules/cadmin/fleet-incentives/fleetIncentives.routes.js";
 import cadminDeliveryRoutes from "./src/modules/cadmin/delivery/cadmin.delivery.routes.js";
 import cadminPrescriptionRequestsRoutes from "./src/modules/cadmin/prescription-requests/cadminPrescriptionRequests.routes.js";
+import cadminRiderPayoutRoutes from "./src/modules/cadmin/rider-payouts/cadmin.riderPayouts.routes.js";
 
 // ============================================
 // MOBILE ROUTES
@@ -313,6 +314,8 @@ app.use("/cadmin/fleet/pricing", fleetPricingRoutes);
 app.use("/cadmin/fleet/incentives", fleetIncentivesRoutes);
 app.use("/cadmin/delivery", cadminDeliveryRoutes);
 app.use("/cadmin", cadminPrescriptionRequestsRoutes);
+app.use("/cadmin/fleet/rider-payouts", cadminRiderPayoutRoutes);
+
 // ============================================
 // MOBILE ROUTES
 // ============================================

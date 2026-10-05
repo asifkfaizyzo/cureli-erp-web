@@ -495,8 +495,24 @@ model RiderPayout {
   week_start             DateTime                @db.Date
   week_end               DateTime                @db.Date
   gross_amount           Decimal                 @db.Decimal(10, 2)
-  status                 PayoutStatus            @default(PENDING)
+  net_amount             Decimal                 @db.Decimal(10, 2)
+  status                 PayoutStatus            @default(DRAFT)
   payment_method         PayoutMethod            @default(MANUAL)
+
+  // Finalization control
+  is_finalized           Boolean                 @default(false)
+  finalized_at           DateTime?               @db.Timestamptz(6)
+
+  // Full earnings breakdown snapshot (JSON)
+  breakdown_snapshot     Json?
+
+  // Deductions (free-form)
+  // Structure: [{ "label": "COD Reconciliation", "amount": 500, "note": "3 COD orders" }]
+  deductions             Json                    @default("[]")
+
+  // Internal notes (CAdmin-only audit trail)
+  // Structure: [{ "by": "uuid", "at": "ISO", "text": "..." }]
+  internal_notes         Json                    @default("[]")
 
   // Manual payout fields
   manual_reference       String?                 @db.VarChar(100)
@@ -508,7 +524,11 @@ model RiderPayout {
   provider_payload       Json?
 
   // Bank details snapshot at time of payout
-  bank_snapshot          Json
+  bank_snapshot          Json?
+
+  // Refresh tracking
+  last_refreshed_at      DateTime?               @db.Timestamptz(6)
+  refreshed_by           String?                 @db.Uuid
 
   processed_by           String?                 @db.Uuid
   processed_at           DateTime?               @db.Timestamptz(6)
@@ -520,6 +540,7 @@ model RiderPayout {
   rider                  Rider                   @relation(fields: [rider_id], references: [rider_id])
   ledgerEntries          RiderEarningLedger[]
 
+  @@unique([rider_id, week_start], name: "rider_week_unique")
   @@index([rider_id, status])
   @@index([status, created_at(sort: Desc)])
   @@index([week_start])

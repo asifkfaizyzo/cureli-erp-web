@@ -19,6 +19,7 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   BadgeIndianRupee,
+  HandCoins,
 } from "lucide-react";
 
 import { useMenuStore } from "../../store/useMenuStore";
@@ -240,6 +241,14 @@ const FLEET_MENU_ITEMS = [
     path: "/fleet/pricing",
     breadcrumbs: ["Fleet", "Pricing"],
     permissionKey: "fleet",
+  },
+    {
+    id: "fleet-payouts",
+    label: "Payouts",
+    icon: HandCoins,
+    path: "/fleet/rider-payouts",
+    breadcrumbs: ["Fleet", "Payouts"],
+    permissionKey: "fleetPayouts",
   },
 ];
 

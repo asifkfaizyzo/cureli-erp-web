@@ -57,6 +57,7 @@ import FleetCommunicationsPage from "./pages/Fleet/Communications/FleetCommunica
 import FleetPricingPage from "./pages/Fleet/Pricing/FleetPricingPage";
 import BasePayPage from "./pages/Fleet/Pricing/BasePayPage";
 import IncentivesPage from "./pages/Fleet/Pricing/IncentivesPage";
+import RiderPayoutsPage from "./pages/Fleet/Payouts/RiderPayoutsPage";
 
 import AppLayout from "./components/layout/AppLayout";
 import { AuthProvider } from "./context/AuthContext";
@@ -500,6 +501,16 @@ function App() {
                 permission={CADMIN_PERMISSIONS.FLEET_INCENTIVES_VIEW}
               >
                 <IncentivesPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/fleet/rider-payouts"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_VIEW}
+              >
+                <RiderPayoutsPage />
               </PermissionGuard>
             }
           />

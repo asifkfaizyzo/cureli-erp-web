@@ -156,6 +156,10 @@ export const CADMIN_PERMISSIONS = {
   FLEET_PRICING_MANAGE_SURGE: "fleet_pricing.manage_surge",
   FLEET_INCENTIVES_VIEW: "fleet_incentives.view",
   FLEET_INCENTIVES_MANAGE: "fleet_incentives.manage",
+
+  // ── Fleet — Rider Payouts ────────────────────────────────────
+  FLEET_RIDER_PAYOUTS_VIEW: "fleet_rider_payouts.view",
+  FLEET_RIDER_PAYOUTS_MANAGE: "fleet_rider_payouts.manage",
 };
 
 export const CADMIN_PERMISSION_GROUPS = [
@@ -192,6 +196,24 @@ export const CADMIN_PERMISSION_GROUPS = [
         key: CADMIN_PERMISSIONS.ADMINS_TOGGLE_ACCESS,
         label: "Disable / Enable Admin",
         description: "Activate or deactivate admin accounts",
+      },
+    ],
+  },
+  {
+    module: "Fleet Rider Payouts",
+    key: "fleet_rider_payouts",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_VIEW,
+        label: "View Rider Payouts",
+        description:
+          "View rider payout summaries, breakdowns, and payment status",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_MANAGE,
+        label: "Manage Rider Payouts",
+        description:
+          "Refresh, finalize, process, and mark rider payouts as paid",
       },
     ],
   },

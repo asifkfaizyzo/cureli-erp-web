@@ -46,6 +46,7 @@ import {
 // Import Fleet Incentives and Pricing services for daily evaluations
 import { evaluateDailyIncentivesForShift } from "../modules/cadmin/fleet-incentives/incentiveEngine.service.js";
 import { checkAndActivateScheduledConfigs } from "../modules/cadmin/fleet-pricing/fleetPricing.service.js";
+import { runRiderPayoutFinalization } from "./riderPayoutFinalizationWorker.js";
 
 async function processScheduledBroadcasts() {
   cronLogger.info("Checking for scheduled broadcasts...");
@@ -646,6 +647,12 @@ export function initializeCronJobs() {
   initializePrescriptionRequestCleanupJob();
   initializeLoyaltyPointsExpiryJob();
   initializeShiftEvaluationJob();
+
+  cron.schedule("5 7 * * 1", () =>
+    withCronLock("rider-payout-finalization", 30, runRiderPayoutFinalization)
+  );
+  cronLogger.info("Rider payout finalization scheduled (Monday 7:05 AM IST)");
+
   initializeBirthdayPushJob();
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
@@ -725,6 +732,7 @@ export function initializeCronJobs() {
   cronLogger.info("  - Prescription request cleanup: Daily at 02:00 IST");
   cronLogger.info("  - Loyalty points expiry: Daily at 2:00 AM IST");
   cronLogger.info("  - Shift evaluation: Daily at 6:05 AM");
+  cronLogger.info("  - Rider payout finalization: Monday 7:05 AM IST");
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
   cronLogger.info("  - Stale assignment alerts: Every 2 minutes");

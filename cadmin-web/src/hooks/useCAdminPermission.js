@@ -161,6 +161,11 @@ export function useCAdminMenuPermissions() {
       ),
       fleetRiders: show(CADMIN_PERMISSIONS.FLEET_RIDERS_VIEW),
       fleetVerification: show(CADMIN_PERMISSIONS.FLEET_VERIFICATION_VIEW),
+
+      fleetPayouts: showAny(
+        CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_VIEW,
+        CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_MANAGE,
+      ),
     };
   }, [hasPermission, hasAnyPermission, isSuperCAdmin]);
 }

@@ -159,6 +159,16 @@ export async function getOverview(riderId) {
   ]);
   const lwTotal = lwDeliveries.total_rider_earning + lwIncentives;
 
+  // ── Weekly breakdown by category ────────────────────────────
+  const cwBreakdown = {
+    base_fee: round2(cwDeliveries.pickup_fee + cwDeliveries.drop_fee),
+    surge_fee: round2(cwDeliveries.surge),
+    floor_topup_fee: round2(cwDeliveries.floor_topup),
+    tips: round2(cwDeliveries.tips),
+    incentive_earnings: round2(cwIncentives),
+    total: round2(cwTotal),
+  };
+
   // Payout summary
   const [currentWeekAccumulated, lastPayout] = await Promise.all([
     prisma.riderEarningLedger.aggregate({
@@ -196,18 +206,15 @@ export async function getOverview(riderId) {
         cwDeliveries.count > 0 ? round2(cwTotal / cwDeliveries.count) : 0,
       delta_pct_vs_last_week: deltaPct(round2(cwTotal), round2(lwTotal)),
     },
+    current_week_breakdown: cwBreakdown,
     payout: {
-      current_week_accumulated: round2(
-        currentWeekAccumulated._sum.amount || 0,
-      ),
+      current_week_accumulated: round2(currentWeekAccumulated._sum.amount || 0),
       last_payout: lastPayout
         ? {
             week_start: new Date(lastPayout.week_start)
               .toISOString()
               .split("T")[0],
-            week_end: new Date(lastPayout.week_end)
-              .toISOString()
-              .split("T")[0],
+            week_end: new Date(lastPayout.week_end).toISOString().split("T")[0],
             gross_amount: round2(lastPayout.gross_amount),
             status: lastPayout.status,
             processed_at: lastPayout.processed_at
@@ -283,15 +290,9 @@ export async function getWeeklyData(riderId, weekStartStr) {
 
   // Distribute incentive earnings proportionally across days that have deliveries
   // (or add to the total without per-day breakdown — simpler approach)
-  const totalDeliveryEarnings = dayBuckets.reduce(
-    (s, b) => s + b.earnings,
-    0,
-  );
+  const totalDeliveryEarnings = dayBuckets.reduce((s, b) => s + b.earnings, 0);
   const totalEarnings = totalDeliveryEarnings + incentiveTotal;
-  const totalDeliveries = dayBuckets.reduce(
-    (s, b) => s + b.deliveries,
-    0,
-  );
+  const totalDeliveries = dayBuckets.reduce((s, b) => s + b.deliveries, 0);
 
   // Build days array
   let bestDay = null;
@@ -484,9 +485,7 @@ export async function getPayouts(riderId, { page, limit }) {
       gross_amount: round2(p.gross_amount),
       status: p.status,
       payment_method: p.payment_method,
-      processed_at: p.processed_at
-        ? p.processed_at.toISOString()
-        : null,
+      processed_at: p.processed_at ? p.processed_at.toISOString() : null,
     })),
     pagination: {
       page,
