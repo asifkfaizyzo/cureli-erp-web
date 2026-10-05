@@ -224,7 +224,6 @@ const AdminDashboard = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <WelcomeBanner
             admin={admin}
-            role={admin?.role}
             pendingCounts={pendingCounts}
             overviewData={overviewData}
           />
@@ -251,12 +250,12 @@ const AdminDashboard = () => {
 
         {/* KPI Cards */}
         {overviewData && (
-          <KPICardsGrid data={overviewData} period={period} role={admin?.role} loading={false} />
+          <KPICardsGrid data={overviewData} period={period} loading={false} />
         )}
 
         {/* Pending Actions */}
         {overviewData && (
-          <PendingActionsPanel data={overviewData} pendingCounts={pendingCounts} role={admin?.role} />
+          <PendingActionsPanel data={overviewData} pendingCounts={pendingCounts} />
         )}
 
         {/* Charts */}
