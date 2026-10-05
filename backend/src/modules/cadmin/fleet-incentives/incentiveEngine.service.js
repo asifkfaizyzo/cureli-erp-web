@@ -1,4 +1,3 @@
-// backend/src/modules/cadmin/fleet-incentives/incentiveEngine.service.js (do not remove this comment)
 // backend/src/modules/cadmin/fleet-incentives/incentiveEngine.service.js
 
 import prisma from "../../../config/prisma.js";
@@ -23,20 +22,31 @@ export function getShiftWindowForDate(dateInput) {
 }
 
 /**
- * Evaluates gating conditions (Online hours, denial count, cancellations).
- * Returns true if rider passes all active criteria.
+ * Evaluates ALL 5 gating conditions.
+ * Returns true only if rider passes every active criterion.
+ *
+ * Previously only checked 3 of 5 — min_acceptance_rate and
+ * min_completion_rate were silently ignored. Now fixed.
  */
 function evaluateGatingConditions(conditions, riderMetrics) {
   if (!conditions) return true;
 
-  if (conditions.min_online_hours !== null && conditions.min_online_hours !== undefined) {
+  if (conditions.min_online_hours != null) {
     if ((riderMetrics.online_hours || 0) < Number(conditions.min_online_hours)) return false;
   }
-  if (conditions.max_denial_count !== null && conditions.max_denial_count !== undefined) {
+  if (conditions.max_denial_count != null) {
     if ((riderMetrics.denial_count || 0) > conditions.max_denial_count) return false;
   }
-  if (conditions.max_cancellation_count !== null && conditions.max_cancellation_count !== undefined) {
+  if (conditions.max_cancellation_count != null) {
     if ((riderMetrics.cancellation_count || 0) > conditions.max_cancellation_count) return false;
+  }
+  if (conditions.min_acceptance_rate != null) {
+    // Default 100 if rider had no assignments (no orders to reject)
+    if ((riderMetrics.acceptance_rate ?? 100) < Number(conditions.min_acceptance_rate)) return false;
+  }
+  if (conditions.min_completion_rate != null) {
+    // Default 100 if rider had no completed/failed/cancelled deliveries
+    if ((riderMetrics.completion_rate ?? 100) < Number(conditions.min_completion_rate)) return false;
   }
 
   return true;
@@ -55,6 +65,14 @@ function getWeekStartDate(date) {
 
 /**
  * Evaluates and credits incentives for all independent riders for a given completed shift date.
+ *
+ * FIXES applied in this version:
+ *  1. denial_count and cancellation_count are now actually computed
+ *     (previously hardcoded to 0 — gating was silently broken).
+ *  2. online_hours now reads from RiderOnlineSession
+ *     (previously hardcoded to 0 placeholder).
+ *  3. min_acceptance_rate and min_completion_rate gating now enforced
+ *     (previously ignored by evaluateGatingConditions).
  *
  * @param {Date|string} targetDate - The calendar day whose 6AM-6AM shift completed.
  * @returns {Promise<Object>} Summary of evaluations and ledger payouts.
@@ -106,15 +124,109 @@ export async function evaluateDailyIncentivesForShift(targetDate = new Date()) {
       rider_id: del.rider_id,
       completed_orders: 0,
       base_earnings: 0,
-      online_hours: 0, // Placeholder until telemetry cron is active
+      online_hours: 0,
       denial_count: 0,
       cancellation_count: 0,
+      accepted_count: 0,
+      failed_count: 0,
+      acceptance_rate: 100,
+      completion_rate: 100,
     };
 
     current.completed_orders += 1;
     current.base_earnings += Number(del.pickup_fee || 0) + Number(del.drop_fee || 0);
     riderMetricsMap.set(del.rider_id, current);
   }
+
+  // ── FIX: Populate denial_count, cancellation_count, online_hours, rates ──
+
+  // 2a. Fetch assignment actions for the shift (accepted / rejected / timeout)
+  const assignmentLogs = await prisma.deliveryAssignmentLog.findMany({
+    where: {
+      created_at: { gte: shiftStart, lte: shiftEnd },
+      action: { in: ["ACCEPTED", "REJECTED", "TIMEOUT"] },
+      rider: { rider_type: "INDEPENDENT", status: "ACTIVE" },
+    },
+    select: { rider_id: true, action: true },
+  });
+
+  for (const log of assignmentLogs) {
+    if (!riderMetricsMap.has(log.rider_id)) continue;
+    const m = riderMetricsMap.get(log.rider_id);
+    if (log.action === "ACCEPTED") {
+      m.accepted_count += 1;
+    } else {
+      // REJECTED and TIMEOUT both count as denials
+      m.denial_count += 1;
+    }
+  }
+
+  // 2b. Fetch cancellations for the shift (rider cancelled mid-delivery)
+  const cancelledDeliveries = await prisma.delivery.findMany({
+    where: {
+      status: "CANCELLED",
+      updated_at: { gte: shiftStart, lte: shiftEnd },
+      rider_id: { not: null },
+      rider: { rider_type: "INDEPENDENT", status: "ACTIVE" },
+    },
+    select: { rider_id: true },
+  });
+
+  for (const del of cancelledDeliveries) {
+    if (!riderMetricsMap.has(del.rider_id)) continue;
+    riderMetricsMap.get(del.rider_id).cancellation_count += 1;
+  }
+
+  // 2c. Fetch failed deliveries for the shift (for completion rate)
+  const failedDeliveries = await prisma.delivery.findMany({
+    where: {
+      status: "FAILED",
+      updated_at: { gte: shiftStart, lte: shiftEnd },
+      rider_id: { not: null },
+      rider: { rider_type: "INDEPENDENT", status: "ACTIVE" },
+    },
+    select: { rider_id: true },
+  });
+
+  for (const del of failedDeliveries) {
+    if (!riderMetricsMap.has(del.rider_id)) continue;
+    riderMetricsMap.get(del.rider_id).failed_count += 1;
+  }
+
+  // 2d. Fetch actual online hours from RiderOnlineSession (replaces 0 placeholder)
+  const onlineSessions = await prisma.riderOnlineSession.findMany({
+    where: {
+      shift_date: normalizedTargetDate,
+      went_offline_at: { not: null },
+      rider: { rider_type: "INDEPENDENT", status: "ACTIVE" },
+    },
+    select: { rider_id: true, duration_minutes: true },
+  });
+
+  const onlineHoursMap = new Map();
+  for (const session of onlineSessions) {
+    const current = onlineHoursMap.get(session.rider_id) || 0;
+    onlineHoursMap.set(session.rider_id, current + Number(session.duration_minutes || 0));
+  }
+  for (const [riderId, minutes] of onlineHoursMap) {
+    if (!riderMetricsMap.has(riderId)) continue;
+    riderMetricsMap.get(riderId).online_hours = Math.round((minutes / 60) * 10) / 10;
+  }
+
+  // 2e. Compute acceptance_rate and completion_rate per rider
+  for (const [, m] of riderMetricsMap) {
+    const totalAssignments = m.accepted_count + m.denial_count;
+    m.acceptance_rate = totalAssignments > 0
+      ? Math.round((m.accepted_count / totalAssignments) * 1000) / 10
+      : 100;
+
+    const totalCompleted = m.completed_orders + m.cancellation_count + m.failed_count;
+    m.completion_rate = totalCompleted > 0
+      ? Math.round((m.completed_orders / totalCompleted) * 1000) / 10
+      : 100;
+  }
+
+  // ── End of fix ──────────────────────────────────────────────
 
   const payoutsToCredit = [];
   const weekStart = getWeekStartDate(normalizedTargetDate);
@@ -128,14 +240,16 @@ export async function evaluateDailyIncentivesForShift(targetDate = new Date()) {
     for (const schedule of activeSchedules) {
       const { template } = schedule;
 
-      // Check Gating Conditions
+      // Check ALL 5 Gating Conditions (previously only 3 were checked)
       const passesGating = evaluateGatingConditions(
         {
           min_online_hours: template.min_online_hours,
           max_denial_count: template.max_denial_count,
           max_cancellation_count: template.max_cancellation_count,
+          min_acceptance_rate: template.min_acceptance_rate,
+          min_completion_rate: template.min_completion_rate,
         },
-        metrics
+        metrics,
       );
 
       if (!passesGating) continue;

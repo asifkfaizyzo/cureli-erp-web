@@ -1,7 +1,23 @@
-// backend/src/modules/cadmin/fleet-pricing/fleetSurge.service.js (do not remove this comment)
 // backend/src/modules/cadmin/fleet-pricing/fleetSurge.service.js
 
 import prisma from "../../../config/prisma.js";
+
+/**
+ * Resolves a list of CAdmin UUIDs to a { uuid: name } map.
+ */
+async function resolveAdminNames(adminIds) {
+  const uniqueIds = [...new Set(adminIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return {};
+  const admins = await prisma.cAdmin.findMany({
+    where: { cadmin_id: { in: uniqueIds } },
+    select: { cadmin_id: true, name: true },
+  });
+  const map = {};
+  admins.forEach((a) => {
+    map[a.cadmin_id] = a.name;
+  });
+  return map;
+}
 
 /**
  * Deactivates expired surge rules.
@@ -18,7 +34,7 @@ async function cleanExpiredSurges() {
 }
 
 /**
- * Returns all configured surge presets and indicates the currently active surge.
+ * Returns all configured surge presets with resolved admin names.
  */
 export async function getSurgeRules() {
   await cleanExpiredSurges();
@@ -26,6 +42,10 @@ export async function getSurgeRules() {
   const rules = await prisma.riderSurgeRule.findMany({
     orderBy: [{ is_active: "desc" }, { created_at: "desc" }],
   });
+
+  // ── Resolve activated_by UUIDs to readable names ──
+  const adminIds = rules.map((r) => r.activated_by);
+  const nameMap = await resolveAdminNames(adminIds);
 
   return rules.map((r) => ({
     rule_id: r.rule_id,
@@ -36,6 +56,8 @@ export async function getSurgeRules() {
     value: Number(r.value),
     expires_at: r.expires_at,
     activated_at: r.activated_at,
+    activated_by: r.activated_by,
+    activated_by_name: r.activated_by ? (nameMap[r.activated_by] || "Unknown Admin") : null,
     created_at: r.created_at,
   }));
 }
@@ -51,6 +73,7 @@ export async function createSurgeRule(data, adminId) {
       calc_type: data.calc_type || "MULTIPLIER",
       value: data.value,
       is_active: false,
+      expires_at: data.expires_at ? new Date(data.expires_at) : null,
     },
   });
 

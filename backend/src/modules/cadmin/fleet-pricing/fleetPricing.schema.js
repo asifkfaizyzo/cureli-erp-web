@@ -1,5 +1,4 @@
-// backend/src/modules/cadmin/fleet-pricing/fleetPricing.schema.js (do not remove this comment)
-// backend/src/modules/cadmin/fleet-pricing/fleetPricing.schema.ts
+// backend/src/modules/cadmin/fleet-pricing/fleetPricing.schema.js
 
 import { z } from "zod";
 
@@ -42,6 +41,8 @@ export const createSurgeRuleSchema = z.object({
   description: z.string().max(255).nullable().optional(),
   calc_type: z.enum(["MULTIPLIER", "FLAT_ADDITION"]),
   value: z.number().positive(),
+  // ── NEW: allow preset auto-expiry on creation ──
+  expires_at: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 export const toggleSurgeRuleSchema = z.object({

@@ -111,3 +111,102 @@ export async function firePrescriptionQuoteReceivedEvents(request, recipient) {
     console.error('[PRxEvents] Mobile SSE dispatch failed (quote received):', err.message);
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENT: CADMIN ALERT — NEW PRESCRIPTION REQUEST
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Broadcast to all connected CAdmins when a customer submits a new
+ * prescription request to one or more pharmacies.
+ *
+ * Fire-and-forget — must never block the request submission response.
+ *
+ * @param {Object} request    - PrescriptionRequest row (from prisma create)
+ * @param {Array}  recipients - PrescriptionRequestRecipient rows
+ */
+export async function fireCAdminPrescriptionRequestNew(request, recipients) {
+  const { request_id, request_number, customer_id, created_at } = request;
+
+  try {
+    const customer = await prisma.cureliMobileUser.findUnique({
+      where:  { id: customer_id },
+      select: { full_name: true, phone: true },
+    });
+
+    const fileCount = await prisma.prescriptionRequestFile.count({
+      where: { request_id, deleted_at: null },
+    });
+
+    const ssePayload = {
+      request_id,
+      request_number,
+      customer_name:  customer?.full_name || null,
+      customer_phone: customer?.phone || null,
+      recipient_count: recipients.length,
+      file_count:      fileCount,
+      created_at,
+    };
+
+    sseService.notifyAllCAdmins('prescription_request_new', ssePayload);
+
+    console.log(
+      `[PRxEvents] Broadcasted prescription_request_new to all CAdmins ` +
+      `(request ${request_number}, ${recipients.length} pharmacies)`,
+    );
+  } catch (err) {
+    console.error(
+      '[PRxEvents] CAdmin SSE broadcast failed (new prescription request):',
+      err.message,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENT: CADMIN ALERT — PRESCRIPTION REQUEST RESPONDED (QUOTED / DECLINED)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Broadcast to all connected CAdmins when a pharmacy responds to a
+ * prescription request — either by sending a quote or declining.
+ *
+ * Fire-and-forget — must never block the quote/decline response.
+ *
+ * @param {Object} recipient     - PrescriptionRequestRecipient row (with shop/branch snapshots)
+ * @param {Object} request       - PrescriptionRequest row (or partial: request_id, request_number)
+ * @param {string} action        - 'QUOTED' | 'DECLINED'
+ * @param {string} declineReason - Reason text (only when action === 'DECLINED')
+ */
+export async function fireCAdminPrescriptionRequestResponded(
+  recipient,
+  request,
+  action,
+  declineReason = null,
+) {
+  const { request_id, request_number } = request;
+  const { recipient_id, shop_name_snapshot, branch_name_snapshot } = recipient;
+
+  try {
+    const ssePayload = {
+      request_id,
+      request_number,
+      recipient_id,
+      shop_name:      shop_name_snapshot,
+      branch_name:    branch_name_snapshot,
+      action,
+      decline_reason: declineReason,
+    };
+
+    sseService.notifyAllCAdmins('prescription_request_responded', ssePayload);
+
+    console.log(
+      `[PRxEvents] Broadcasted prescription_request_responded (${action}) to all CAdmins ` +
+      `(request ${request_number}, pharmacy ${shop_name_snapshot})`,
+    );
+  } catch (err) {
+    console.error(
+      '[PRxEvents] CAdmin SSE broadcast failed (prescription responded):',
+      err.message,
+    );
+  }
+}

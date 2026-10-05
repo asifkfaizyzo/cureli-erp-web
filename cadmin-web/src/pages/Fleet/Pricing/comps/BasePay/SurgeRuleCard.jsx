@@ -1,11 +1,47 @@
-// cadmin-web/src/pages/Fleet/Pricing/comps/BasePay/SurgeRuleCard.jsx (do not remove this comment)
 // cadmin-web/src/pages/Fleet/Pricing/comps/BasePay/SurgeRuleCard.jsx
-import { Zap, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Zap, Trash2, Clock, User } from "lucide-react";
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return null;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function formatCountdown(expiresAt, now) {
+  if (!expiresAt) return null;
+  const diff = new Date(expiresAt).getTime() - now;
+  if (diff <= 0) return "Expired";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m remaining`;
+  const hours = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  if (hours < 24) return `${hours}h ${remMins}m remaining`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h remaining`;
+}
 
 export default function SurgeRuleCard({ rule, onToggle, onDelete, disabled }) {
+  const [now, setNow] = useState(Date.now());
+
+  // Tick countdown every 30s when active with an expiry
+  useEffect(() => {
+    if (!rule.is_active || !rule.expires_at) return;
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, [rule.is_active, rule.expires_at]);
+
   const displayValue = rule.calc_type === "MULTIPLIER"
     ? `${rule.value}x`
     : `+₹${rule.value}`;
+
+  const countdown = rule.is_active ? formatCountdown(rule.expires_at, now) : null;
 
   return (
     <div
@@ -36,10 +72,34 @@ export default function SurgeRuleCard({ rule, onToggle, onDelete, disabled }) {
               <span className="font-medium text-gray-600">{displayValue}</span>
               {" • "}
               {rule.calc_type === "MULTIPLIER" ? "Multiplier" : "Flat Addition"}
-              {rule.expires_at && (
-                <> • expires {new Date(rule.expires_at).toLocaleString()}</>
-              )}
             </p>
+
+            {/* ── NEW: Audit trail (who activated + when) ── */}
+            {rule.is_active && rule.activated_at && (
+              <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
+                {rule.activated_by_name && (
+                  <span className="flex items-center gap-1">
+                    <User size={9} />
+                    {rule.activated_by_name}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Clock size={9} />
+                  {formatRelativeTime(rule.activated_at)}
+                </span>
+              </div>
+            )}
+
+            {/* ── NEW: Expiry countdown ── */}
+            {rule.is_active && countdown && (
+              <div className={`mt-1 text-[10px] font-medium flex items-center gap-1
+                ${countdown === "Expired" ? "text-red-500" : "text-amber-600"}`}>
+                <Clock size={9} />
+                {countdown === "Expired"
+                  ? "Expired — will auto-deactivate shortly"
+                  : `Auto-expires: ${countdown}`}
+              </div>
+            )}
           </div>
         </div>
 
