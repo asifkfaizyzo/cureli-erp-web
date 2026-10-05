@@ -82,13 +82,13 @@ export async function getDashboardOverview(period = "30d", role = "SUPER_CADMIN"
     ]);
 
     // ============================================
-    // USER STATISTICS
+    // CURELI MOBILE APP USERS (Actual Consumers)
     // ============================================
     const [totalUsers, activeUsers, newUsersInPeriod, newUsersPrevPeriod] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { is_active: true } }),
-      prisma.user.count({ where: { created_at: { gte: startDate, lte: endDate } } }),
-      prisma.user.count({ where: { created_at: { gte: prevStartDate, lte: prevEndDate } } }),
+      prisma.cureliMobileUser.count({ where: { deleted_at: null } }),
+      prisma.cureliMobileUser.count({ where: { status: "active", deleted_at: null } }),
+      prisma.cureliMobileUser.count({ where: { created_at: { gte: startDate, lte: endDate }, deleted_at: null } }),
+      prisma.cureliMobileUser.count({ where: { created_at: { gte: prevStartDate, lte: prevEndDate }, deleted_at: null } }),
     ]);
 
     // ============================================
@@ -122,15 +122,23 @@ export async function getDashboardOverview(period = "30d", role = "SUPER_CADMIN"
     ]);
 
     // ============================================
-    // ENQUIRY STATISTICS
+    // ENQUIRY STATISTICS WITH DEFENSIVE FALLBACKS
     // ============================================
-    const [pendingEnquiries, repliedEnquiriesInPeriod] = await Promise.all([
-      prisma.enquiry.count({ where: { status: "PENDING" } }),
-      prisma.enquiry.count({ where: { status: "REPLIED", updated_at: { gte: startDate, lte: endDate } } }),
-    ]);
+    let pendingEnquiries = 0;
+    let repliedEnquiriesInPeriod = 0;
+    try {
+      if (prisma.enquiry) {
+        [pendingEnquiries, repliedEnquiriesInPeriod] = await Promise.all([
+          prisma.enquiry.count({ where: { status: "PENDING" } }),
+          prisma.enquiry.count({ where: { status: "REPLIED", updated_at: { gte: startDate, lte: endDate } } }),
+        ]);
+      }
+    } catch (e) {
+      console.warn("[DASHBOARD SVC] Optional enquiry table fallback triggered:", e.message);
+    }
 
     // ============================================
-    // REVENUE STATISTICS
+    // REVENUE STATISTICS (With Safe BigInt Extraction)
     // ============================================
     const validStatuses = [
       "success", "SUCCESS", 
@@ -170,7 +178,7 @@ export async function getDashboardOverview(period = "30d", role = "SUPER_CADMIN"
     const revenueGrowth = calculateGrowth(currentRevenue, previousRevenue);
 
     // ============================================
-    // BUILD RESPONSE
+    // BUILD ALIGNED RESPONSE
     // ============================================
     const response = {
       shops: {
@@ -249,7 +257,7 @@ export async function getRevenueData(period = "30d") {
       orderBy: { created_at: "asc" },
     });
     
-    // Group by day
+    // Group by day (Safely converting BigInt to float/number)
     const dailyRevenue = {};
     payments.forEach((payment) => {
       const dateKey = payment.created_at.toISOString().split("T")[0];
@@ -303,12 +311,12 @@ export async function getUserGrowthData(period = "30d") {
   
   try {
     const [usersBeforePeriod, shopsBeforePeriod] = await Promise.all([
-      prisma.user.count({ where: { created_at: { lt: startDate } } }),
+      prisma.cureliMobileUser.count({ where: { created_at: { lt: startDate } } }),
       prisma.shop.count({ where: { created_at: { lt: startDate } } }),
     ]);
     
     const [newUsers, newShops] = await Promise.all([
-      prisma.user.findMany({
+      prisma.cureliMobileUser.findMany({
         where: { created_at: { gte: startDate, lte: endDate } },
         select: { created_at: true },
         orderBy: { created_at: "asc" },
@@ -593,18 +601,25 @@ export async function getRecentOnboarding(page = 1, limit = 5) {
 
 export async function getRecentActivity(limit = 10) {
   try {
-    const auditLogs = await prisma.auditLog.findMany({
-      orderBy: { created_at: "desc" },
-      take: limit,
-      select: {
-        audit_id: true,
-        action: true,
-        actor_type: true,
-        entity_type: true,
-        metadata: true,
-        created_at: true,
-      },
-    });
+    let auditLogs = [];
+    try {
+      if (prisma.auditLog) {
+        auditLogs = await prisma.auditLog.findMany({
+          orderBy: { created_at: "desc" },
+          take: limit,
+          select: {
+            audit_id: true,
+            action: true,
+            actor_type: true,
+            entity_type: true,
+            metadata: true,
+            created_at: true,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("[DASHBOARD SVC] Audit logs are missing or offline:", e.message);
+    }
     
     const activities = auditLogs.map((log) => {
       const metadata = log.metadata || {};
