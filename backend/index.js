@@ -61,6 +61,7 @@ import inventoryReportRoutes from "./src/modules/reports/inventory/inventory.rep
 import gstReportRoutes from "./src/modules/reports/gst/gst.report.routes.js";
 import financialReportRoutes from "./src/modules/reports/financial/financial.report.routes.js";
 import marketplaceReportRoutes from "./src/modules/reports/marketplace/marketplace.report.routes.js";
+import cadminMarketplaceDashboardRoutes from "./src/modules/cadmin/marketplace-dashboard/cadminMarketplaceDashboard.routes.js";
 
 // ============================================
 // CADMIN ROUTES
@@ -280,6 +281,7 @@ app.use("/api/reports/inventory", inventoryReportRoutes);
 app.use("/api/reports/gst", gstReportRoutes);
 app.use("/api/reports/financial", financialReportRoutes);
 app.use("/api/reports/marketplace", marketplaceReportRoutes);
+app.use("/cadmin", cadminMarketplaceDashboardRoutes);
 
 // ============================================
 // CADMIN ROUTES
