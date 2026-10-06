@@ -160,6 +160,12 @@ export const CADMIN_PERMISSIONS = {
   // ── Fleet — Rider Payouts ────────────────────────────────────
   FLEET_RIDER_PAYOUTS_VIEW: "fleet_rider_payouts.view",
   FLEET_RIDER_PAYOUTS_MANAGE: "fleet_rider_payouts.manage",
+
+    // ── Marketplace Commission ──────────────────────────────
+  COMMISSION_VIEW: "commission.view",
+  COMMISSION_MANAGE_RULES: "commission.manage_rules",
+  COMMISSION_MANAGE_OVERRIDES: "commission.manage_overrides",
+  COMMISSION_SUSPEND: "commission.suspend",
 };
 
 export const CADMIN_PERMISSION_GROUPS = [
@@ -757,6 +763,32 @@ export const CADMIN_PERMISSION_GROUPS = [
         key: CADMIN_PERMISSIONS.COUPONS_DELETE,
         label: "Delete Coupon",
         description: "Deactivate and archive coupons",
+      },
+    ],
+  },
+    {
+    module: "Marketplace Commission",
+    key: "commission",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_VIEW,
+        label: "View Commission Rules",
+        description: "View all commission rules, rates, and pharmacy overrides",
+      },
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_MANAGE_RULES,
+        label: "Manage Commission Rules",
+        description: "Create, edit, delete, and set default commission rules",
+      },
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_MANAGE_OVERRIDES,
+        label: "Manage Pharmacy Overrides",
+        description: "Assign or remove custom commission rates for specific pharmacies",
+      },
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_SUSPEND,
+        label: "Suspend / Resume Commission",
+        description: "Temporarily disable or re-enable all marketplace commission",
       },
     ],
   },

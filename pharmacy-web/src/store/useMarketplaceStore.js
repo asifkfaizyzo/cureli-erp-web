@@ -8,8 +8,9 @@ import {
   saveStorefront as apiSaveStorefront,
   saveBranchSelections as apiSaveBranchSelections,
   saveBranchConfig as apiSaveBranchConfig,
-  saveBanking as apiSaveBanking, // <-- Imported
+  saveBanking as apiSaveBanking,
   goLive as apiGoLive,
+  getMyCommissionRate as apiGetMyCommissionRate,
 } from "../api/marketplace";
 
 const INTERNAL_FLAGS = ["_persisted", "_dirty"];
@@ -44,7 +45,7 @@ function scheduleDraftSave(getState) {
         storefront: state.storefront,
         selectedBranchIds: state.selectedBranchIds,
         branchConfigs: cleanBranchConfigsForDraft(state.branchConfigs),
-        banking: state.banking, // <-- Added to draft save
+        banking: state.banking,
       });
       getState().setLastSavedAt(new Date());
     } catch (err) {
@@ -74,7 +75,7 @@ export const useMarketplaceStore = create((set, get) => ({
     banner_url: null,
   },
 
-  // ── ADDED BANKING DEFAULT STATE ──────────────────────────
+  // Banking default state
   banking: {
     bank_account_holder: "",
     bank_name: "",
@@ -84,7 +85,6 @@ export const useMarketplaceStore = create((set, get) => ({
     bank_mmid: "",
     bank_vpa: "",
   },
-  // ──────────────────────────────────────────────────────────
 
   selectedBranchIds: [],
   branchConfigs: {},
@@ -98,6 +98,10 @@ export const useMarketplaceStore = create((set, get) => ({
   // Go-live
   goLiveErrors: [],
   isGoingLive: false,
+
+  // Commission
+  commissionRate: null,
+  isCommissionLoaded: false,
 
   // Submission
   isSubmitting: false,
@@ -147,28 +151,36 @@ export const useMarketplaceStore = create((set, get) => ({
       }
 
       const savedBranchIds = new Set(
-        (data.branch_settings || []).map((bs) => bs.branch_id)
+        (data.branch_settings || []).map((bs) => bs.branch_id),
       );
 
       const savedConfigs = {};
       for (const bs of data.branch_settings || []) {
         savedConfigs[bs.branch_id] = {
           marketplace_enabled: bs.marketplace_enabled,
-          shop_image_url:      bs.shop_image_url || null,
-          latitude:            bs.latitude ? Number(bs.latitude) : null,
-          longitude:           bs.longitude ? Number(bs.longitude) : null,
-          google_place_id:     bs.google_place_id || null,
-          formatted_address:   bs.formatted_address || null,
-          opening_time:        bs.opening_time || null,
-          closing_time:        bs.closing_time || null,
-          is_24_hours:         bs.is_24_hours || false,
-          open_days:           bs.open_days || ['MON','TUE','WED','THU','FRI','SAT','SUN'],
-          pickup_enabled:      bs.pickup_enabled || false,
-          delivery_enabled:    bs.delivery_enabled || false,
-          delivery_mode:       bs.delivery_mode || "CURELI", // <-- Map branch delivery mode
-          contact_override:    bs.contact_override || null,
-          _persisted:          true,
-          _dirty:              false,
+          shop_image_url: bs.shop_image_url || null,
+          latitude: bs.latitude ? Number(bs.latitude) : null,
+          longitude: bs.longitude ? Number(bs.longitude) : null,
+          google_place_id: bs.google_place_id || null,
+          formatted_address: bs.formatted_address || null,
+          opening_time: bs.opening_time || null,
+          closing_time: bs.closing_time || null,
+          is_24_hours: bs.is_24_hours || false,
+          open_days: bs.open_days || [
+            "MON",
+            "TUE",
+            "WED",
+            "THU",
+            "FRI",
+            "SAT",
+            "SUN",
+          ],
+          pickup_enabled: bs.pickup_enabled || false,
+          delivery_enabled: bs.delivery_enabled || false,
+          delivery_mode: bs.delivery_mode || "CURELI",
+          contact_override: bs.contact_override || null,
+          _persisted: true,
+          _dirty: false,
         };
       }
 
@@ -190,7 +202,7 @@ export const useMarketplaceStore = create((set, get) => ({
 
       if (!draft?.selectedBranchIds && data.branch_settings?.length > 0) {
         nextState.selectedBranchIds = data.branch_settings.map(
-          (b) => b.branch_id
+          (b) => b.branch_id,
         );
       }
 
@@ -218,6 +230,22 @@ export const useMarketplaceStore = create((set, get) => ({
       }
 
       set(nextState);
+
+      // Fetch commission rate in parallel (non-blocking)
+      apiGetMyCommissionRate()
+        .then((res) => {
+          const rateData = res.data?.data;
+          if (rateData) {
+            set({
+              commissionRate: rateData,
+              isCommissionLoaded: true,
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn("[marketplace] Commission rate fetch failed:", err.message);
+          set({ isCommissionLoaded: true });
+        });
     } catch (err) {
       console.error("[marketplace] loadStatus error:", err);
       set({ isStatusLoaded: true, isStatusLoading: false });
@@ -237,7 +265,6 @@ export const useMarketplaceStore = create((set, get) => ({
     scheduleDraftSave(get);
   },
 
-  // ── ADDED UPDATE BANKING STATE ───────────────────────────
   updateBanking: (patch) => {
     set((state) => ({
       banking: { ...state.banking, ...patch },
@@ -245,9 +272,7 @@ export const useMarketplaceStore = create((set, get) => ({
     }));
     scheduleDraftSave(get);
   },
-  // ──────────────────────────────────────────────────────────
 
-    // ── CLEAR BANKING (used by "Skip for now") ────────────────
   clearBanking: () => {
     set({
       banking: {
@@ -263,7 +288,6 @@ export const useMarketplaceStore = create((set, get) => ({
     });
     scheduleDraftSave(get);
   },
-  // ──────────────────────────────────────────────────────────
 
   setSelectedBranches: (ids) => {
     set({ selectedBranchIds: ids, isDraftSaving: true });
@@ -302,21 +326,21 @@ export const useMarketplaceStore = create((set, get) => ({
         ...state.branchConfigs,
         [branch_id]: {
           marketplace_enabled: false,
-          shop_image_url:      null,
-          latitude:            null,
-          longitude:           null,
-          google_place_id:     null,
-          formatted_address:   null,
-          opening_time:        null,
-          closing_time:        null,
-          is_24_hours:         false,
-          open_days:           ['MON','TUE','WED','THU','FRI','SAT','SUN'],
-          pickup_enabled:      false,
-          delivery_enabled:    false,
-          delivery_mode:       "CURELI", // <-- Default added here
-          contact_override:    null,
-          _persisted:          false,
-          _dirty:              false,
+          shop_image_url: null,
+          latitude: null,
+          longitude: null,
+          google_place_id: null,
+          formatted_address: null,
+          opening_time: null,
+          closing_time: null,
+          is_24_hours: false,
+          open_days: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+          pickup_enabled: false,
+          delivery_enabled: false,
+          delivery_mode: "CURELI",
+          contact_override: null,
+          _persisted: false,
+          _dirty: false,
         },
       },
     }));
@@ -329,7 +353,10 @@ export const useMarketplaceStore = create((set, get) => ({
       set({ isSubmitting: false });
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to save storefront";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to save storefront";
       set({ isSubmitting: false, submitError: message });
       return { success: false, error: message };
     }
@@ -342,7 +369,10 @@ export const useMarketplaceStore = create((set, get) => ({
       set({ isSubmitting: false });
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to save branch selections";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to save branch selections";
       set({ isSubmitting: false, submitError: message });
       return { success: false, error: message };
     }
@@ -371,13 +401,15 @@ export const useMarketplaceStore = create((set, get) => ({
 
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to save branch config";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to save branch config";
       set({ isSubmitting: false, submitError: message });
       return { success: false, error: message };
     }
   },
 
-  // ── ADDED SUBMIT BANKING METHOD ─────────────────────────
   submitBanking: async () => {
     set({ isSubmitting: true, submitError: null });
     try {
@@ -385,12 +417,14 @@ export const useMarketplaceStore = create((set, get) => ({
       set({ isSubmitting: false });
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to save banking details";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to save banking details";
       set({ isSubmitting: false, submitError: message });
       return { success: false, error: message };
     }
   },
-  // ──────────────────────────────────────────────────────────
 
   submitGoLive: async () => {
     set({ isGoingLive: true, goLiveErrors: [] });
@@ -400,7 +434,8 @@ export const useMarketplaceStore = create((set, get) => ({
       return { success: true };
     } catch (err) {
       const errors = err.response?.data?.errors || [];
-      const message = err.response?.data?.message || err.message || "Go-live failed";
+      const message =
+        err.response?.data?.message || err.message || "Go-live failed";
       set({ isGoingLive: false, goLiveErrors: errors });
       return { success: false, error: message, errors };
     }
@@ -434,7 +469,7 @@ export const useMarketplaceStore = create((set, get) => ({
         logo_url: null,
         banner_url: null,
       },
-      banking: { // <-- Added to reset
+      banking: {
         bank_account_holder: "",
         bank_name: "",
         bank_branch_name: "",
@@ -451,13 +486,15 @@ export const useMarketplaceStore = create((set, get) => ({
       lastSavedAt: null,
       goLiveErrors: [],
       isGoingLive: false,
+      commissionRate: null,
+      isCommissionLoaded: false,
       isSubmitting: false,
       submitError: null,
     });
   },
 }));
 
-// Added Selectors
+// Selectors
 export const selectBanking = (s) => s.banking;
 export const selectClearBanking = (s) => s.clearBanking;
 export const selectMarketplaceStatus = (s) => s.marketplaceStatus;
@@ -473,3 +510,5 @@ export const selectIsDraftSaving = (s) => s.isDraftSaving;
 export const selectLastSavedAt = (s) => s.lastSavedAt;
 export const selectGoLiveErrors = (s) => s.goLiveErrors;
 export const selectIsGoingLive = (s) => s.isGoingLive;
+export const selectCommissionRate = (s) => s.commissionRate;
+export const selectIsCommissionLoaded = (s) => s.isCommissionLoaded;

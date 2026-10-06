@@ -39,6 +39,8 @@ import MarketplaceUsersPage from "./pages/marketplace/Users/MarketplaceUsersPage
 import MarketplaceOrdersPage from "./pages/marketplace/Orders/MarketplaceOrdersPage";
 import MarketplaceShopsPage from "./pages/marketplace/Shops/MarketplaceShopsPage";
 import MarketplacePricingPage from "./pages/marketplace/Pricing/MarketplacePricingPage";
+import DeliveryPricingPage from "./pages/marketplace/Pricing/DeliveryPricingPage";
+import CommissionPricingPage from "./pages/marketplace/Pricing/CommissionPricingPage";
 import AppConfigPage from "./pages/AppConfig/AppConfigPage";
 import BannersPage from "./pages/AppConfig/banners/BannersPage";
 import HomeScreenPage from "./pages/AppConfig/home-screen/HomeScreenPage";
@@ -327,9 +329,22 @@ function App() {
             path="/marketplace/orders"
             element={<MarketplaceOrdersPage />}
           />
+          {/* ── Marketplace Pricing ──────────────────────────────── */}
           <Route
             path="/marketplace/pricing"
             element={<MarketplacePricingPage />}
+          />
+          <Route
+            path="/marketplace/pricing/delivery"
+            element={<DeliveryPricingPage />}
+          />
+          <Route
+            path="/marketplace/pricing/commission"
+            element={
+              <PermissionGuard permission={CADMIN_PERMISSIONS.COMMISSION_VIEW}>
+                <CommissionPricingPage />
+              </PermissionGuard>
+            }
           />
           <Route path="/marketplace/shops" element={<MarketplaceShopsPage />} />
 

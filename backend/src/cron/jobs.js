@@ -10,6 +10,7 @@ import { processExpiredLoyaltyPoints } from "./loyaltyExpiryWorker.js";
 import { runBirthdayPushJob } from "./birthdayPushWorker.js";
 import { staleRiderWorker } from "./staleRiderWorker.js";
 import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
+import { checkCommissionSuspensionExpiry } from "./commissionSuspensionWorker.js";
 
 import {
   cleanupOldPendingUsers,
@@ -622,6 +623,15 @@ function initializeStaleAssignmentJob() {
   cronLogger.info("Stale assignment alert job scheduled (every 2 minutes)");
 }
 
+function initializeCommissionSuspensionJob() {
+  cron.schedule("*/15 * * * *", () =>
+    withCronLock("commission-suspension", 5, checkCommissionSuspensionExpiry),
+  );
+  cronLogger.info(
+    "Commission suspension auto-resume job scheduled (every 15 minutes)"
+  );
+}
+
 export function initializeCronJobs() {
   cronLogger.info("Initializing cron jobs...");
   cronLogger.info(`Instance ID: ${getInstanceId()}`);
@@ -653,6 +663,7 @@ export function initializeCronJobs() {
   initializePrescriptionRequestCleanupJob();
   initializeLoyaltyPointsExpiryJob();
   initializeShiftEvaluationJob();
+initializeCommissionSuspensionJob();
 
   cron.schedule("5 7 * * 1", () =>
     withCronLock("rider-payout-finalization", 30, runRiderPayoutFinalization)
@@ -742,4 +753,5 @@ export function initializeCronJobs() {
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
   cronLogger.info("  - Stale assignment alerts: Every 2 minutes");
+  cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
 }

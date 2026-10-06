@@ -97,6 +97,7 @@ import fleetIncentivesRoutes from "./src/modules/cadmin/fleet-incentives/fleetIn
 import cadminDeliveryRoutes from "./src/modules/cadmin/delivery/cadmin.delivery.routes.js";
 import cadminPrescriptionRequestsRoutes from "./src/modules/cadmin/prescription-requests/cadminPrescriptionRequests.routes.js";
 import cadminRiderPayoutRoutes from "./src/modules/cadmin/rider-payouts/cadmin.riderPayouts.routes.js";
+import cadminCommissionRoutes from "./src/modules/cadmin/commission/cadmin.commission.routes.js";
 
 // ============================================
 // MOBILE ROUTES
@@ -315,6 +316,7 @@ app.use("/cadmin/fleet/incentives", fleetIncentivesRoutes);
 app.use("/cadmin/delivery", cadminDeliveryRoutes);
 app.use("/cadmin", cadminPrescriptionRequestsRoutes);
 app.use("/cadmin/fleet/rider-payouts", cadminRiderPayoutRoutes);
+app.use("/cadmin", cadminCommissionRoutes);
 
 // ============================================
 // MOBILE ROUTES

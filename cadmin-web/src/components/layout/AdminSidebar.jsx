@@ -242,7 +242,7 @@ const FLEET_MENU_ITEMS = [
     breadcrumbs: ["Fleet", "Pricing"],
     permissionKey: "fleet",
   },
-    {
+  {
     id: "fleet-payouts",
     label: "Payouts",
     icon: HandCoins,
@@ -306,6 +306,14 @@ const MARKETPLACE_CHILD_ROUTES = {
   "/marketplace/orders/sessions": {
     parentId: "mp-orders",
     breadcrumbs: ["Orders", "Sessions"],
+  },
+  "/marketplace/pricing/delivery": {
+    parentId: "mp-pricing",
+    breadcrumbs: ["Marketplace", "Pricing", "Delivery"],
+  },
+  "/marketplace/pricing/commission": {
+    parentId: "mp-pricing",
+    breadcrumbs: ["Marketplace", "Pricing", "Commission"],
   },
   "/marketplace/orders/pending": {
     parentId: "mp-orders",
@@ -402,11 +410,15 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
   const { isMarketplace, isAdmin, isFleet } = useAdminMode();
 
   // Badges
-  const pendingTickets         = useCommunicationBadgeStore((s) => s.pendingTickets);
-  const pendingEnquiries       = useCommunicationBadgeStore((s) => s.pendingEnquiries);
-  const pendingCustomerTickets = useCommunicationBadgeStore((s) => s.pendingCustomerTickets);
+  const pendingTickets = useCommunicationBadgeStore((s) => s.pendingTickets);
+  const pendingEnquiries = useCommunicationBadgeStore(
+    (s) => s.pendingEnquiries,
+  );
+  const pendingCustomerTickets = useCommunicationBadgeStore(
+    (s) => s.pendingCustomerTickets,
+  );
 
-  const hasAdminPendingComms       = pendingTickets > 0 || pendingEnquiries > 0;
+  const hasAdminPendingComms = pendingTickets > 0 || pendingEnquiries > 0;
   const hasMarketplacePendingComms = pendingCustomerTickets > 0;
 
   const [expandedWidth, setExpandedWidth] = useState(getExpandedWidth);
@@ -511,9 +523,26 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
     const currentPath = location.pathname;
     if (currentPath === defaultPath) return;
 
-    if (isFleet && !currentPath.startsWith("/fleet") && currentPath !== "/settings" && currentPath !== "/notifications") return;
-    if (isMarketplace && !currentPath.startsWith("/marketplace") && currentPath !== "/settings" && currentPath !== "/notifications") return;
-    if (isAdmin && (currentPath.startsWith("/marketplace") || currentPath.startsWith("/fleet"))) return;
+    if (
+      isFleet &&
+      !currentPath.startsWith("/fleet") &&
+      currentPath !== "/settings" &&
+      currentPath !== "/notifications"
+    )
+      return;
+    if (
+      isMarketplace &&
+      !currentPath.startsWith("/marketplace") &&
+      currentPath !== "/settings" &&
+      currentPath !== "/notifications"
+    )
+      return;
+    if (
+      isAdmin &&
+      (currentPath.startsWith("/marketplace") ||
+        currentPath.startsWith("/fleet"))
+    )
+      return;
 
     const isValidMain = visibleMenuItems.some((m) => m.path === currentPath);
     const isValidChild = Object.keys(currentChildRoutes).includes(currentPath);

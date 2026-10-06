@@ -67,6 +67,11 @@ export const NOTIFICATION_EVENTS = {
   // Added Marketplace Order Billed
   MARKETPLACE_ORDER_BILLED: "MARKETPLACE_ORDER_BILLED",
   MOBILE_USER_WELCOME: "MOBILE_USER_WELCOME",
+
+  COMMISSION_RATE_CHANGED: "COMMISSION_RATE_CHANGED",
+  COMMISSION_SUSPENDED: "COMMISSION_SUSPENDED",
+  COMMISSION_RESUMED: "COMMISSION_RESUMED",
+  COMMISSION_OVERRIDE_CHANGED: "COMMISSION_OVERRIDE_CHANGED",
 };
 
 export const EVENT_CONFIG = {
@@ -374,16 +379,42 @@ export const EVENT_CONFIG = {
 
   // Added Marketplace Order Billed Event Configuration
   [NOTIFICATION_EVENTS.MARKETPLACE_ORDER_BILLED]: {
-    description: "Customer marketplace order has been billed and invoice generated",
+    description:
+      "Customer marketplace order has been billed and invoice generated",
     defaultChannels: ["email"],
     audienceType: "direct_user",
     priority: "high",
   },
- [NOTIFICATION_EVENTS.MOBILE_USER_WELCOME]: {
-    description: "Welcome email sent to new mobile user after first email setup",
+  [NOTIFICATION_EVENTS.MOBILE_USER_WELCOME]: {
+    description:
+      "Welcome email sent to new mobile user after first email setup",
     defaultChannels: ["email"],
     audienceType: "direct_user",
     priority: "normal",
+  },
+    [NOTIFICATION_EVENTS.COMMISSION_RATE_CHANGED]: {
+    description: "Marketplace commission rate changed for pharmacy",
+    defaultChannels: ["inapp", "email"],
+    audienceType: "broadcast_filter",
+    priority: "high",
+  },
+  [NOTIFICATION_EVENTS.COMMISSION_SUSPENDED]: {
+    description: "Marketplace commission temporarily suspended",
+    defaultChannels: ["inapp", "email"],
+    audienceType: "broadcast_filter",
+    priority: "high",
+  },
+  [NOTIFICATION_EVENTS.COMMISSION_RESUMED]: {
+    description: "Marketplace commission resumed after suspension",
+    defaultChannels: ["inapp", "email"],
+    audienceType: "broadcast_filter",
+    priority: "high",
+  },
+  [NOTIFICATION_EVENTS.COMMISSION_OVERRIDE_CHANGED]: {
+    description: "Custom commission override assigned or removed for pharmacy",
+    defaultChannels: ["inapp", "email"],
+    audienceType: "broadcast_filter",
+    priority: "high",
   },
 };
 

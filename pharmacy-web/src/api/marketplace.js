@@ -105,3 +105,9 @@ export const createHoliday = (data) =>
 
 export const deleteHoliday = (holidayId) =>
   API.delete(`/marketplace/holidays/${holidayId}`).then((r) => r.data);
+
+// ─────────────────────────────────────────────
+// COMMISSION
+// ─────────────────────────────────────────────
+export const getMyCommissionRate = () =>
+  API.get("/marketplace/commission/my-rate");
