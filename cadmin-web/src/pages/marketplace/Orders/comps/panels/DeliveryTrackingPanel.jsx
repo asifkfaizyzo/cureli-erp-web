@@ -350,8 +350,8 @@ const RiderMapView = ({
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
                     activeInfoWindowRider.has_active_delivery
-                      ? "bg-amber-500"
-                      : "bg-emerald-500"
+                      ? "bg-amber-50"
+                      : "bg-emerald-50"
                   }`}
                 />
                 <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-600">
@@ -514,17 +514,20 @@ const RiderAssignList = ({
                 }`}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="text-xs font-bold text-gray-800 truncate">
-                      {rider.full_name}
-                    </h4>
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        rider.is_online
-                          ? "bg-emerald-500 animate-pulse"
-                          : "bg-gray-300"
-                      }`}
-                    />
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h4 className="text-xs font-bold text-gray-800 truncate">
+                        {rider.full_name}
+                      </h4>
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          rider.is_online
+                            ? "bg-emerald-500 animate-pulse"
+                            : "bg-gray-300"
+                        }`}
+                      />
+                    </div>
+                    
                   </div>
                   <p className="text-[10px] text-gray-400 font-mono mt-0.5">
                     {rider.phone}
@@ -556,7 +559,7 @@ const RiderAssignList = ({
                     )}
                   </div>
 
-                  {/* ── NEW: Estimated Payout Badge with Transparent Breakdown ── */}
+                  {/* ── Detailed Pricing Breakdown ── */}
                   {rider.rider_type === "INDEPENDENT" &&
                     rider.estimated_earning && (
                       <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50/90 border border-emerald-200/70 px-2 py-1 rounded-md">
@@ -822,17 +825,41 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
 
         {/* Right Side: 40% Control & Milestones */}
         <div className="lg:col-span-2 space-y-4 overflow-y-auto pr-1 h-full">
+          {/* ── NEW: Live Status Alert for Notified state ── */}
+          {delivery.status === "RIDER_NOTIFIED" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 animate-pulse flex items-start gap-2.5">
+              <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} />
+              <div>
+                <h5 className="text-xs font-bold text-amber-900">Pending Partner Acceptance</h5>
+                <p className="text-[10px] text-amber-700 font-semibold mt-0.5 leading-normal">
+                  An alert notification has been sent to {delivery.rider?.full_name || "the partner"}. 
+                  They have not accepted the request yet. This screen will auto-update when they respond or if the request times out.
+                </p>
+              </div>
+            </div>
+          )}
+
           <Card className="border-l-4 border-l-[#05015A]">
             <SectionTitle icon={UserCheck} title="Assigned Rider" />
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#05015A]/10 flex items-center justify-center">
-                  <User size={18} className="text-[#05015A]" />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  delivery.status === "RIDER_NOTIFIED" ? "bg-amber-100 animate-pulse" : "bg-[#05015A]/10"
+                }`}>
+                  <User size={18} className={delivery.status === "RIDER_NOTIFIED" ? "text-amber-600 animate-pulse" : "text-[#05015A]"} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-800">
-                    {delivery.rider?.full_name || "Driver"}
-                  </h4>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-gray-800">
+                      {delivery.rider?.full_name || "Driver"}
+                    </h4>
+                    {/* ── NEW: Pulsing orange label to specify not-yet-accepted state ── */}
+                    {delivery.status === "RIDER_NOTIFIED" && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300 rounded animate-pulse">
+                        Awaiting Accept
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-gray-400 font-mono mt-0.5">
                     {delivery.rider?.phone || "—"}
                   </p>

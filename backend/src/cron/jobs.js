@@ -10,6 +10,7 @@ import { runBirthdayPushJob } from "./birthdayPushWorker.js";
 import { staleRiderWorker } from "./staleRiderWorker.js";
 import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
 import { checkCommissionSuspensionExpiry } from "./commissionSuspensionWorker.js";
+import { riderAssignmentTimeoutWorker } from "./riderAssignmentTimeoutWorker.js";  
 
 import {
   cleanupOldPendingUsers,
@@ -624,6 +625,20 @@ function initializeStaleAssignmentJob() {
   cronLogger.info("Stale assignment alert job scheduled (every 2 minutes)");
 }
 
+function initializeRiderAssignmentTimeoutJob() {
+  // Uses setInterval (30s) instead of node-cron because cron minimum is 1 min.
+  // withCronLock prevents overlapping runs across multiple server instances.
+  setInterval(
+    () => withCronLock("rider-assignment-timeout", 25, riderAssignmentTimeoutWorker),
+    30 * 1000,
+  );
+  // Run once immediately on startup
+  withCronLock("rider-assignment-timeout", 25, riderAssignmentTimeoutWorker);
+  cronLogger.info(
+    "Rider assignment timeout job initialized (every 30 seconds, 90s threshold)",
+  );
+}
+
 function initializeCommissionSuspensionJob() {
   cron.schedule("*/15 * * * *", () =>
     withCronLock("commission-suspension", 5, checkCommissionSuspensionExpiry),
@@ -684,6 +699,7 @@ export function initializeCronJobs() {
   initializeBirthdayPushJob();
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
+  initializeRiderAssignmentTimeoutJob();  
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -766,5 +782,6 @@ export function initializeCronJobs() {
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
   cronLogger.info("  - Stale assignment alerts: Every 2 minutes");
+  cronLogger.info("  - Rider assignment auto-decline: Every 30 seconds (90s timeout)"); 
   cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
 }

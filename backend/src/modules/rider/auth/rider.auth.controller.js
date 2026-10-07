@@ -8,6 +8,7 @@ import {
   setPasswordSchema,
   resetPasswordSchema,
   refreshTokenSchema,
+  registerPushTokenSchema,
 } from "./rider.auth.schema.js";
 import {
   checkRiderPhone,
@@ -20,6 +21,7 @@ import {
   logoutRider,
   logoutAllRider,
   getRiderMe,
+  registerPushToken,  
 } from "./rider.auth.service.js";
 
 // ── checkPhone ────────────────────────────────────────────────
@@ -212,6 +214,31 @@ export async function logoutAll(req, res) {
     return success(res, {}, "All sessions revoked");
   } catch {
     return fail(res, "Logout failed", 500);
+  }
+}
+
+// ── registerPushToken ─────────────────────────────────────────
+
+export async function registerPushTokenHandler(req, res) {
+  const parsed = registerPushTokenSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return fail(res, parsed.error.errors[0].message, 400);
+  }
+
+  const { push_token, push_token_type } = parsed.data;
+
+  try {
+    const result = await registerPushToken(
+      req.riderSession.id,
+      push_token,
+      push_token_type,
+    );
+    return success(res, result, push_token ? "Push token registered" : "Push token cleared");
+  } catch (err) {
+    const statusMap = {
+      SESSION_INVALID: 401,
+    };
+    return fail(res, err.message, statusMap[err.code] ?? 500);
   }
 }
 

@@ -4,30 +4,18 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { X, Save, Loader2, Pause, Plus } from "lucide-react";
 
-import {
-  toNum,
-  COMMISSION_TYPES,
-  Field,
-  TypeCard,
-} from "./FormInputs";
+import { toNum, COMMISSION_TYPES, Field, TypeCard } from "./FormInputs";
 import { InfoTooltip } from "./InfoTooltip";
 import StyledDateFilter from "../../../../../components/common/StyledDateFilter";
 import StyledSelect from "../../../../../components/common/StyledSelect";
 
 // ─────────────────────────────────────────────
-// CONSTANTS & SELECT OPTIONS
+// DEFAULTS
 // ─────────────────────────────────────────────
-
-const COMMISSION_BASE_OPTIONS = [
-  { value: "SUBTOTAL", label: "Medicine Subtotal Only" },
-  { value: "SUBTOTAL_PLUS_SERVICE", label: "Subtotal + Service Charge" },
-  { value: "GRAND_TOTAL", label: "Grand Total" },
-];
-
-const SETTLEMENT_FREQ_OPTIONS = [
-  { value: "PER_ORDER", label: "Per Order" },
-  { value: "WEEKLY", label: "Weekly Batch" },
-];
+// NOTE: commission_base and settlement_frequency are deprecated fields.
+// The payout system ALWAYS calculates commission on subtotal only
+// and ALWAYS settles weekly via cron. We hard-code safe defaults so
+// the backend schema stays happy without exposing confusing UI options.
 
 const DEFAULT_RULE_FORM = {
   name: "",
@@ -39,8 +27,8 @@ const DEFAULT_RULE_FORM = {
   hybrid_flat_amount: 5,
   capped_percent: 15,
   capped_max_amount: 150,
-  commission_base: "SUBTOTAL",
-  settlement_frequency: "PER_ORDER",
+  commission_base: "SUBTOTAL", // Hard-coded — always subtotal
+  settlement_frequency: "WEEKLY", // Hard-coded — matches payout cron
 };
 
 // ─────────────────────────────────────────────
@@ -69,10 +57,11 @@ export const RuleModal = ({ rule, onClose, onSave, saving }) => {
           capped_max_amount: rule.capped_max_amount
             ? Number(rule.capped_max_amount)
             : 150,
-          commission_base: rule.commission_base || "SUBTOTAL",
-          settlement_frequency: rule.settlement_frequency || "PER_ORDER",
+          // Always force safe defaults regardless of what's stored
+          commission_base: "SUBTOTAL",
+          settlement_frequency: "WEEKLY",
         }
-      : { ...DEFAULT_RULE_FORM }
+      : { ...DEFAULT_RULE_FORM },
   );
 
   const handleChange = (key, value) =>
@@ -124,7 +113,8 @@ export const RuleModal = ({ rule, onClose, onSave, saving }) => {
               {isEdit ? "Edit Commission Rule" : "Create New Commission Rule"}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Configure how the platform collects fees on marketplace transactions
+              Configure how the platform collects fees on marketplace
+              transactions
             </p>
           </div>
           <button
@@ -248,42 +238,47 @@ export const RuleModal = ({ rule, onClose, onSave, saving }) => {
             )}
           </div>
 
-          {/* Settings */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <label className="block text-xs font-medium text-gray-600">
-                  Commission Applies To
-                </label>
-                <InfoTooltip
-                  content="Define what portion of the checkout total is used as the base for the commission percentage calculation."
-                  position="top"
-                />
+          {/* ──────────────────────────────────────────────────────── */}
+          {/* Platform behavior info (replaces commission_base + freq) */}
+          {/* ──────────────────────────────────────────────────────── */}
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <div className="flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg
+                  className="w-4 h-4 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
               </div>
-              <StyledSelect
-                value={form.commission_base}
-                onChange={(val) => handleChange("commission_base", val)}
-                options={COMMISSION_BASE_OPTIONS}
-                placeholder="Select base..."
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <label className="block text-xs font-medium text-gray-600">
-                  Settlement Frequency
-                </label>
-                <InfoTooltip
-                  content="Choose when the calculated fees will be reconciled and deducted from the partner settlements."
-                  position="top"
-                />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-blue-900 mb-1">
+                  Platform Behavior
+                </p>
+                <ul className="text-xs text-blue-800 space-y-1 leading-relaxed">
+                  <li>
+                    • Commission is calculated on the{" "}
+                    <strong>medicine subtotal only</strong> (delivery fees,
+                    service charges, and tips go to Cureli)
+                  </li>
+                  <li>
+                    • Payouts are settled <strong>weekly</strong> every Monday
+                    at 6 AM IST
+                  </li>
+                  <li>
+                    • The commission rate is{" "}
+                    <strong>locked at the time of order creation</strong> — rate
+                    changes won't affect in-progress orders
+                  </li>
+                </ul>
               </div>
-              <StyledSelect
-                value={form.settlement_frequency}
-                onChange={(val) => handleChange("settlement_frequency", val)}
-                options={SETTLEMENT_FREQ_OPTIONS}
-                placeholder="Select frequency..."
-              />
             </div>
           </div>
 

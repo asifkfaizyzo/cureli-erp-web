@@ -10,6 +10,7 @@ import {
 import { registerActiveDelivery } from "../../rider/presence/rider.presence.service.js";
 // ── NEW: Pricing engine for per-rider earning simulation ─────────────────
 import { calculateDeliveryEarnings } from "../fleet-pricing/pricingEngine.service.js";
+import { RiderPush, dismissRiderNotification } from "../../rider/push/rider.push.service.js";
 
 const MAX_REAL_DISTANCE_RIDERS = 25;
 
@@ -444,7 +445,7 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     ),
   };
 
-  // Fire SSE to Rider
+  // ── Fire SSE to Rider (instant, foreground) ──────────────────────────────
   sseService.notifyRider(rider.rider_id, "delivery_assigned", {
     delivery_id: result.delivery_id,
     order_id: order.order_id,
@@ -458,11 +459,31 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     drop_distance_km: dropDistKm,
     total_distance_km: totalDistKm,
     is_estimate: leg1.isEstimate || leg2.isEstimate,
-    rider_type: rider.rider_type, // ── NEW
-    earnings: earningsPayload, // ── NEW
+    rider_type: rider.rider_type,
+    earnings: earningsPayload,
     timestamp: now.toISOString(),
   });
 
+  // ── Fire Push to Rider (failsafe — background/locked/killed) ─────────────
+  // This runs fire-and-forget. We do NOT await it because:
+  //   1. Expo Push API latency (1-5s) should not block the assignment response
+  //   2. SSE already delivered the instant foreground alert
+  //   3. Push is the backup channel — failure is non-fatal
+  RiderPush.incomingDelivery(
+    rider.rider_id,
+    result.delivery_id,
+    order.order_id,
+    order.order_number,
+    order.shop?.business_name || "Pharmacy",
+    earningsPayload,
+  ).catch((err) => {
+    console.error(
+      `[CAdminDelivery] Push notification failed for rider ${rider.rider_id}:`,
+      err.message,
+    );
+  });
+
+  // ── Notify CAdmins ────────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: order.order_id,
     delivery_id: result.delivery_id,
@@ -472,17 +493,31 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     timestamp: now.toISOString(),
   });
 
-  // Notify old rider they have been unassigned/replaced
+  // ── Notify old rider they have been unassigned/replaced ───────────────────
   if (oldRiderId && oldRiderId !== rider.rider_id) {
     const { unregisterActiveDelivery } =
       await import("../../rider/presence/rider.presence.service.js");
     unregisterActiveDelivery(oldRiderId);
 
+    // SSE cancellation
     sseService.notifyRider(oldRiderId, "delivery_cancelled", {
       delivery_id: result.delivery_id,
       order_id: order.order_id,
       order_number: order.order_number,
       reason: "Reassigned by admin to another delivery partner",
+    });
+
+    // Push cancellation — dismisses the sticky notification on old rider's device
+    RiderPush.deliveryCancelled(
+      oldRiderId,
+      result.delivery_id,
+      order.order_number,
+      "Reassigned by admin to another delivery partner",
+    ).catch((err) => {
+      console.error(
+        `[CAdminDelivery] Push dismissal failed for old rider ${oldRiderId}:`,
+        err.message,
+      );
     });
   }
 
@@ -515,16 +550,18 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     throw new Error("No rider is currently assigned to this order.");
   }
 
-  const TERMINAL_DELIVERY = ["DELIVERED", "FAILED", "CANCELLED"];
-  if (TERMINAL_DELIVERY.includes(delivery.status)) {
+  // Prevent unassigning if order is already terminal or already picked up / en route
+  const NON_UNASSIGNABLE = ["PICKED_UP", "EN_ROUTE", "ARRIVED_AT_CUSTOMER", "DELIVERED", "FAILED", "CANCELLED"];
+  if (NON_UNASSIGNABLE.includes(delivery.status)) {
     throw new Error(
-      `Cannot unassign — delivery is already in terminal state '${delivery.status}'.`,
+      `Cannot unassign — delivery is in '${delivery.status}' state.`,
     );
   }
 
   const oldRiderId = delivery.rider_id;
   const now = new Date();
 
+  // 1. Reset ONLY the delivery record (Do NOT touch order.status)
   await prisma.$transaction(async (tx) => {
     await tx.delivery.update({
       where: { delivery_id: delivery.delivery_id },
@@ -550,10 +587,12 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     });
   });
 
+  // 2. Clear rider presence lock
   const { unregisterActiveDelivery } =
     await import("../../rider/presence/rider.presence.service.js");
   unregisterActiveDelivery(oldRiderId);
 
+    // 3. Notify the old rider that they were unassigned
   sseService.notifyRider(oldRiderId, "delivery_cancelled", {
     delivery_id: delivery.delivery_id,
     order_id,
@@ -561,6 +600,15 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     reason: `Unassigned by admin: ${unassigned_by || "CAdmin"}`,
   });
 
+  // 3b. Push: Dismiss sticky notification on old rider's device
+  dismissRiderNotification(oldRiderId, delivery.delivery_id).catch((err) => {
+    console.error(
+      `[CAdminDelivery] Push dismissal failed on unassign for rider ${oldRiderId}:`,
+      err.message,
+    );
+  });
+
+  // 4. Notify CAdmins to update their live delivery board
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id,
     delivery_id: delivery.delivery_id,
@@ -569,22 +617,15 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     timestamp: now.toISOString(),
   });
 
-  try {
-    const { fireOrderStatusChangedEvents } =
-      await import("../../marketplace-orders/marketplace.orders.events.js");
-    await fireOrderStatusChangedEvents({
+  // 5. Notify Customer tracking screen via silent SSE (resets map/rider pin without sending push notification)
+  if (order.customer_id && sseService.notifyCustomer) {
+    sseService.notifyCustomer(order.customer_id, "delivery_status_changed", {
       order_id,
-      order_number: order.order_number,
-      shop_id: order.shop_id,
-      customer_id: order.customer_id,
-      new_status: order.status,
-      customer_name: order.customer_name_snapshot,
+      delivery_id: delivery.delivery_id,
+      status: "PENDING_ASSIGNMENT",
+      rider: null,
+      timestamp: now.toISOString(),
     });
-  } catch (err) {
-    console.error(
-      "[CAdmin Delivery] Failed to notify ERP after unassign:",
-      err.message,
-    );
   }
 
   return {

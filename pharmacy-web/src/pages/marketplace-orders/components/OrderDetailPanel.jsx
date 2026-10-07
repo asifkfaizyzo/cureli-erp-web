@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Copy,
   Check,
+  IndianRupee,
 } from "lucide-react";
 
 // ── Config ───────────────────────────────────────────────────────────
@@ -556,6 +557,9 @@ const OrderDetailPanel = ({
     prescriptions,
     total_amount,
     subtotal,
+    commission_rate,
+    commission_amount,
+    pharmacy_earning,
     service_charge,
     delivery_fee,
     km_surcharge,
@@ -571,6 +575,7 @@ const OrderDetailPanel = ({
     rejected_at,
     cancelled_at,
     payment_method,
+    payment_status,
     patient,
     pickup_otp,
     delivery,
@@ -591,11 +596,13 @@ const OrderDetailPanel = ({
   const outOfSync = isOutOfSync(status, delivery?.status);
   const cadminOverride = hasCAdminOverride(status_history);
 
-  const hasFeeBreakdown =
-    Number(service_charge) > 0 ||
-    Number(delivery_fee) > 0 ||
-    Number(km_surcharge) > 0 ||
-    Number(tip) > 0;
+  // ── Commission / Earning flags ──
+  const hasCommissionSnapshot =
+    commission_amount !== null && commission_amount !== undefined;
+  const earningAmount = Number(pharmacy_earning ?? subtotal ?? 0);
+  const commissionRateNum = Number(commission_rate ?? 0);
+  const commissionAmountNum = Number(commission_amount ?? 0);
+
   const hasActions =
     hasInvoice ||
     (!isTerminal && (canBillAndAccept || canMarkReady || canComplete));
@@ -889,7 +896,7 @@ const OrderDetailPanel = ({
 
           {/* RIGHT COLUMN */}
           <div className="space-y-3">
-            <StickySectionHeader icon={Package} label="Items & Billing" />
+            <StickySectionHeader icon={Package} label="Items & Earnings" />
 
             <SectionCard title="Order Items" icon={Package} compact>
               <div className="space-y-2">
@@ -915,43 +922,56 @@ const OrderDetailPanel = ({
                   </div>
                 ))}
 
+                {/* ── PHARMACY EARNING BREAKDOWN ── */}
                 <div className="pt-2 border-t border-white/[0.08] space-y-1">
                   <InfoRow
-                    label="Subtotal"
+                    label="Medicine Subtotal"
                     value={`₹${formatPrice(subtotal)}`}
                   />
-                  {hasFeeBreakdown && (
+
+                  {hasCommissionSnapshot ? (
                     <>
-                      {Number(service_charge) > 0 && (
-                        <InfoRow
-                          label="Service"
-                          value={`₹${formatPrice(service_charge)}`}
-                        />
-                      )}
-                      {Number(delivery_fee) > 0 && (
-                        <InfoRow
-                          label="Delivery"
-                          value={`₹${formatPrice(delivery_fee)}`}
-                        />
-                      )}
-                      {Number(km_surcharge) > 0 && (
-                        <InfoRow
-                          label="Distance"
-                          value={`₹${formatPrice(km_surcharge)}`}
-                        />
-                      )}
-                      {Number(tip) > 0 && (
-                        <InfoRow label="Tip" value={`₹${formatPrice(tip)}`} />
-                      )}
+                      <InfoRow
+                        label={`Commission (${commissionRateNum}%)`}
+                        value={
+                          <span className="text-orange-300">
+                            −₹{formatPrice(commissionAmountNum)}
+                          </span>
+                        }
+                      />
+                      <div className="flex justify-between items-center pt-1.5 mt-1 px-2 py-1.5 rounded-md bg-emerald-500/[0.10] border border-emerald-400/20">
+                        <div className="flex items-center gap-1.5">
+                          <IndianRupee size={12} className="text-emerald-300" />
+                          <span className="text-xs font-bold text-emerald-200">
+                            Your Earning
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-300">
+                          ₹{formatPrice(earningAmount)}
+                        </span>
+                      </div>
+                      <p className="text-[9px] text-white/35 text-right mt-0.5 font-medium">
+                        Settled weekly via payout
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center pt-1.5 mt-1 px-2 py-1.5 rounded-md bg-emerald-500/[0.10] border border-emerald-400/20">
+                        <div className="flex items-center gap-1.5">
+                          <IndianRupee size={12} className="text-emerald-300" />
+                          <span className="text-xs font-bold text-emerald-200">
+                            Your Earning
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-300">
+                          ₹{formatPrice(earningAmount)}
+                        </span>
+                      </div>
+                      <p className="text-[9px] text-amber-300/60 text-right mt-0.5 italic font-medium">
+                        (commission applied at settlement)
+                      </p>
                     </>
                   )}
-                  <div className="flex justify-between items-center pt-1.5 mt-1 px-2 py-1.5 rounded-md bg-white/[0.05]">
-                    <span className="text-xs font-bold text-white">Total</span>
-                    <span className="text-sm font-bold text-white">
-                      ₹{formatPrice(total_amount)}
-                    </span>
-                  </div>
-                  <InfoRow label="Payment" value={payment_method} />
                 </div>
               </div>
             </SectionCard>
