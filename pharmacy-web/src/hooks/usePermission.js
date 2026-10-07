@@ -138,9 +138,6 @@ export function useMenuPermissions() {
 
       // ════════════════════════════════════════════════════════════
       // SETTINGS (Parent)
-      // Staff: NO access to settings at all
-      // Branch Admin: Users submenu only
-      // Super Admin: Full access
       // ════════════════════════════════════════════════════════════
       settings: {
         visible: !isStaff,
@@ -177,15 +174,6 @@ export function useMenuPermissions() {
 
       // ════════════════════════════════════════════════════════════
       // MARKETPLACE
-      //
-      // All three roles can see marketplace menu items.
-      // The MARKETPLACE_VIEW permission is assigned to all roles
-      // so visible is always true for authenticated users.
-      //
-      // Backend enforces data scoping:
-      //   super_admin  → all branches
-      //   branch_admin → their branch only
-      //   staff        → their branch only, read-only
       // ════════════════════════════════════════════════════════════
       marketplaceDashboard: {
         visible: hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
@@ -203,6 +191,11 @@ export function useMenuPermissions() {
       },
 
       marketplaceStorefront: {
+        visible: hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
+        disabled: !hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
+      },
+
+      marketplacePayouts: {
         visible: hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
         disabled: !hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
       },

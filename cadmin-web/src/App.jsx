@@ -50,6 +50,7 @@ import MarketplaceCommunicationsPage from "./pages/marketplace/Communications/Ma
 import CustomerTicketsPage from "./pages/Communications/pages/CustomerTickets/CustomerTicketsPage";
 import MobileBroadcastPage from "./pages/Communications/pages/Broadcast/Mobile/MobileBroadcastPage";
 import MobileEmailBroadcastPage from "./pages/marketplace/Communications/pages/Email/MobileEmailBroadcastPage";
+import PharmacyPayoutsPage from "./pages/marketplace/Payouts/PharmacyPayoutsPage";
 
 // ── Fleet ────────────────────────────────────────────────────────────────────
 import FleetDashboard from "./pages/Fleet/Dashboard/FleetDashboard";
@@ -389,6 +390,16 @@ function App() {
                 requireAll={false}
               >
                 <MobileEmailBroadcastPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/payouts"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_VIEW}
+              >
+                <PharmacyPayoutsPage />
               </PermissionGuard>
             }
           />

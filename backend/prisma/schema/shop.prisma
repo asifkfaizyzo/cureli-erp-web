@@ -48,6 +48,7 @@ model Shop {
   prescriptionRecipients  PrescriptionRequestRecipient[] @relation("ShopPrescriptionRecipients")
   customerSupportTickets CustomerSupportTicket[] @relation("ShopCustomerSupportTickets")
   commissionOverride   CommissionOverride?
+  pharmacyPayouts               PharmacyPayout[]  @relation("ShopPharmacyPayouts")
 
   // ──────────────────────────────────────────────────────────
 

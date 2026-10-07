@@ -45,9 +45,10 @@ import {
   Shield,
   Receipt,
   CircleDollarSign,
-  Filter,       // Added to fix uncaught ReferenceError
-  CheckCircle2, // Added to fix uncaught ReferenceError
-  Activity,     // Added to fix uncaught ReferenceError
+  Filter,
+  CheckCircle2,
+  Activity,
+  IndianRupee,
 } from "lucide-react";
 import { useMenuStore } from "../../store/useMenuStore";
 import { useMenuPermissions } from "../../hooks/usePermission";
@@ -1003,6 +1004,14 @@ const Sidebar = () => {
         path: "/marketplace/storefront",
         breadcrumbs: ["Marketplace", "Storefront"],
         permissionKey: "marketplaceStorefront",
+      },
+      {
+        id: "marketplace-payouts",
+        label: "Payouts & Earnings",
+        icon: IndianRupee,
+        path: "/marketplace/payouts",
+        breadcrumbs: ["Marketplace", "Payouts & Earnings"],
+        permissionKey: "marketplacePayouts",
       },
     ],
     [],

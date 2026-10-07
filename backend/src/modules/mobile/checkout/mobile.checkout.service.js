@@ -14,6 +14,7 @@ import {
   validateCouponForCustomer,
   recordCouponUsage,
 } from "../../coupons/coupon.service.js";
+import { getEffectiveRateForShop } from "../../cadmin/commission/cadmin.commission.service.js";
 import { redeemPoints } from "../../loyalty/loyalty.service.js";
 import { getLoyaltyConfig } from "../../loyalty/loyalty.config.service.js";
 import { validateRedemption } from "../../loyalty/loyalty.engine.js";
@@ -566,6 +567,31 @@ async function _createOrderFromSession({
   });
   const shop_id = branchSettings.branch.shop_id;
 
+  // ── Commission Snapshot ──────────────────────────────────────
+  let commissionRateSnapshot = 0;
+  let commissionRuleIdSnapshot = null;
+  let commissionAmountSnapshot = 0;
+
+  try {
+    const effectiveRate = await getEffectiveRateForShop(shop_id);
+    if (effectiveRate.has_commission && !effectiveRate.is_suspended) {
+      const rate = Number(effectiveRate.flat_percent || 0);
+      commissionRateSnapshot = rate;
+      commissionAmountSnapshot = parseFloat(
+        ((Number(session.subtotal) * rate) / 100).toFixed(2),
+      );
+      // Try to capture the rule_id if available from the source
+      // The effective rate object doesn't expose rule_id directly,
+      // so we store null for now. Can be enhanced later.
+      commissionRuleIdSnapshot = null;
+    }
+  } catch (err) {
+    console.error(
+      "[Checkout] Commission snapshot failed (non-fatal):",
+      err.message,
+    );
+  }
+
   // Fetch customer snapshot
   const customer = await prisma.cureliMobileUser.findUnique({
     where: { id: session.customer_id },
@@ -623,6 +649,9 @@ async function _createOrderFromSession({
         coupon_discount_amount: session.coupon_discount_amount,
         loyalty_points_redeemed: session.loyalty_points_redeemed,
         loyalty_discount_amount: session.loyalty_discount_amount,
+        commission_rate_snapshot: commissionRateSnapshot,
+        commission_rule_id_snapshot: commissionRuleIdSnapshot,
+        commission_amount_snapshot: commissionAmountSnapshot,
         total_amount: session.grand_total,
         distance_km: session.distance_km,
         requires_prescription: requiresPrescription,

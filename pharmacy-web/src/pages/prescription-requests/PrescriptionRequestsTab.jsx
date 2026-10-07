@@ -60,11 +60,11 @@ const PrescriptionRequestsTab = () => {
         counts={tabCounts}
       />
 
-      {/* Two-panel layout with isolated scroll containment */}
-      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr] min-h-0">
+      {/* Two-panel layout with isolated scroll containment — floating cards */}
+      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr] min-h-0 gap-4 p-4">
         
-        {/* Left: request list */}
-        <div className="min-h-0 overflow-hidden border-r border-white/[0.06]">
+        {/* Left: request list — floating card with hover glow */}
+        <div className="min-h-0 overflow-hidden rounded-xl bg-white/[0.02] border border-white/[0.08] hover:border-indigo-400/40 transition-colors duration-200 shadow-lg shadow-black/20">
           <RequestListPanel
             activeTab={page.activeTab}
             recipients={page.recipients}
@@ -84,8 +84,8 @@ const PrescriptionRequestsTab = () => {
           />
         </div>
 
-        {/* Right: request detail + quote builder */}
-        <div className="min-h-0 overflow-hidden">
+        {/* Right: request detail + quote builder — floating card with hover glow */}
+        <div className="min-h-0 overflow-hidden rounded-xl bg-white/[0.02] border border-white/[0.08] hover:border-indigo-400/40 transition-colors duration-200 shadow-lg shadow-black/20">
           <RequestDetailPanel
             recipientId={page.selectedId}
             detail={page.detail}

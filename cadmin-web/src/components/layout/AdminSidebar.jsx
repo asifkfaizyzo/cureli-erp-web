@@ -1,5 +1,4 @@
 // cadmin-web/src/components/layout/AdminSidebar.jsx (do not remove this comment)
-// cadmin-web/src/components/layout/AdminSidebar.jsx
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
@@ -20,6 +19,7 @@ import {
   SlidersHorizontal,
   BadgeIndianRupee,
   HandCoins,
+  Landmark,
 } from "lucide-react";
 
 import { useMenuStore } from "../../store/useMenuStore";
@@ -198,6 +198,14 @@ const MARKETPLACE_MENU_ITEMS = [
     icon: MessageSquare,
     path: "/marketplace/communications",
     breadcrumbs: ["Marketplace", "Communications"],
+  },
+  {
+    id: "mp-payouts",
+    label: "Payouts & Settlement",
+    icon: HandCoins,
+    path: "/marketplace/payouts",
+    breadcrumbs: ["Marketplace", "Payouts & Settlement"],
+    permissionKey: "marketplacePayouts",
   },
 ];
 

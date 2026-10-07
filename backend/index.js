@@ -62,6 +62,7 @@ import gstReportRoutes from "./src/modules/reports/gst/gst.report.routes.js";
 import financialReportRoutes from "./src/modules/reports/financial/financial.report.routes.js";
 import marketplaceReportRoutes from "./src/modules/reports/marketplace/marketplace.report.routes.js";
 import cadminMarketplaceDashboardRoutes from "./src/modules/cadmin/marketplace-dashboard/cadminMarketplaceDashboard.routes.js";
+import pharmacyPayoutErpRoutes from "./src/modules/marketplace/pharmacy-payouts/pharmacyPayouts.routes.js";
 
 // ============================================
 // CADMIN ROUTES
@@ -99,6 +100,7 @@ import cadminDeliveryRoutes from "./src/modules/cadmin/delivery/cadmin.delivery.
 import cadminPrescriptionRequestsRoutes from "./src/modules/cadmin/prescription-requests/cadminPrescriptionRequests.routes.js";
 import cadminRiderPayoutRoutes from "./src/modules/cadmin/rider-payouts/cadmin.riderPayouts.routes.js";
 import cadminCommissionRoutes from "./src/modules/cadmin/commission/cadmin.commission.routes.js";
+import pharmacyPayoutRoutes from "./src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.routes.js";
 
 // ============================================
 // MOBILE ROUTES
@@ -281,7 +283,8 @@ app.use("/api/reports/inventory", inventoryReportRoutes);
 app.use("/api/reports/gst", gstReportRoutes);
 app.use("/api/reports/financial", financialReportRoutes);
 app.use("/api/reports/marketplace", marketplaceReportRoutes);
-app.use("/cadmin", cadminMarketplaceDashboardRoutes);
+app.use("/api/marketplace/payouts", pharmacyPayoutErpRoutes);
+
 
 // ============================================
 // CADMIN ROUTES
@@ -319,6 +322,8 @@ app.use("/cadmin/delivery", cadminDeliveryRoutes);
 app.use("/cadmin", cadminPrescriptionRequestsRoutes);
 app.use("/cadmin/fleet/rider-payouts", cadminRiderPayoutRoutes);
 app.use("/cadmin", cadminCommissionRoutes);
+app.use("/cadmin", cadminMarketplaceDashboardRoutes);
+app.use("/cadmin", pharmacyPayoutRoutes);
 
 // ============================================
 // MOBILE ROUTES

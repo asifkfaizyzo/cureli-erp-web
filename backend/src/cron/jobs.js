@@ -1,5 +1,4 @@
 // backend/src/cron/jobs.js (do not remove this comment)
-// backend/src/cron/jobs.js
 import cron from "node-cron";
 import prisma from "../config/prisma.js";
 import { withCronLock, getInstanceId } from "./cronLock.js";
@@ -48,6 +47,8 @@ import {
 import { evaluateDailyIncentivesForShift } from "../modules/cadmin/fleet-incentives/incentiveEngine.service.js";
 import { checkAndActivateScheduledConfigs } from "../modules/cadmin/fleet-pricing/fleetPricing.service.js";
 import { runRiderPayoutFinalization } from "./riderPayoutFinalizationWorker.js";
+import { runPharmacyPayoutCalculation } from "./pharmacyPayoutCalculationWorker.js";
+import { runPharmacyPayoutFinalization } from "./pharmacyPayoutFinalizationWorker.js";
 
 async function processScheduledBroadcasts() {
   cronLogger.info("Checking for scheduled broadcasts...");
@@ -560,7 +561,6 @@ function initializePrescriptionRequestCleanupJob() {
   );
 }
 
-
 function initializeLoyaltyPointsExpiryJob() {
   cron.schedule("0 2 * * *", () =>
     withCronLock("loyalty-points-expiry", 30, async () => {
@@ -616,6 +616,7 @@ function initializeStaleRiderJob() {
   );
   cronLogger.info("Stale rider cleanup job scheduled (every 2 minutes)");
 }
+
 function initializeStaleAssignmentJob() {
   cron.schedule("*/2 * * * *", () =>
     withCronLock("stale-assignment-worker", 2, staleAssignmentWorker),
@@ -663,12 +664,22 @@ export function initializeCronJobs() {
   initializePrescriptionRequestCleanupJob();
   initializeLoyaltyPointsExpiryJob();
   initializeShiftEvaluationJob();
-initializeCommissionSuspensionJob();
+  initializeCommissionSuspensionJob();
 
   cron.schedule("5 7 * * 1", () =>
     withCronLock("rider-payout-finalization", 30, runRiderPayoutFinalization)
   );
   cronLogger.info("Rider payout finalization scheduled (Monday 7:05 AM IST)");
+
+  cron.schedule("30 6 * * *", () =>
+    withCronLock("pharmacy-payout-calculation", 30, runPharmacyPayoutCalculation)
+  );
+  cronLogger.info("Pharmacy payout calculation scheduled (Daily at 6:30 AM IST)");
+
+  cron.schedule("5 6 * * 1", () =>
+    withCronLock("pharmacy-payout-finalization", 30, runPharmacyPayoutFinalization)
+  );
+  cronLogger.info("Pharmacy payout finalization scheduled (Monday 6:05 AM IST)");
 
   initializeBirthdayPushJob();
   initializeStaleRiderJob();
@@ -750,6 +761,8 @@ initializeCommissionSuspensionJob();
   cronLogger.info("  - Loyalty points expiry: Daily at 2:00 AM IST");
   cronLogger.info("  - Shift evaluation: Daily at 6:05 AM");
   cronLogger.info("  - Rider payout finalization: Monday 7:05 AM IST");
+  cronLogger.info("  - Pharmacy payout calculation: Daily at 6:30 AM IST");
+  cronLogger.info("  - Pharmacy payout finalization: Monday 6:05 AM IST");
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
   cronLogger.info("  - Stale assignment alerts: Every 2 minutes");

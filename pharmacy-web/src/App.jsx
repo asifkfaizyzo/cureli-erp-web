@@ -144,6 +144,7 @@ import MarketplaceDashboardPage from "./pages/marketplace-dashboard/MarketplaceD
 import MarketplaceOrdersPage from "./pages/marketplace-orders/MarketplaceOrdersPage.jsx";
 import MarketplaceListingsPage from "./pages/marketplace-listings/MarketplaceListingsPage.jsx";
 import MarketplaceStorefrontPage from "./pages/marketplace-storefront/MarketplaceStorefrontPage.jsx";
+import MarketplacePayoutsPage from "./pages/marketplace-payouts/MarketplacePayoutsPage";
 
 import "./index.css";
 
@@ -777,6 +778,10 @@ const App = () => {
                           <Route
                             path="/marketplace/storefront"
                             element={<MarketplaceStorefrontPage />}
+                          />
+                          <Route
+                            path="/marketplace/payouts"
+                            element={<MarketplacePayoutsPage />}
                           />
                         </Route>
                       </Route>

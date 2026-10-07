@@ -663,6 +663,9 @@ export async function getErpOrders(shop_id, query = {}) {
         customer_name_snapshot: true,
         customer_phone_snapshot: true,
         total_amount: true,
+        subtotal: true,
+        commission_rate_snapshot: true,
+        commission_amount_snapshot: true,
         requires_prescription: true,
         placed_at: true,
         accepted_at: true,
@@ -1208,6 +1211,20 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
     }),
   );
 
+  const subtotal = Number(order.subtotal || 0);
+  const commissionAmount =
+    order.commission_amount_snapshot !== null
+      ? Number(order.commission_amount_snapshot)
+      : null;
+  const commissionRate =
+    order.commission_rate_snapshot !== null
+      ? Number(order.commission_rate_snapshot)
+      : null;
+  const pharmacyEarning =
+    commissionAmount !== null
+      ? Number((subtotal - commissionAmount).toFixed(2))
+      : subtotal;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1221,9 +1238,12 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
       age: order.patient_age_snapshot,
       sex: order.patient_sex_snapshot,
     },
-    subtotal: Number(order.subtotal),
+    subtotal: subtotal,
     total_amount: Number(order.total_amount),
     payment_method: order.payment_method,
+    commission_rate: commissionRate,
+    commission_amount: commissionAmount,
+    pharmacy_earning: pharmacyEarning,
     items: itemsWithBatches,
   };
 }
@@ -1273,6 +1293,20 @@ export async function regenerateInvoicePdf(order_id, shop_id) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatErpOrderSummary(order) {
+  const subtotal = Number(order.subtotal || 0);
+  const commissionAmount =
+    order.commission_amount_snapshot !== null
+      ? Number(order.commission_amount_snapshot)
+      : null;
+  const commissionRate =
+    order.commission_rate_snapshot !== null
+      ? Number(order.commission_rate_snapshot)
+      : null;
+  const pharmacyEarning =
+    commissionAmount !== null
+      ? Number((subtotal - commissionAmount).toFixed(2))
+      : subtotal;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1280,6 +1314,10 @@ function formatErpOrderSummary(order) {
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     total_amount: Number(order.total_amount),
+    subtotal: subtotal,
+    commission_rate: commissionRate,
+    commission_amount: commissionAmount,
+    pharmacy_earning: pharmacyEarning,
     requires_prescription: order.requires_prescription,
     prescription_count: order._count?.prescriptions ?? 0,
     item_count: order.items?.length ?? 0,
@@ -1307,6 +1345,20 @@ function formatErpOrderDetail(order) {
   const deliveryMode =
     order.branch?.marketplaceSettings?.delivery_mode || "CURELI";
 
+  const subtotal = Number(order.subtotal || 0);
+  const commissionAmount =
+    order.commission_amount_snapshot !== null
+      ? Number(order.commission_amount_snapshot)
+      : null;
+  const commissionRate =
+    order.commission_rate_snapshot !== null
+      ? Number(order.commission_rate_snapshot)
+      : null;
+  const pharmacyEarning =
+    commissionAmount !== null
+      ? Number((subtotal - commissionAmount).toFixed(2))
+      : subtotal;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1316,7 +1368,10 @@ function formatErpOrderDetail(order) {
     customer_phone: order.customer_phone_snapshot,
     delivery_address: order.delivery_address_snapshot,
     total_amount: Number(order.total_amount),
-    subtotal: Number(order.subtotal),
+    subtotal: subtotal,
+    commission_rate: commissionRate,
+    commission_amount: commissionAmount,
+    pharmacy_earning: pharmacyEarning,
     service_charge: Number(order.service_charge ?? 0),
     delivery_fee: Number(order.delivery_fee ?? 0),
     km_surcharge: Number(order.km_surcharge ?? 0),
