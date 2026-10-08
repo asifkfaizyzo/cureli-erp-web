@@ -73,6 +73,7 @@ export const useMarketplaceStore = create((set, get) => ({
     support_phone: "",
     logo_url: null,
     banner_url: null,
+    shop_tags: [],
   },
 
   // Banking default state
@@ -213,6 +214,7 @@ export const useMarketplaceStore = create((set, get) => ({
           support_phone: data.support_phone || "",
           logo_url: data.logo_url || null,
           banner_url: data.banner_url || null,
+          shop_tags: data.shop_tags || [],
         };
       }
 
@@ -268,6 +270,30 @@ export const useMarketplaceStore = create((set, get) => ({
   updateBanking: (patch) => {
     set((state) => ({
       banking: { ...state.banking, ...patch },
+      isDraftSaving: true,
+    }));
+    scheduleDraftSave(get);
+  },
+
+  addShopTag: (slug) => {
+    const current = get().storefront.shop_tags || [];
+    if (current.includes(slug) || current.length >= 5) return;
+    set((state) => ({
+      storefront: {
+        ...state.storefront,
+        shop_tags: [...current, slug],
+      },
+      isDraftSaving: true,
+    }));
+    scheduleDraftSave(get);
+  },
+
+  removeShopTag: (slug) => {
+    set((state) => ({
+      storefront: {
+        ...state.storefront,
+        shop_tags: (state.storefront.shop_tags || []).filter((s) => s !== slug),
+      },
       isDraftSaving: true,
     }));
     scheduleDraftSave(get);
@@ -468,6 +494,7 @@ export const useMarketplaceStore = create((set, get) => ({
         support_phone: "",
         logo_url: null,
         banner_url: null,
+        shop_tags: [],
       },
       banking: {
         bank_account_holder: "",

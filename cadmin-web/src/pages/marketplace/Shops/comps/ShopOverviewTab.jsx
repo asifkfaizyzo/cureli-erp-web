@@ -24,11 +24,13 @@ import {
   EyeOff,
   ExternalLink,
   AlertCircle,
+  Tag,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { toggleShopMarketplaceVisibility } from "../../../../api/cadminMarketplaceShops";
+import EditShopTagsModal from "./EditShopTagsModal";
 import EditStorefrontModal from "./EditStorefrontModal";
 import EditBankDetailsModal from "./EditBankDetailsModal";
 import { resolveFileUrl } from "../../../../utils/resolveFileUrl";
@@ -212,6 +214,7 @@ const ShopOverviewTab = ({ shop, onUpdated }) => {
   const [showEditStorefront, setShowEditStorefront] = useState(false);
   const [showEditBank, setShowEditBank] = useState(false);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [showEditTags, setShowEditTags] = useState(false);
 
   return (
     <>
@@ -312,12 +315,20 @@ const ShopOverviewTab = ({ shop, onUpdated }) => {
             title="Marketplace Profile"
             action={
               mp && (
-                <button
-                  onClick={() => setShowEditStorefront(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#05015A] hover:bg-[#05015A]/[0.06] border border-[#05015A]/20 transition-colors"
-                >
-                  <Edit2 size={11} /> Edit Assets
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowEditTags(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition-colors"
+                  >
+                    <Tag size={11} /> Edit Tags
+                  </button>
+                  <button
+                    onClick={() => setShowEditStorefront(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#05015A] hover:bg-[#05015A]/[0.06] border border-[#05015A]/20 transition-colors"
+                  >
+                    <Edit2 size={11} /> Edit Assets
+                  </button>
+                </div>
               )
             }
           >
@@ -360,6 +371,30 @@ const ShopOverviewTab = ({ shop, onUpdated }) => {
                       )
                     }
                   />
+                </div>
+
+                {/* Shop Tags */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-2">
+                    Pharmacy Type Tags
+                  </p>
+                  {mp.shop_tags && mp.shop_tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {mp.shop_tags.map((slug) => (
+                        <span
+                          key={slug}
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded-full
+                            bg-[#05015A]/5 text-[#05015A] border border-[#05015A]/15"
+                        >
+                          {slug}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">
+                      No tags assigned
+                    </p>
+                  )}
                 </div>
 
                 {mp.banner_url && (
@@ -509,6 +544,18 @@ const ShopOverviewTab = ({ shop, onUpdated }) => {
             onClose={() => setShowEditBank(false)}
             onSaved={() => {
               setShowEditBank(false);
+              onUpdated();
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showEditTags && (
+          <EditShopTagsModal
+            shop={shop}
+            onClose={() => setShowEditTags(false)}
+            onSaved={() => {
+              setShowEditTags(false);
               onUpdated();
             }}
           />

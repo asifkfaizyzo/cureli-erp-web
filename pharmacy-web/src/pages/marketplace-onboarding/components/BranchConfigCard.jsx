@@ -15,7 +15,6 @@ import {
   Phone,
   ImageIcon,
   X,
-  ShoppingBag,
 } from "lucide-react";
 import LocationPicker from "./LocationPicker";
 import TimePicker from "./TimePicker";
@@ -74,6 +73,15 @@ const BranchConfigCard = ({
   const handleSave = async () => {
     setIsSaving(true);
     setSaveError(null);
+
+    // Behind-the-scenes override: always pass delivery as active, and disable pickup.
+    updateBranchConfig(branch.branch_id, {
+      ...config,
+      delivery_enabled: true,
+      pickup_enabled: false,
+      delivery_mode: config.delivery_mode || "CURELI",
+    });
+
     const result = await submitBranchConfig(branch.branch_id);
     if (result.success) {
       setIsSaved(true);
@@ -114,15 +122,14 @@ const BranchConfigCard = ({
     config.latitude && config.longitude && config.google_place_id;
   const isTimingValid =
     config.is_24_hours || (config.opening_time && config.closing_time);
-  const isFulfillmentSet = config.pickup_enabled || config.delivery_enabled;
+  
+  // Fulfillment is implicitly always complete because we force delivery back-of-house
   const isConfigComplete =
-    !isEnabled ||
-    (isLocationSet && isTimingValid && isFulfillmentSet && isContactSet);
+    !isEnabled || (isLocationSet && isTimingValid && isContactSet);
 
+  // Completion reduced to 3 metrics: Location, Hours, Contact
   const completionSteps = isEnabled
-    ? [isLocationSet, isFulfillmentSet, isTimingValid, isContactSet].filter(
-        Boolean,
-      ).length
+    ? [isLocationSet, isTimingValid, isContactSet].filter(Boolean).length
     : 0;
 
   return (
@@ -194,7 +201,7 @@ const BranchConfigCard = ({
                 </span>
               ) : (
                 <span className="px-1.5 py-0.5 rounded text-[8px] font-semibold bg-white/5 text-white/25">
-                  {completionSteps}/4
+                  {completionSteps}/3
                 </span>
               )}
             </>
@@ -208,12 +215,12 @@ const BranchConfigCard = ({
       </button>
 
       {/* Progress bar when collapsed */}
-      {!isExpanded && isEnabled && completionSteps < 4 && (
+      {!isExpanded && isEnabled && completionSteps < 3 && (
         <div className="px-4 pb-2.5 -mt-0.5">
           <div className="h-0.5 rounded-full bg-white/[0.04] overflow-hidden">
             <div
               className="h-full rounded-full bg-white/15 transition-all duration-300"
-              style={{ width: `${(completionSteps / 4) * 100}%` }}
+              style={{ width: `${(completionSteps / 3) * 100}%` }}
             />
           </div>
         </div>
@@ -385,71 +392,47 @@ const BranchConfigCard = ({
 
               {/* ── Fulfillment + Hours ─────────────────────────────── */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                {/* Fulfillment */}
+                {/* Fulfillment (Now Delivery Agent Selectors) */}
                 <Section
                   icon={<Truck size={12} />}
-                  title="Fulfillment"
+                  title="Delivery"
                   required
-                  done={!!isFulfillmentSet}
+                  done={true}
                 >
-                  <div className="space-y-2.5">
+                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+                    <p className="text-[10px] text-white/30 uppercase font-semibold">
+                      Delivery Service Provider
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
-                      <ToggleChip
-                        icon={<ShoppingBag size={12} />}
-                        label="Pickup"
-                        active={config.pickup_enabled}
-                        onClick={() =>
-                          update({ pickup_enabled: !config.pickup_enabled })
-                        }
-                      />
-                      <ToggleChip
-                        icon={<Truck size={12} />}
-                        label="Delivery"
-                        active={config.delivery_enabled}
-                        onClick={() =>
-                          update({ delivery_enabled: !config.delivery_enabled })
-                        }
-                      />
-                    </div>
-
-                    {/* ── Delivery Provider Selector (Shown when delivery enabled) ── */}
-                    {config.delivery_enabled && (
-                      <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
-                        <p className="text-[10px] text-white/30 uppercase font-semibold">
-                          Delivery Service Provider
+                      <button
+                        type="button"
+                        onClick={() => update({ delivery_mode: "CURELI" })}
+                        className={`p-2 rounded-lg border text-left transition-all ${
+                          (config.delivery_mode || "CURELI") === "CURELI"
+                            ? "bg-white/10 border-white/20 text-white"
+                            : "bg-white/[0.02] border-white/[0.04] text-white/30 hover:border-white/10"
+                        }`}
+                      >
+                        <p className="text-xs font-semibold">Cureli Riders</p>
+                        <p className="text-[9px] text-white/30 mt-0.5 leading-tight">
+                          Cureli delivery fleet
                         </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => update({ delivery_mode: "CURELI" })}
-                            className={`p-2 rounded-lg border text-left transition-all ${
-                              (config.delivery_mode || "CURELI") === "CURELI"
-                                ? "bg-white/10 border-white/20 text-white"
-                                : "bg-white/[0.02] border-white/[0.04] text-white/30 hover:border-white/10"
-                            }`}
-                          >
-                            <p className="text-xs font-semibold">Cureli Riders</p>
-                            <p className="text-[9px] text-white/30 mt-0.5 leading-tight">
-                              Cureli delivery fleet
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => update({ delivery_mode: "SELF" })}
-                            className={`p-2 rounded-lg border text-left transition-all ${
-                              config.delivery_mode === "SELF"
-                                ? "bg-white/10 border-white/20 text-white"
-                                : "bg-white/[0.02] border-white/[0.04] text-white/30 hover:border-white/10"
-                            }`}
-                          >
-                            <p className="text-xs font-semibold">Own Riders</p>
-                            <p className="text-[9px] text-white/30 mt-0.5 leading-tight">
-                              Pharmacy's delivery boys
-                            </p>
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => update({ delivery_mode: "SELF" })}
+                        className={`p-2 rounded-lg border text-left transition-all ${
+                          config.delivery_mode === "SELF"
+                            ? "bg-white/10 border-white/20 text-white"
+                            : "bg-white/[0.02] border-white/[0.04] text-white/30 hover:border-white/10"
+                        }`}
+                      >
+                        <p className="text-xs font-semibold">Own Riders</p>
+                        <p className="text-[9px] text-white/30 mt-0.5 leading-tight">
+                          Pharmacy's delivery boys
+                        </p>
+                      </button>
+                    </div>
                   </div>
                 </Section>
 
@@ -627,24 +610,6 @@ const Section = ({ icon, title, subtitle, required, done, children }) => (
     </div>
     {children}
   </div>
-);
-
-const ToggleChip = ({ icon, label, active, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`
-      py-2 px-3 rounded-lg border text-xs font-medium transition-all
-      flex items-center justify-center gap-1.5
-      ${
-        active
-          ? "bg-white/10 border-white/20 text-white"
-          : "bg-white/[0.02] border-white/[0.06] text-white/30 hover:border-white/12"
-      }
-    `}
-  >
-    {icon} {label}
-  </button>
 );
 
 const ALL_DAYS = [

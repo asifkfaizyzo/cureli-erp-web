@@ -19,6 +19,11 @@ router.get(
   requireCAdminPermission(CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_VIEW),
   ctrl.listPayouts
 );
+router.post(
+  `${BASE}/:payoutId/revert-draft`,
+  requireCAdminPermission(CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_MANAGE),
+  ctrl.revertToDraft
+);
 router.get(
   `${BASE}/export`,
   requireCAdminPermission(CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_VIEW),

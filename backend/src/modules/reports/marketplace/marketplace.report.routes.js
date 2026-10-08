@@ -9,6 +9,8 @@ import {
   getAcceptanceRate,
   getPrescriptionSummary,
   getListingHealth,
+  getRevenueLeakage,
+  getFulfillmentSpeed,
 } from "./marketplace.report.controller.js";
 
 const router = express.Router();
@@ -20,5 +22,7 @@ router.get("/order-funnel", getOrderStatusFunnel);
 router.get("/acceptance-rate", getAcceptanceRate);
 router.get("/prescription-summary", getPrescriptionSummary);
 router.get("/listing-health", getListingHealth);
+router.get("/revenue-leakage", getRevenueLeakage);
+router.get("/fulfillment-speed", getFulfillmentSpeed);
 
 export default router;

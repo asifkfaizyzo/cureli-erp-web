@@ -199,6 +199,11 @@ export function useMenuPermissions() {
         visible: hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
         disabled: !hasPermission(PERMISSIONS.MARKETPLACE_VIEW),
       },
+
+      marketplaceReports: {
+        visible: hasPermission(PERMISSIONS.REPORTS_SALES),
+        disabled: !hasPermission(PERMISSIONS.REPORTS_SALES),
+      },
     }),
     [hasPermission, isSuperAdmin, isBranchAdmin, isStaff],
   );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, CheckCircle2, Clock, AlertTriangle, IndianRupee } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, CheckCircle2, Clock, AlertTriangle, IndianRupee, TrendingUp } from "lucide-react";
 import { refreshAllPharmacyPayouts, finalizePharmacyPayoutWeek } from "../../../../api/cadminPharmacyPayouts";
 import { useToast } from "../../../../components/common/Toast";
 
@@ -44,7 +44,7 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, weekInfo, summary, onRef
     }
   };
 
-  const formatCurrency = (n) => `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmt = (n) => `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-3">
@@ -67,7 +67,12 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, weekInfo, summary, onRef
               )}
             </div>
           </div>
-          <button onClick={() => shiftWeek(1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <button
+            onClick={() => shiftWeek(1)}
+            disabled={weekInfo?.is_current_week}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title={weekInfo?.is_current_week ? "Cannot go beyond current week" : "Next week"}
+          >
             <ChevronRight size={18} className="text-gray-600" />
           </button>
         </div>
@@ -96,27 +101,36 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, weekInfo, summary, onRef
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <div className="flex items-center gap-2 text-gray-500 mb-1">
               <IndianRupee size={14} />
               <span className="text-xs font-medium">Total Gross</span>
             </div>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(summary.total_gross)}</p>
+            <p className="text-lg font-bold text-gray-900">{fmt(summary.total_gross)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <div className="flex items-center gap-2 text-amber-600 mb-1">
               <AlertTriangle size={14} />
               <span className="text-xs font-medium">Commission</span>
             </div>
-            <p className="text-lg font-bold text-amber-700">{formatCurrency(summary.total_commission)}</p>
+            <p className="text-lg font-bold text-amber-700">{fmt(summary.total_commission)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <div className="flex items-center gap-2 text-green-600 mb-1">
               <IndianRupee size={14} />
-              <span className="text-xs font-medium">Total Net</span>
+              <span className="text-xs font-medium">Net to Pharmacy</span>
             </div>
-            <p className="text-lg font-bold text-green-700">{formatCurrency(summary.total_net)}</p>
+            <p className="text-lg font-bold text-green-700">{fmt(summary.total_net)}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-3">
+            <div className="flex items-center gap-2 text-indigo-600 mb-1">
+              <TrendingUp size={14} />
+              <span className="text-xs font-medium">Cureli Margin</span>
+            </div>
+            <p className={`text-lg font-bold ${(summary.total_cureli_margin || 0) >= 0 ? "text-indigo-700" : "text-red-700"}`}>
+              {fmt(summary.total_cureli_margin)}
+            </p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <div className="flex items-center gap-2 text-gray-500 mb-1">
@@ -124,8 +138,8 @@ const PayoutsHeader = ({ selectedWeek, setSelectedWeek, weekInfo, summary, onRef
               <span className="text-xs font-medium">Status</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-yellow-600 font-semibold">{summary.pending_count} Pending</span>
-              <span className="text-blue-600 font-semibold">{summary.processing_count} Processing</span>
+              <span className="text-yellow-600 font-semibold">{summary.pending_count} Pend</span>
+              <span className="text-blue-600 font-semibold">{summary.processing_count} Proc</span>
               <span className="text-green-600 font-semibold">{summary.completed_count} Paid</span>
             </div>
           </div>

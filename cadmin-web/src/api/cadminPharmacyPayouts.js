@@ -78,3 +78,7 @@ export function exportPharmacyPayoutsCSV(params = {}) {
     responseType: "blob",
   });
 }
+
+export function revertDraftPharmacyPayout(payoutId) {
+  return CAdminAPI.post(`${BASE}/${payoutId}/revert-draft`);
+}

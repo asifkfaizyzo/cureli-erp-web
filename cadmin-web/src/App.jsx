@@ -44,6 +44,7 @@ import CommissionPricingPage from "./pages/marketplace/Pricing/CommissionPricing
 import AppConfigPage from "./pages/AppConfig/AppConfigPage";
 import BannersPage from "./pages/AppConfig/banners/BannersPage";
 import HomeScreenPage from "./pages/AppConfig/home-screen/HomeScreenPage";
+import ShopTagsPage from "./pages/AppConfig/shop-tags/ShopTagsPage";
 
 // ── Marketplace Communications ──────────────────────────────────────────────
 import MarketplaceCommunicationsPage from "./pages/marketplace/Communications/MarketplaceCommunicationsPage";
@@ -450,6 +451,14 @@ function App() {
             element={
               <PermissionGuard permission={CADMIN_PERMISSIONS.APP_CONFIG_VIEW}>
                 <HomeScreenPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/app-config/shop-tags"
+            element={
+              <PermissionGuard permission={CADMIN_PERMISSIONS.APP_CONFIG_VIEW}>
+                <ShopTagsPage />
               </PermissionGuard>
             }
           />

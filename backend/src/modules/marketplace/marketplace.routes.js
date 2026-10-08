@@ -24,6 +24,7 @@ router.use(requireAuth);
 router.get("/status", Controller.getStatus);
 router.get("/places/search", Controller.getPlacesSearch);
 router.get("/places/details", Controller.getPlaceDetails);
+router.get("/shop-tags", Controller.getShopTags);
 
 router.post(
   "/upload/:type",

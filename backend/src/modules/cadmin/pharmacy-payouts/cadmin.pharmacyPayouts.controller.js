@@ -5,6 +5,17 @@ function ok(res, data, message = "Success") {
   return res.json({ success: true, message, data });
 }
 
+export async function revertToDraft(req, res) {
+  try {
+    const result = await service.transitionPharmacyPayoutStatus(
+      req.params.payoutId, "DRAFT", req.body, getCadminId(req),
+    );
+    return ok(res, result, "Payout reverted to draft");
+  } catch (err) {
+    return fail(res, err.message, err.code === "NOT_FOUND" ? 404 : 400);
+  }
+}
+
 function fail(res, message, status = 400) {
   return res.status(status).json({ success: false, message });
 }

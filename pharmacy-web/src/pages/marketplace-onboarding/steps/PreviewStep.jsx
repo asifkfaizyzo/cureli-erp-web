@@ -1,5 +1,6 @@
-// pharmacy-web/src/pages/marketplace-onboarding/steps/PreviewStep.jsx
+// pharmacy-web/src/pages/marketplace-onboarding/steps/PreviewStep.jsx (do not remove this comment)
 
+import { useState, useEffect } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -11,6 +12,7 @@ import {
   Landmark,
 } from "lucide-react";
 import { useMarketplaceStore } from "../../../store/useMarketplaceStore";
+import { fetchActiveShopTags } from "../../../api/marketplace";
 import BankingPendingBanner from "../../../components/common/BankingPendingBanner";
 
 const resolveImageUrl = (url) => {
@@ -25,6 +27,26 @@ const PreviewStep = ({ onNext, onBack }) => {
   const allBranches = useMarketplaceStore((s) => s.allBranches);
   const selectedBranchIds = useMarketplaceStore((s) => s.selectedBranchIds);
   const branchConfigs = useMarketplaceStore((s) => s.branchConfigs);
+
+  const [tagMap, setTagMap] = useState(new Map());
+
+  // Fetch active tags to resolve labels/colors in the preview
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchActiveShopTags();
+        if (!cancelled && res.data?.data) {
+          setTagMap(new Map(res.data.data.map((t) => [t.slug, t])));
+        }
+      } catch (err) {
+        console.error("[PreviewStep] Failed to load tags map:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const enabledBranches = allBranches.filter(
     (b) =>
@@ -52,6 +74,14 @@ const PreviewStep = ({ onNext, onBack }) => {
       label: "Support phone",
       done: !!storefront.support_phone?.trim(),
       value: storefront.support_phone,
+    },
+    {
+      label: "Pharmacy type tags",
+      done: !!(storefront.shop_tags && storefront.shop_tags.length > 0),
+      value:
+        storefront.shop_tags && storefront.shop_tags.length > 0
+          ? `${storefront.shop_tags.length} tag${storefront.shop_tags.length > 1 ? "s" : ""} selected`
+          : "None selected",
     },
     {
       label: "Logo uploaded",
@@ -139,6 +169,30 @@ const PreviewStep = ({ onNext, onBack }) => {
                   <span className="text-white/15">Description</span>
                 )}
               </p>
+
+              {/* Tags preview mock */}
+              {storefront.shop_tags && storefront.shop_tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {storefront.shop_tags.map((slug) => {
+                    const tag = tagMap.get(slug);
+                    const label = tag?.label || slug;
+                    const color = tag?.color_hex || "#6366F1";
+                    return (
+                      <span
+                        key={slug}
+                        className="text-[9px] font-bold px-2 py-0.5 rounded-full border"
+                        style={{
+                          backgroundColor: `${color}15`,
+                          borderColor: `${color}30`,
+                          color: color,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
 
               {storefront.support_phone && (
                 <div className="flex items-center gap-1.5 mt-3">

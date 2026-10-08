@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/AppConfig/AppConfigPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/AppConfig/AppConfigPage.jsx
 
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,6 +8,7 @@ import {
   LayoutDashboard,
   Gift,
   Ticket,
+  Tags,
 } from "lucide-react";
 
 const CONFIG_CARDS = [
@@ -35,6 +35,14 @@ const CONFIG_CARDS = [
       "Control which sections appear on the mobile home screen, edit section titles and text, and manage the order and visibility of product feed categories.",
     icon: LayoutDashboard,
     path: "/marketplace/app-config/home-screen",
+  },
+  {
+    id: "shop-tags",
+    title: "Shop Tags",
+    description:
+      "Configure pharmacy classification tags (e.g., Allopathic, Ayurvedic, 24×7). Set display colors, descriptions, and active status for each tag.",
+    icon: Tags,
+    path: "/marketplace/app-config/shop-tags",
   },
   {
     id: "loyalty",

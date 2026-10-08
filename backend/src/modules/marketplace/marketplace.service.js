@@ -67,7 +67,7 @@ export const getOrCreateProfile = async (shop_id) => {
   return profile;
 };
 
-// GET STATUS — UPDATED: Selected banking fields
+// GET STATUS — UPDATED: Returns shop_tags
 export const getMarketplaceStatus = async (shop_id) => {
   const profile = await getOrCreateProfile(shop_id);
 
@@ -94,6 +94,9 @@ export const getMarketplaceStatus = async (shop_id) => {
     support_phone: profile.support_phone,
     logo_url: profile.logo_url,
     banner_url: profile.banner_url,
+    // ── ADDED SHOP TAGS ──────────────────────────────────────
+    shop_tags: profile.shop_tags ?? [],
+    // ──────────────────────────────────────────────────────────
     // ── BANKING DETAILS RETRIEVED ─────────────────────────────
     bank_account_holder: profile.bank_account_holder,
     bank_name: profile.bank_name,
@@ -151,6 +154,21 @@ export const saveStorefront = async (shop_id, data) => {
 
   if (!profile) throw new Error("Marketplace profile not found");
 
+  // Validate shop_tags slugs if provided
+  let validatedTags = undefined;
+  if (data.shop_tags !== undefined) {
+    const activeTags = await prisma.shopTag.findMany({
+      where: { is_active: true },
+      select: { slug: true },
+    });
+    const activeSlugs = new Set(activeTags.map((t) => t.slug));
+    const invalid = data.shop_tags.filter((s) => !activeSlugs.has(s));
+    if (invalid.length > 0) {
+      throw new Error(`Invalid or inactive tag slugs: ${invalid.join(", ")}`);
+    }
+    validatedTags = data.shop_tags;
+  }
+
   return await prisma.marketplaceProfile.update({
     where: { shop_id },
     data: {
@@ -159,6 +177,7 @@ export const saveStorefront = async (shop_id, data) => {
       support_phone: data.support_phone,
       logo_url: data.logo_url,
       banner_url: data.banner_url ?? null,
+      ...(validatedTags !== undefined && { shop_tags: validatedTags }),
       marketplace_status:
         profile.marketplace_status === "NOT_STARTED"
           ? "DRAFT"
@@ -171,6 +190,7 @@ export const saveStorefront = async (shop_id, data) => {
       support_phone: true,
       logo_url: true,
       banner_url: true,
+      shop_tags: true,
       marketplace_status: true,
       updated_at: true,
     },
@@ -358,7 +378,7 @@ export const saveBranchConfig = async (shop_id, branch_id, data, caller) => {
   });
 };
 
-// GET STOREFRONT — UPDATED: Selected banking details
+// GET STOREFRONT — UPDATED: Returns shop_tags
 export const getStorefront = async (shop_id) => {
   const profile = await prisma.marketplaceProfile.findUnique({
     where: { shop_id },
@@ -369,6 +389,7 @@ export const getStorefront = async (shop_id) => {
       support_phone: true,
       logo_url: true,
       banner_url: true,
+      shop_tags: true,
       // ── BANKING FIELDS RETRIEVED ─────────────────────────────
       bank_account_holder: true,
       bank_name: true,
@@ -456,6 +477,13 @@ export const goLive = async (shop_id) => {
   }
 
 
+  if (!profile.shop_tags || profile.shop_tags.length === 0) {
+    errors.push({
+      field: "shop_tags",
+      message: "Select at least one pharmacy type tag",
+    });
+  }
+  // ────────────────────────────────────────────────────────────────
 
   const enabledBranches = profile.branchSettings.filter(
     (b) => b.marketplace_enabled

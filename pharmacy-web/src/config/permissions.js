@@ -92,8 +92,8 @@ export const PERMISSIONS = {
   // ============================================
   TICKETS_VIEW:   "tickets:view",
   TICKETS_CREATE: "tickets:create",
-  TICKETS_CANCEL: "tickets:cancel",   // ← was TICKETS_MANAGE, now fixed
-  TICKETS_REOPEN: "tickets:reopen",   // ← was missing, now added
+  TICKETS_CANCEL: "tickets:cancel",
+  TICKETS_REOPEN: "tickets:reopen",
 
   // ============================================
   // NOTIFICATIONS
@@ -247,11 +247,9 @@ export const ROUTE_PERMISSIONS = {
   "/marketplace/orders":     [PERMISSIONS.MARKETPLACE_VIEW],
   "/marketplace/listings":   [PERMISSIONS.MARKETPLACE_VIEW],
   "/marketplace/storefront": [PERMISSIONS.MARKETPLACE_VIEW],
+  "/marketplace/payouts":    [PERMISSIONS.MARKETPLACE_VIEW],
+  "/marketplace/reports":    [PERMISSIONS.REPORTS_SALES],
 };
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
 
 /**
  * Check if a role has a specific permission

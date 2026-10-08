@@ -17,7 +17,21 @@ import {
   searchShops,
   getShopProfile,
   getBranchMedicines,
+  fetchActiveShopTags,
 } from "./mobile.shops.service.js";
+
+// ── GET /mobile/shops/tags ───────────────────────────────────
+//
+// Returns all active shop tags for filter UI and tag picker.
+export async function handleGetActiveTags(req, res) {
+  try {
+    const tags = await fetchActiveShopTags();
+    return success(res, tags, "Shop tags fetched");
+  } catch (err) {
+    console.error("[mobile.shops] tags error:", err);
+    return fail(res, "Failed to fetch shop tags", 500);
+  }
+}
 
 // ── GET /mobile/shops/search ──────────────────────────────────
 //
@@ -93,7 +107,7 @@ export async function handleGetBranchMedicines(req, res) {
   const queryParsed = branchMedicinesQuerySchema.safeParse(req.query);
   if (!queryParsed.success) {
     const msg =
-      queryParsed.error.issues?.[0]?.message || "Invalid query parameters";
+      parsed.error.issues?.[0]?.message || "Invalid query parameters";
     return fail(res, msg, 400);
   }
 

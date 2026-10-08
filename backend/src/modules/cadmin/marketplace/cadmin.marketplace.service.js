@@ -129,7 +129,7 @@ export const getShopDetail = async (shop_id) => {
           banner_url: true,
           created_at: true,
           updated_at: true,
-          // ── Added Banking Fields ──
+          shop_tags: true,
           bank_account_holder: true,
           bank_name: true,
           bank_branch_name: true,
@@ -725,5 +725,41 @@ export const setMobileUserBlockStatus = async (
     }
 
     return updated;
+  });
+};
+
+
+// ─────────────────────────────────────────────
+// SHOP TAGS
+// ─────────────────────────────────────────────
+
+export const updateShopTags = async (shop_id, shop_tags) => {
+  const profile = await prisma.marketplaceProfile.findUnique({
+    where: { shop_id },
+    select: { marketplace_profile_id: true },
+  });
+
+  if (!profile) throw new Error("Marketplace profile not found for this shop");
+
+  // Validate slugs
+  const activeTags = await prisma.shopTag.findMany({
+    where: { is_active: true },
+    select: { slug: true },
+  });
+  const activeSlugs = new Set(activeTags.map((t) => t.slug));
+  const invalid = shop_tags.filter((s) => !activeSlugs.has(s));
+  if (invalid.length > 0) {
+    throw new Error(`Invalid or inactive tag slugs: ${invalid.join(", ")}`);
+  }
+
+  return prisma.marketplaceProfile.update({
+    where: { shop_id },
+    data: { shop_tags },
+    select: {
+      marketplace_profile_id: true,
+      shop_id: true,
+      shop_tags: true,
+      updated_at: true,
+    },
   });
 };

@@ -142,3 +142,51 @@ export async function getListingHealth(req, res) {
     return fail(res, error.message, error.statusCode || 500);
   }
 }
+
+// F6 — Revenue Leakage (NEW)
+export async function getRevenueLeakage(req, res) {
+  try {
+    const shopId = req.user.shop_id;
+    const role = req.user.role;
+    const { branchId, branchMode } = extractBranchContext(req);
+
+    const filters = {
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      branchId: req.query.branchId,
+    };
+
+    const data = await marketplaceReportService.getRevenueLeakage(
+      shopId, branchId, role, branchMode, filters
+    );
+
+    return success(res, data, "Revenue leakage report retrieved");
+  } catch (error) {
+    console.error("getRevenueLeakage ERROR:", error);
+    return fail(res, error.message, error.statusCode || 500);
+  }
+}
+
+// F7 — Fulfillment Speed (NEW)
+export async function getFulfillmentSpeed(req, res) {
+  try {
+    const shopId = req.user.shop_id;
+    const role = req.user.role;
+    const { branchId, branchMode } = extractBranchContext(req);
+
+    const filters = {
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      branchId: req.query.branchId,
+    };
+
+    const data = await marketplaceReportService.getFulfillmentSpeed(
+      shopId, branchId, role, branchMode, filters
+    );
+
+    return success(res, data, "Fulfillment speed report retrieved");
+  } catch (error) {
+    console.error("getFulfillmentSpeed ERROR:", error);
+    return fail(res, error.message, error.statusCode || 500);
+  }
+}

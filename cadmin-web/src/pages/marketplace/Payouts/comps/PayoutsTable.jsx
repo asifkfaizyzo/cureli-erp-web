@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Eye, AlertTriangle, Play, CheckCircle, X } from "lucide-react";
+import { RefreshCw, Eye, AlertTriangle, Play, CheckCircle, X, HelpCircle } from "lucide-react";
 import Pagination from "../../../../components/common/Pagination";
 import TableSkeleton from "../../../../components/common/TableSkeleton";
 import TableEmptyState from "../../../../components/common/TableEmptyState";
@@ -25,11 +25,21 @@ const STATUS_LABELS = {
   null: "Not Created",
 };
 
+const BULK_ELIGIBLE = new Set(["DRAFT", "PENDING", "FAILED"]);
+
+const fmt = (n) => `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const PayoutsTable = ({
-  currentPage, setCurrentPage, rowsPerPage,
-  shops, loading, totalItems,
-  weekInfo, selectedWeek,
-  onOpenDetail, onRefresh,
+  currentPage,
+  setCurrentPage,
+  rowsPerPage,
+  shops,
+  loading,
+  totalItems,
+  weekInfo,
+  selectedWeek,
+  onOpenDetail,
+  onRefresh,
 }) => {
   const toast = useToast();
   const [refreshingIds, setRefreshingIds] = useState(new Set());
@@ -38,7 +48,7 @@ const PayoutsTable = ({
 
   const totalPages = Math.ceil(totalItems / rowsPerPage);
 
-  const eligiblePayouts = shops.filter((s) => Boolean(s.payout_id));
+  const eligiblePayouts = shops.filter((s) => s.payout_id && BULK_ELIGIBLE.has(s.status));
   const allEligibleSelected =
     eligiblePayouts.length > 0 &&
     eligiblePayouts.every((s) => selectedIds.has(s.payout_id));
@@ -93,12 +103,13 @@ const PayoutsTable = ({
                 <th className="text-right px-4 py-3 font-semibold text-gray-600">Gross</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600">Commission</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600">Net</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600">Cureli Margin</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              <TableSkeleton rows={rowsPerPage} columns={Array(6).fill({ key: "col", width: "auto" })} />
+              <TableSkeleton rows={rowsPerPage} columns={Array(7).fill({ key: "col", width: "auto" })} />
             </tbody>
           </table>
         </div>
@@ -127,7 +138,8 @@ const PayoutsTable = ({
               <th className="text-right px-4 py-3 font-semibold text-gray-600">Orders</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-600">Gross</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-600">Commission</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">Net</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Pharmacy Net</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Cureli Margin</th>
               <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
               <th className="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
             </tr>
@@ -138,6 +150,7 @@ const PayoutsTable = ({
               const statusKey = shop.status || "null";
               const isCurrentWeek = weekInfo?.is_current_week;
               const hasNoPayout = !shop.payout_id;
+              const canSelect = Boolean(shop.payout_id && BULK_ELIGIBLE.has(shop.status));
               const isSelected = Boolean(shop.payout_id && selectedIds.has(shop.payout_id));
 
               return (
@@ -146,7 +159,7 @@ const PayoutsTable = ({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      disabled={hasNoPayout}
+                      disabled={!canSelect}
                       onChange={() => toggleSelectRow(shop.payout_id)}
                       className="rounded border-gray-300 text-[#05015A] focus:ring-[#05015A] disabled:opacity-30"
                     />
@@ -161,19 +174,25 @@ const PayoutsTable = ({
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700">{shop.total_orders}</td>
                   <td className="px-4 py-3 text-right font-medium text-gray-900">
-                    {hasNoPayout ? <span className="text-gray-300">—</span> : `₹${shop.gross_amount.toLocaleString("en-IN")}`}
+                    {hasNoPayout ? <span className="text-gray-300">—</span> : fmt(shop.gross_amount)}
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-amber-700">
-                    {hasNoPayout ? <span className="text-gray-300">—</span> : `₹${shop.commission_amount.toLocaleString("en-IN")}`}
+                    {hasNoPayout ? <span className="text-gray-300">—</span> : fmt(shop.commission_amount)}
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-green-700">
-                    {hasNoPayout ? <span className="text-gray-300">—</span> : `₹${shop.net_amount.toLocaleString("en-IN")}`}
+                    {hasNoPayout ? <span className="text-gray-300">—</span> : fmt(shop.net_amount)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-indigo-700">
+                    {hasNoPayout ? <span className="text-gray-300">—</span> : fmt(shop.cureli_margin)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${STATUS_STYLES[statusKey]}`}>
                       {isCurrentWeek && statusKey === "DRAFT" ? "In Progress" : STATUS_LABELS[statusKey]}
                     </span>
-                    {!shop.bank_details_complete && (
+                    {hasNoPayout && (
+                      <HelpCircle size={12} className="inline ml-1 text-gray-400" title="No payout calculated yet. Click recalculate to generate." />
+                    )}
+                    {!hasNoPayout && !shop.bank_details_complete && (
                       <AlertTriangle size={12} className="inline ml-1 text-amber-500" title="Bank details incomplete" />
                     )}
                   </td>
@@ -245,7 +264,10 @@ const PayoutsTable = ({
           actionType={bulkModal.actionType}
           selectedPayouts={selectedShops}
           onClose={() => setBulkModal({ open: false, actionType: null })}
-          onSuccess={() => { setSelectedIds(new Set()); onRefresh(); }}
+          onSuccess={() => {
+            setSelectedIds(new Set());
+            onRefresh();
+          }}
         />
       )}
     </div>

@@ -11,6 +11,7 @@ model MarketplaceProfile {
   support_phone          String?           @db.VarChar(20)
   logo_url               String?           @db.VarChar(500)
   banner_url             String?           @db.VarChar(500)
+  shop_tags            String[]          @default([])
 
   // ── ADDED BANKING FIELDS ─────────────────────────────────
   bank_account_holder   String?           @db.VarChar(200)

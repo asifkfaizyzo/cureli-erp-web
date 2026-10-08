@@ -111,3 +111,9 @@ export const deleteHoliday = (holidayId) =>
 // ─────────────────────────────────────────────
 export const getMyCommissionRate = () =>
   API.get("/marketplace/commission/my-rate");
+
+// ─────────────────────────────────────────────
+// SHOP TAGS
+// ─────────────────────────────────────────────
+export const fetchActiveShopTags = () =>
+  API.get("/marketplace/shop-tags");

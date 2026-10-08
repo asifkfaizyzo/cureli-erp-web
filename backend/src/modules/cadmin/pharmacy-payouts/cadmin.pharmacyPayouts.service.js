@@ -1,4 +1,3 @@
-// backend/src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.service.js
 import prisma from "../../../config/prisma.js";
 import { getEffectiveRateForShop } from "../commission/cadmin.commission.service.js";
 
@@ -56,10 +55,6 @@ function captureBankSnapshot(profile) {
   };
 }
 
-/**
- * Compute commission for a single order.
- * Uses snapshot if available; falls back to provided legacy rate.
- */
 function computeOrderCommission(order, legacyRatePercent) {
   const subtotal = Number(order.subtotal);
 
@@ -105,16 +100,32 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
       order_number: true,
       branch_id: true,
       subtotal: true,
+      total_amount: true,
+      service_charge: true,
+      delivery_fee: true,
+      km_surcharge: true,
+      tip: true,
+      coupon_discount_amount: true,
+      loyalty_discount_amount: true,
       completed_at: true,
       payment_status: true,
       commission_rate_snapshot: true,
       commission_amount_snapshot: true,
       branch: { select: { branch_name: true } },
+      delivery: {
+        select: {
+          total_rider_earning: true,
+          tip_amount: true,
+          pickup_fee: true,
+          drop_fee: true,
+          surge_fee: true,
+          floor_topup_fee: true,
+        },
+      },
     },
     orderBy: { completed_at: "asc" },
   });
 
-  // Resolve current effective rate for legacy orders (no snapshot)
   let legacyRate = 0;
   try {
     const effectiveRate = await getEffectiveRateForShop(shopId);
@@ -122,17 +133,49 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
       legacyRate = Number(effectiveRate.flat_percent || 0);
     }
   } catch {
-    // If commission resolution fails, default to 0
+    // default to 0
   }
 
   const orderBreakdowns = orders.map((order) => {
     const calc = computeOrderCommission(order, legacyRate);
+
+    const customerTotal = Number(order.total_amount);
+    const serviceCharge = Number(order.service_charge);
+    const deliveryFee = Number(order.delivery_fee);
+    const kmSurcharge = Number(order.km_surcharge);
+    const tip = Number(order.tip);
+    const couponDiscount = Number(order.coupon_discount_amount || 0);
+    const loyaltyDiscount = Number(order.loyalty_discount_amount || 0);
+    const discountsAbsorbed = round2(couponDiscount + loyaltyDiscount);
+
+    const riderPayout = Number(order.delivery?.total_rider_earning || 0);
+
+    const cureliRevenue = round2(calc.commission + serviceCharge + deliveryFee + kmSurcharge);
+    const cureliCosts = round2(riderPayout + discountsAbsorbed);
+    const cureliMargin = round2(cureliRevenue - cureliCosts);
+
     return {
       order_id: order.order_id,
       order_number: order.order_number,
       branch_id: order.branch_id,
       branch_name: order.branch?.branch_name || "Unknown",
       ...calc,
+      customer_total: customerTotal,
+      service_charge: serviceCharge,
+      delivery_fee: deliveryFee,
+      km_surcharge: kmSurcharge,
+      tip,
+      coupon_discount: couponDiscount,
+      loyalty_discount: loyaltyDiscount,
+      discounts_absorbed: discountsAbsorbed,
+      rider_payout: riderPayout,
+      rider_pickup_fee: Number(order.delivery?.pickup_fee || 0),
+      rider_drop_fee: Number(order.delivery?.drop_fee || 0),
+      rider_surge_fee: Number(order.delivery?.surge_fee || 0),
+      rider_floor_topup: Number(order.delivery?.floor_topup_fee || 0),
+      cureli_revenue: cureliRevenue,
+      cureli_costs: cureliCosts,
+      cureli_margin: cureliMargin,
       completed_at: order.completed_at,
     };
   });
@@ -148,6 +191,10 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
         subtotal: 0,
         commission: 0,
         net: 0,
+        customer_total: 0,
+        rider_payout: 0,
+        discounts_absorbed: 0,
+        cureli_margin: 0,
       });
     }
     const b = branchMap.get(ob.branch_id);
@@ -155,6 +202,10 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
     b.subtotal = round2(b.subtotal + ob.subtotal);
     b.commission = round2(b.commission + ob.commission);
     b.net = round2(b.net + ob.earning);
+    b.customer_total = round2(b.customer_total + ob.customer_total);
+    b.rider_payout = round2(b.rider_payout + ob.rider_payout);
+    b.discounts_absorbed = round2(b.discounts_absorbed + ob.discounts_absorbed);
+    b.cureli_margin = round2(b.cureli_margin + ob.cureli_margin);
   }
 
   // Aggregate by day
@@ -162,6 +213,7 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
     orders: 0,
     subtotal: 0,
     commission: 0,
+    cureli_margin: 0,
   }));
 
   for (const ob of orderBreakdowns) {
@@ -172,6 +224,7 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
     bucket.orders += 1;
     bucket.subtotal = round2(bucket.subtotal + ob.subtotal);
     bucket.commission = round2(bucket.commission + ob.commission);
+    bucket.cureli_margin = round2(bucket.cureli_margin + ob.cureli_margin);
   }
 
   const daily = dayBuckets.map((bucket, i) => ({
@@ -180,11 +233,23 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
     orders: bucket.orders,
     subtotal: bucket.subtotal,
     commission: bucket.commission,
+    cureli_margin: bucket.cureli_margin,
   }));
 
   const grossTotal = round2(orderBreakdowns.reduce((s, o) => s + o.subtotal, 0));
   const commissionTotal = round2(orderBreakdowns.reduce((s, o) => s + o.commission, 0));
   const netTotal = round2(grossTotal - commissionTotal);
+
+  const totalCustomerBilled = round2(orderBreakdowns.reduce((s, o) => s + o.customer_total, 0));
+  const totalServiceCharges = round2(orderBreakdowns.reduce((s, o) => s + o.service_charge, 0));
+  const totalDeliveryFees = round2(orderBreakdowns.reduce((s, o) => s + o.delivery_fee, 0));
+  const totalKmSurcharges = round2(orderBreakdowns.reduce((s, o) => s + o.km_surcharge, 0));
+  const totalTipsCollected = round2(orderBreakdowns.reduce((s, o) => s + o.tip, 0));
+  const totalRiderPayouts = round2(orderBreakdowns.reduce((s, o) => s + o.rider_payout, 0));
+  const totalDiscountsAbsorbed = round2(orderBreakdowns.reduce((s, o) => s + o.discounts_absorbed, 0));
+  const totalCureliRevenue = round2(orderBreakdowns.reduce((s, o) => s + o.cureli_revenue, 0));
+  const totalCureliCosts = round2(orderBreakdowns.reduce((s, o) => s + o.cureli_costs, 0));
+  const totalCureliMargin = round2(orderBreakdowns.reduce((s, o) => s + o.cureli_margin, 0));
 
   return {
     total_orders: orders.length,
@@ -194,6 +259,19 @@ export async function calculateEarningsBreakdown(shopId, weekStartStr) {
     branches: Array.from(branchMap.values()),
     daily,
     orders: orderBreakdowns,
+    cureli_summary: {
+      total_customer_billed: totalCustomerBilled,
+      total_service_charges: totalServiceCharges,
+      total_delivery_fees: totalDeliveryFees,
+      total_km_surcharges: totalKmSurcharges,
+      total_tips_collected: totalTipsCollected,
+      total_rider_payouts: totalRiderPayouts,
+      total_discounts_absorbed: totalDiscountsAbsorbed,
+      total_commission: commissionTotal,
+      total_cureli_revenue: totalCureliRevenue,
+      total_cureli_costs: totalCureliCosts,
+      total_cureli_margin: totalCureliMargin,
+    },
   };
 }
 
@@ -204,7 +282,6 @@ export async function getPharmacyPayoutsList(weekStartStr, filters = {}) {
   const weekStartDate = getMondayDate(weekStartStr);
   const { status, search, page = 1, limit = 25 } = filters;
 
-  // Find all shops with eligible orders this week
   const orderAggs = await prisma.marketplaceOrder.groupBy({
     by: ["shop_id"],
     where: {
@@ -221,13 +298,11 @@ export async function getPharmacyPayoutsList(weekStartStr, filters = {}) {
     return buildEmptyList(weekStartStr, weekEndDate, page, limit);
   }
 
-  // Fetch existing payouts
   const payouts = await prisma.pharmacyPayout.findMany({
     where: { week_start: weekStartDate, shop_id: { in: shopIds } },
   });
   const payoutMap = new Map(payouts.map((p) => [p.shop_id, p]));
 
-  // Fetch shop details
   const shopWhere = { shop_id: { in: shopIds } };
   if (search) {
     shopWhere.OR = [
@@ -262,6 +337,9 @@ export async function getPharmacyPayoutsList(weekStartStr, filters = {}) {
 
     const payout = payoutMap.get(shop.shop_id);
     const grossFromOrders = Number(agg._sum.subtotal || 0);
+    const cureliMargin = Number(
+      payout?.breakdown_snapshot?.cureli_summary?.total_cureli_margin || 0
+    );
 
     results.push({
       shop_id: shop.shop_id,
@@ -273,6 +351,7 @@ export async function getPharmacyPayoutsList(weekStartStr, filters = {}) {
       gross_amount: payout ? Number(payout.gross_amount) : grossFromOrders,
       commission_amount: payout ? Number(payout.commission_amount) : 0,
       net_amount: payout ? Number(payout.net_amount) : grossFromOrders,
+      cureli_margin: cureliMargin,
       total_orders: payout?.breakdown_snapshot?.total_orders ?? agg._count.order_id,
       is_finalized: payout?.is_finalized || false,
       last_refreshed_at: payout?.last_refreshed_at?.toISOString() || null,
@@ -310,6 +389,7 @@ export async function getPharmacyPayoutsList(weekStartStr, filters = {}) {
       total_gross: round2(filtered.reduce((s, r) => s + r.gross_amount, 0)),
       total_commission: round2(filtered.reduce((s, r) => s + r.commission_amount, 0)),
       total_net: round2(filtered.reduce((s, r) => s + r.net_amount, 0)),
+      total_cureli_margin: round2(filtered.reduce((s, r) => s + r.cureli_margin, 0)),
       pending_count: filtered.filter((r) => r.status === "PENDING").length,
       processing_count: filtered.filter((r) => r.status === "PROCESSING").length,
       completed_count: filtered.filter((r) => r.status === "COMPLETED").length,
@@ -330,6 +410,7 @@ function buildEmptyList(weekStartStr, weekEndDate, page, limit) {
       total_gross: 0,
       total_commission: 0,
       total_net: 0,
+      total_cureli_margin: 0,
       pending_count: 0,
       processing_count: 0,
       completed_count: 0,
@@ -437,6 +518,15 @@ export async function getPharmacyPayoutDetail(shopId, weekStartStr) {
           commission_rate_percent: Number(o.commission_rate_percent),
           commission_amount: Number(o.commission_amount),
           pharmacy_earning: Number(o.pharmacy_earning),
+          customer_total_amount: Number(o.customer_total_amount || 0),
+          service_charge: Number(o.service_charge || 0),
+          delivery_fee: Number(o.delivery_fee || 0),
+          km_surcharge: Number(o.km_surcharge || 0),
+          tip: Number(o.tip || 0),
+          coupon_discount_amount: Number(o.coupon_discount_amount || 0),
+          loyalty_discount_amount: Number(o.loyalty_discount_amount || 0),
+          rider_payout: Number(o.rider_payout || 0),
+          cureli_margin: Number(o.cureli_margin || 0),
           completed_at: o.completed_at?.toISOString() || null,
         }))
       : [],
@@ -599,7 +689,6 @@ export async function finalizePharmacyPayoutWeek(weekStartStr) {
           )
         : 0;
 
-      // Check for negative rollover from previous week
       const prevMonday = new Date(weekStartDate);
       prevMonday.setDate(prevMonday.getDate() - 7);
       const prevPayout = await prisma.pharmacyPayout.findUnique({
@@ -650,12 +739,10 @@ export async function finalizePharmacyPayoutWeek(weekStartStr) {
           },
         });
 
-        // Delete old line items (in case of re-finalization)
         await tx.pharmacyPayoutOrder.deleteMany({
           where: { payout_id: draft.payout_id },
         });
 
-        // Create per-order line items
         if (breakdown.orders && breakdown.orders.length > 0) {
           await tx.pharmacyPayoutOrder.createMany({
             data: breakdown.orders.map((o) => ({
@@ -667,6 +754,15 @@ export async function finalizePharmacyPayoutWeek(weekStartStr) {
               commission_rate_percent: o.rate,
               commission_amount: o.commission,
               pharmacy_earning: o.earning,
+              customer_total_amount: o.customer_total,
+              service_charge: o.service_charge,
+              delivery_fee: o.delivery_fee,
+              km_surcharge: o.km_surcharge,
+              tip: o.tip,
+              coupon_discount_amount: o.coupon_discount,
+              loyalty_discount_amount: o.loyalty_discount,
+              rider_payout: o.rider_payout,
+              cureli_margin: o.cureli_margin,
               payment_status_at_calculation: "PAID",
               completed_at: o.completed_at,
             })),
@@ -1005,13 +1101,15 @@ export async function exportPharmacyPayoutsCSV(weekStartStr, filters = {}) {
       manual_reference: true,
       manual_bank_used: true,
       manual_payment_date: true,
+      breakdown_snapshot: true,
     },
   });
   const payoutDetailsMap = new Map(payouts.map((p) => [p.shop_id, p]));
 
   const headers = [
     "Shop ID", "Shop Name", "City", "Status", "Orders",
-    "Gross (INR)", "Commission (INR)", "Net (INR)",
+    "Gross (INR)", "Commission (INR)", "Net to Pharmacy (INR)",
+    "Cureli Margin (INR)",
     "Account Holder", "Account Number", "IFSC", "Bank",
     "UTR / Reference", "Bank Used", "Payment Date",
   ];
@@ -1031,6 +1129,7 @@ export async function exportPharmacyPayoutsCSV(weekStartStr, filters = {}) {
       esc(row.shop_id), esc(row.business_name), esc(row.city),
       esc(row.status || "NOT_CALCULATED"), esc(row.total_orders),
       esc(row.gross_amount), esc(row.commission_amount), esc(row.net_amount),
+      esc(row.cureli_margin),
       esc(bank.bank_account_holder || "—"), esc(bank.bank_account_number || "—"),
       esc(bank.bank_ifsc || "—"), esc(bank.bank_name || "—"),
       esc(details.manual_reference || "—"), esc(details.manual_bank_used || "—"),

@@ -68,3 +68,26 @@ export const searchPlaces = (query) =>
 
 export const getPlaceDetails = (place_id) =>
   CAdminAPI.get("/marketplace/places/details", { params: { place_id } });
+
+
+// ─────────────────────────────────────────────
+// SHOP TAGS (Admin Config)
+// ─────────────────────────────────────────────
+export const listShopTags = () =>
+  CAdminAPI.get("/marketplace/shop-tags");
+
+export const createShopTag = (data) =>
+  CAdminAPI.post("/marketplace/shop-tags", data);
+
+export const updateShopTag = (tagId, data) =>
+  CAdminAPI.put(`/marketplace/shop-tags/${tagId}`, data);
+
+export const deleteShopTag = (tagId) =>
+  CAdminAPI.delete(`/marketplace/shop-tags/${tagId}`);
+
+export const reorderShopTags = (orderedIds) =>
+  CAdminAPI.patch("/marketplace/shop-tags/reorder", { ordered_ids: orderedIds });
+
+// ── Shop Tags (per-shop) ──────────────────────────────────────
+export const updateShopTags = (shopId, shopTags) =>
+  CAdminAPI.patch(`/marketplace/shops/${shopId}/tags`, { shop_tags: shopTags });
