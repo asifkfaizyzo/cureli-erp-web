@@ -11,6 +11,7 @@ import {
   computePricing,
   normaliseConfig,
 } from "../mobile/checkout/pricing.engine.js";
+import { RiderPush } from "../rider/push/rider.push.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -567,19 +568,44 @@ export async function transitionOrderStatus({
   });
 
   // ── Post-commit: Notify rider about critical transitions ──────────────────
+    // ── Post-commit: Notify rider about critical transitions ──────────────────
   const delivery = await prisma.delivery.findUnique({
     where: { order_id },
-    select: { delivery_id: true, rider_id: true },
+    select: {
+      delivery_id: true,
+      rider_id: true,
+      order: {
+        select: {
+          shop: { select: { business_name: true } },
+        },
+      },
+    },
   });
 
   if (delivery?.rider_id) {
     const { sseService } = await import("../../services/sse.service.js");
 
     if (target_status === "READY_FOR_PICKUP") {
+      // SSE: instant foreground notification
       sseService.notifyRider(delivery.rider_id, "order_ready_for_pickup", {
         delivery_id: delivery.delivery_id,
         order_id,
         order_number: order.order_number,
+      });
+
+      // Push: background/lockscreen notification (failsafe)
+      const shopName =
+        delivery.order?.shop?.business_name || "Pharmacy";
+      RiderPush.orderReadyForPickup(
+        delivery.rider_id,
+        delivery.delivery_id,
+        order.order_number,
+        shopName,
+      ).catch((err) => {
+        console.error(
+          `[OrderTransition] Push (READY_FOR_PICKUP) failed for rider ${delivery.rider_id}:`,
+          err.message,
+        );
       });
     }
 
@@ -593,6 +619,19 @@ export async function transitionOrderStatus({
         order_id,
         order_number: order.order_number,
         reason: `Order cancelled by ${actor_type}`,
+      });
+
+      // Push: dismiss sticky notification + send cancellation alert
+      RiderPush.deliveryCancelled(
+        delivery.rider_id,
+        delivery.delivery_id,
+        order.order_number,
+        `Order ${target_status.toLowerCase()} by ${actor_type}`,
+      ).catch((err) => {
+        console.error(
+          `[OrderTransition] Push (CANCELLED/REJECTED) failed for rider ${delivery.rider_id}:`,
+          err.message,
+        );
       });
     }
   }

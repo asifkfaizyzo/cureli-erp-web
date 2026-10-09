@@ -144,7 +144,7 @@ function buildExpoMessage(token, {
   data = {},
   sound = "default",
   channelId = null,
-  priority = "high",
+  priority = "max",    
   sticky = false,
 }) {
   const resolvedChannelId = channelId || CATEGORY_CHANNEL_MAP[category] || "cureli-rider-online-service";
@@ -404,7 +404,7 @@ export const RiderPush = {
       },
       sound: "incoming_order.mp3",
       channelId: "incoming_delivery",
-      priority: "high",
+      priority: "max",
       sticky: true,
     });
   },
@@ -442,7 +442,7 @@ export const RiderPush = {
         screen: "active_delivery",
         delivery_id: deliveryId,
       },
-      priority: "high",
+      priority: "max",
       sticky: false,
     }),
 

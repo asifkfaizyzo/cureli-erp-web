@@ -25,7 +25,7 @@ import { unregisterActiveDelivery } from "../modules/rider/presence/rider.presen
 import cronLogger from "../utils/cronLogger.js";
 
 const LOG_PREFIX = "[Cron:AssignmentTimeout]";
-const TIMEOUT_SECONDS = 90;
+const TIMEOUT_SECONDS = 120;
 
 /**
  * Finds deliveries stuck in RIDER_NOTIFIED for longer than 90 seconds.
@@ -98,7 +98,7 @@ export async function riderAssignmentTimeoutWorker() {
           delivery_id: assignment.delivery_id,
           order_id: assignment.order_id,
           order_number: assignment.order?.order_number,
-          reason: "Auto-declined: no response within 90 seconds",
+          reason: `Auto-declined: no response within ${TIMEOUT_SECONDS} seconds`,
         });
 
         // ── 4. Push: Dismiss sticky notification on old rider's device ───
