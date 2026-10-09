@@ -398,7 +398,7 @@ export async function placeOrder({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRANSITION ORDER STATUS — Single domain function for ALL transitions
+// TRANSITION ORDER STATUS — Unified state transition handler
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -1372,9 +1372,16 @@ function formatErpOrderDetail(order) {
     commission_rate: commissionRate,
     commission_amount: commissionAmount,
     pharmacy_earning: pharmacyEarning,
+    // ── Platform fees ───────────────────────────────────────────
+    // ERP sees actual charges only. No slash anchors exposed.
+    // delivery_fee merged with km_surcharge for consistency.
     service_charge: Number(order.service_charge ?? 0),
-    delivery_fee: Number(order.delivery_fee ?? 0),
-    km_surcharge: Number(order.km_surcharge ?? 0),
+    delivery_fee: parseFloat(
+      (
+        Number(order.delivery_fee ?? 0) + Number(order.km_surcharge ?? 0)
+      ).toFixed(2),
+    ),
+    km_surcharge: 0,
     tip: Number(order.tip ?? 0),
     requires_prescription: order.requires_prescription,
     payment_method: order.payment_method,
@@ -1560,11 +1567,32 @@ function formatMobileOrderDetail(order) {
     subtotal: Number(order.subtotal),
     payment_method: order.payment_method,
     payment_status: order.payment_status,
+
+    // ── Platform fees (post-slash actuals) ──────────────────────
+    // delivery_fee is the combined charge (delivery + distance).
+    // For legacy orders (pre-slash), km_surcharge may be > 0,
+    // so we merge them for consistent customer display.
     service_charge: Number(order.service_charge ?? 0),
-    delivery_fee: Number(order.delivery_fee ?? 0),
-    km_surcharge: Number(order.km_surcharge ?? 0),
+    delivery_fee: parseFloat(
+      (
+        Number(order.delivery_fee ?? 0) + Number(order.km_surcharge ?? 0)
+      ).toFixed(2),
+    ),
+    km_surcharge: 0,
     tip: Number(order.tip ?? 0),
-    grand_total: Number(order.grand_total ?? order.total_amount),
+    grand_total: Number(order.total_amount),
+
+    // ── Slash Display Anchors (null = no slash on this order) ──
+    service_charge_anchor:
+      order.service_charge_anchor != null
+        ? Number(order.service_charge_anchor)
+        : null,
+    delivery_charge_anchor:
+      order.delivery_charge_anchor != null
+        ? Number(order.delivery_charge_anchor)
+        : null,
+    platform_savings:
+      order.platform_savings != null ? Number(order.platform_savings) : 0,
 
     // ── Coupon & Loyalty breakdown for expanded tracking sheet ──
     coupon_code: order.coupon_code ?? null,
@@ -1615,6 +1643,7 @@ function formatMobileOrderDetail(order) {
     })),
   };
 }
+
 function formatOrderItem(item) {
   return {
     item_id: item.item_id,

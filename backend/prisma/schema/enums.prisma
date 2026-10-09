@@ -481,3 +481,9 @@ enum PricingConfigStatus {
   ACTIVE
   ARCHIVED
 }
+
+enum SlashMode {
+  NONE
+  NEW
+  OLD
+}

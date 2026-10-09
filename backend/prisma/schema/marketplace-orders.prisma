@@ -27,6 +27,12 @@ model MarketplaceOrder {
   service_charge            Decimal                         @default(0) @db.Decimal(10, 2)
   delivery_fee              Decimal                         @default(0) @db.Decimal(10, 2)
   km_surcharge              Decimal                         @default(0) @db.Decimal(10, 2)
+
+  // ── Slash Display Snapshots (immutable after creation) ──────
+  service_charge_anchor     Decimal?                        @db.Decimal(10, 2)
+  delivery_charge_anchor    Decimal?                        @db.Decimal(10, 2)
+  platform_savings          Decimal?                        @db.Decimal(10, 2)
+
   tip                       Decimal                         @default(0) @db.Decimal(10, 2)
   distance_km               Decimal                         @default(0) @db.Decimal(10, 2)
   razorpay_order_id         String?                         @db.VarChar(100)
