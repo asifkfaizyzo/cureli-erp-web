@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/marketplace/cadmin.marketplace.routes.js (do not remove this comment)
-// backend/src/modules/cadmin/marketplace/cadmin.marketplace.routes.js
 
 import express from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";
@@ -20,7 +19,15 @@ import {
   getShopHolidays,
   createShopHoliday,
   deleteShopHoliday,
+  updateShopTags,    
 } from "./cadmin.marketplace.controller.js";
+import {
+  listTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  reorderTags,
+} from "./cadmin.shopTags.controller.js";
 
 const router = express.Router();
 
@@ -38,6 +45,15 @@ router.get("/marketplace/places/details", getPlaceDetails);
 router.post("/marketplace/upload/:type", uploadAsset);
 
 // ─────────────────────────────────────────────
+// SHOP TAGS (Admin Config)
+// ─────────────────────────────────────────────
+router.get("/marketplace/shop-tags", listTags);
+router.post("/marketplace/shop-tags", createTag);
+router.put("/marketplace/shop-tags/:tag_id", updateTag);
+router.delete("/marketplace/shop-tags/:tag_id", deleteTag);
+router.patch("/marketplace/shop-tags/reorder", reorderTags);
+
+// ─────────────────────────────────────────────
 // SHOPS
 // ─────────────────────────────────────────────
 router.get("/marketplace/shops", listShops);
@@ -47,6 +63,7 @@ router.get("/marketplace/shops/:shop_id", getShop);
 router.patch("/marketplace/shops/:shop_id/visibility", toggleShopVisibility);
 
 router.patch("/marketplace/shops/:shop_id/storefront", updateStorefront);
+router.patch("/marketplace/shops/:shop_id/tags", updateShopTags);
 
 // ── Holidays ──
 router.get("/marketplace/shops/:shop_id/holidays", getShopHolidays);

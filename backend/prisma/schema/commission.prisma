@@ -1,0 +1,68 @@
+// backend/prisma/schema/commission.prisma
+// Commission — Rules, overrides, global suspension
+
+enum CommissionType {
+  FLAT_PERCENT
+  FLAT_AMOUNT
+  HYBRID
+  CAPPED_PERCENT
+}
+
+enum SettlementFrequency {
+  PER_ORDER
+  WEEKLY
+}
+
+model CommissionRule {
+  rule_id              String              @id @default(uuid()) @db.Uuid
+  name                 String              @db.VarChar(120)
+  description          String?             @db.VarChar(500)
+
+  commission_type      CommissionType      @default(FLAT_PERCENT)
+
+  // ── Rate fields (only the ones matching commission_type are used) ──
+  flat_percent         Decimal?            @db.Decimal(5, 2)
+  flat_amount          Decimal?            @db.Decimal(10, 2)
+  hybrid_percent       Decimal?            @db.Decimal(5, 2)
+  hybrid_flat_amount   Decimal?            @db.Decimal(10, 2)
+  capped_percent       Decimal?            @db.Decimal(5, 2)
+  capped_max_amount    Decimal?            @db.Decimal(10, 2)
+
+  commission_base      String              @default("SUBTOTAL") @db.VarChar(30)
+  settlement_frequency SettlementFrequency @default(PER_ORDER)
+
+  is_default           Boolean             @default(false)
+  is_active            Boolean             @default(true)
+
+  // ── Global Kill Switch (only meaningful on the default rule) ──
+  is_suspended         Boolean             @default(false)
+  suspended_until      DateTime?           @db.Timestamptz(6)
+
+  created_by           String?             @db.Uuid
+  updated_by           String?             @db.Uuid
+  created_at           DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime            @updatedAt @db.Timestamptz(6)
+
+  overrides            CommissionOverride[]
+
+  @@index([is_default])
+  @@index([is_active])
+  @@map("commission_rules")
+}
+
+model CommissionOverride {
+  override_id          String          @id @default(uuid()) @db.Uuid
+  shop_id              String          @unique @db.Uuid
+  rule_id              String          @db.Uuid
+
+  is_active            Boolean         @default(true)
+  created_by           String?         @db.Uuid
+  created_at           DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime        @updatedAt @db.Timestamptz(6)
+
+  shop                 Shop            @relation(fields: [shop_id], references: [shop_id], onDelete: Cascade)
+  rule                 CommissionRule  @relation(fields: [rule_id], references: [rule_id], onDelete: Restrict)
+
+  @@index([rule_id])
+  @@map("commission_overrides")
+}

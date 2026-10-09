@@ -296,3 +296,31 @@ export const getPlaceDetails = async (req, res) => {
     return fail(res, "Failed to get place details", 500);
   }
 };
+
+// ─────────────────────────────────────────────
+// SHOP TAGS
+// ─────────────────────────────────────────────
+
+export const updateShopTags = async (req, res) => {
+  try {
+    const { shop_id } = req.params;
+    const { shop_tags } = req.body;
+
+    if (!Array.isArray(shop_tags)) {
+      return fail(res, "shop_tags must be an array", 400);
+    }
+    if (shop_tags.length > 5) {
+      return fail(res, "Maximum 5 tags allowed", 400);
+    }
+
+    const data = await Service.updateShopTags(shop_id, shop_tags);
+    return success(res, data, "Shop tags updated");
+  } catch (err) {
+    console.error("[cadminMarketplace] updateShopTags:", err.message);
+    return fail(
+      res,
+      err.message,
+      err.message.includes("not found") ? 404 : 400
+    );
+  }
+};

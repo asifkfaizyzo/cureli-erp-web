@@ -9,7 +9,7 @@ import {
 } from "../presence/rider.presence.service.js";
 
 // ── Developer / Local Testing Configuration ──────────────────────────────────
-const BYPASS_GEOFENCE_IN_DEV = true;
+const BYPASS_GEOFENCE_IN_DEV = false;
 
 // ── Geofence helper ──────────────────────────────────────────────────────────
 const EARTH_RADIUS_KM = 6371;
@@ -35,6 +35,7 @@ export async function getActiveDelivery(rider_id) {
       status: { notIn: ["DELIVERED", "FAILED", "CANCELLED"] },
     },
     include: {
+      rider: { select: { rider_type: true } },  
       order: {
         include: {
           shop: { select: { business_name: true } },
@@ -84,6 +85,7 @@ export async function acceptDelivery(delivery_id, rider_id) {
     const alreadyAccepted = await prisma.delivery.findUnique({
       where: { delivery_id },
       include: {
+        rider: { select: { rider_type: true } },  
         order: {
           include: {
             shop: { select: { business_name: true } },
@@ -129,6 +131,7 @@ export async function acceptDelivery(delivery_id, rider_id) {
       where: { delivery_id },
       data: { status: "ACCEPTED", accepted_at: now },
       include: {
+        rider: { select: { rider_type: true } },  
         order: {
           include: {
             shop: { select: { business_name: true } },
@@ -414,6 +417,7 @@ export async function updateDeliveryStatus(
     where: { delivery_id },
     data: updateData,
     include: {
+            rider: { select: { rider_type: true } },  
       order: {
         include: {
           shop: { select: { business_name: true } },
@@ -595,6 +599,14 @@ function formatDeliveryForRider(delivery) {
       .join(", ") ||
     null;
 
+  // ── NEW: Earnings breakdown from Delivery row ──────────────────────
+  const pickupFee = delivery.pickup_fee ? Number(delivery.pickup_fee) : 0;
+  const dropFee = delivery.drop_fee ? Number(delivery.drop_fee) : 0;
+  const surgeFee = delivery.surge_fee ? Number(delivery.surge_fee) : 0;
+  const floorTopup = delivery.floor_topup_fee ? Number(delivery.floor_topup_fee) : 0;
+  const tipAmount = delivery.tip_amount ? Number(delivery.tip_amount) : 0;
+  const totalRiderEarning = delivery.total_rider_earning ? Number(delivery.total_rider_earning) : 0;
+
   return {
     delivery_id: delivery.delivery_id,
     order_id: delivery.order_id,
@@ -605,6 +617,16 @@ function formatDeliveryForRider(delivery) {
     payment_method: order?.payment_method || "COD",
     item_count: order?.items?.length || 0,
     items: order?.items || [],
+    rider_type: delivery.rider?.rider_type || null,  // ── NEW
+    earnings: {                                      // ── NEW
+      base_earning: Number((pickupFee + dropFee + floorTopup).toFixed(2)),
+      pickup_fee: pickupFee,
+      drop_fee: dropFee,
+      surge_fee: surgeFee,
+      floor_topup_fee: floorTopup,
+      tip_amount: tipAmount,
+      total_earning: Number((totalRiderEarning + tipAmount).toFixed(2)),
+    },
     pharmacy: {
       shop_name: order?.shop?.business_name,
       branch_name: order?.branch?.branch_name,

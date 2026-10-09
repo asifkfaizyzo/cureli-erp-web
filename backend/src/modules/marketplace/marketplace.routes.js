@@ -7,7 +7,8 @@ import { requireRole } from "../../middleware/rbac.js";
 import { validate } from "../../middleware/validate.js";
 import * as Controller from "./marketplace.controller.js";
 import * as HolidayController from './marketplace.holidays.controller.js';
-
+import { getEffectiveRateForShop } from "../cadmin/commission/cadmin.commission.service.js";
+import { success } from "../../utils/response.js";
 import {
   storefrontSchema,
   branchSelectionSchema,
@@ -23,11 +24,25 @@ router.use(requireAuth);
 router.get("/status", Controller.getStatus);
 router.get("/places/search", Controller.getPlacesSearch);
 router.get("/places/details", Controller.getPlaceDetails);
+router.get("/shop-tags", Controller.getShopTags);
 
 router.post(
   "/upload/:type",
   requireRole("super_admin"),
   Controller.postUpload
+);
+// ── COMMISSION RATE (Pharmacy-facing) ──────────────────
+router.get(
+  "/commission/my-rate",
+  requireRole("super_admin", "branch_admin"),
+  async (req, res) => {
+    try {
+      const rate = await getEffectiveRateForShop(req.user.shop_id);
+      return success(res, rate, "Commission rate fetched");
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
 );
 
 router.post(

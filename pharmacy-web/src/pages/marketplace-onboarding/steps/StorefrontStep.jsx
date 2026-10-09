@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useMarketplaceStore } from "../../../store/useMarketplaceStore";
 import { uploadMarketplaceAsset } from "../../../api/marketplace";
+import ShopTagPicker from "./ShopTagPicker";
 
 const resolveImageUrl = (url) => {
   if (!url) return null;
@@ -165,6 +166,27 @@ const LivePreview = ({ storefront }) => {
               <span className="text-gray-300">Description here</span>
             )}
           </p>
+
+          {/* Tags preview */}
+          {storefront.shop_tags && storefront.shop_tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {storefront.shop_tags.slice(0, 3).map((slug) => (
+                <span
+                  key={slug}
+                  className="text-[8px] font-semibold px-1.5 py-0.5 rounded-full
+                    bg-indigo-100 text-indigo-600"
+                >
+                  {slug}
+                </span>
+              ))}
+              {storefront.shop_tags.length > 3 && (
+                <span className="text-[8px] text-gray-400 px-1 py-0.5">
+                  +{storefront.shop_tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+
           {storefront.support_phone && (
             <div className="flex items-center gap-1 mt-1.5">
               <Phone size={8} className="text-gray-300" />
@@ -211,6 +233,8 @@ const StorefrontStep = ({ onNext, onBack }) => {
     else if (storefront.support_phone.trim().length < 10)
       e.support_phone = "Enter a valid phone number";
     if (!storefront.logo_url) e.logo_url = "Logo is required";
+    if (!storefront.shop_tags || storefront.shop_tags.length === 0)
+      e.shop_tags = "Select at least one pharmacy type tag";
     return e;
   };
 
@@ -315,6 +339,28 @@ const StorefrontStep = ({ onNext, onBack }) => {
                   {errors.storefront_description}
                 </p>
               )}
+            </div>
+
+            {/* Shop Tags — full width */}
+            <div className="lg:col-span-2">
+              <ShopTagPicker
+                selectedSlugs={storefront.shop_tags || []}
+                onAdd={(slug) => {
+                  updateStorefront({
+                    shop_tags: [...(storefront.shop_tags || []), slug],
+                  });
+                  if (errors.shop_tags)
+                    setErrors((p) => ({ ...p, shop_tags: null }));
+                }}
+                onRemove={(slug) => {
+                  updateStorefront({
+                    shop_tags: (storefront.shop_tags || []).filter(
+                      (s) => s !== slug,
+                    ),
+                  });
+                }}
+                error={errors.shop_tags}
+              />
             </div>
 
             {/* Phone — left column */}

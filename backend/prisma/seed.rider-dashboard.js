@@ -1,10 +1,10 @@
 // backend/prisma/seed.rider-dashboard.js (do not remove this comment)
-// Seeds rider dashboard test data:
+// Seeds rider dashboard + CAdmin rider payout module test data:
 //  - Keeps existing seed data intact
-//  - Wipes & recreates: rider-related data, surge rules, incentives, dummy orders
+//  - Wipes & recreates: rider-related data, surge rules, incentives, dummy orders, payouts
 //  - Creates 1 TEAM rider (new phone) alongside existing INDEPENDENT rider
 //  - Populates: deliveries (today, yesterday, this week, last week, this month),
-//    assignment logs, online sessions, surge rule, incentives, payouts
+//    assignment logs, online sessions, surge rule, incentives, payouts (across all statuses)
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
@@ -43,6 +43,8 @@ const TEAM_RIDER = {
   emergency_contact_phone: "9876543211",
 };
 
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 /* ════════════════════════════════════════════════════════
    TIME HELPERS
    ════════════════════════════════════════════════════════ */
@@ -74,6 +76,13 @@ function getWeekStartMonday6AM(date) {
   return d;
 }
 
+function getWeekStartDateUTC(date) {
+  const monday = getWeekStartMonday6AM(date);
+  return new Date(
+    Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate()),
+  );
+}
+
 function daysAgo(n, baseDate = NOW) {
   const d = new Date(baseDate);
   d.setDate(d.getDate() - n);
@@ -96,14 +105,18 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function round2(n) {
+  return Math.round(Number(n || 0) * 100) / 100;
+}
+
 /* ════════════════════════════════════════════════════════
    CLEANUP (rider dashboard scope only — no main data wipe)
    ════════════════════════════════════════════════════════ */
 
 async function cleanup() {
-  console.log("🧹 Cleaning rider dashboard data...");
+  console.log("🧹 Cleaning rider dashboard + payout data...");
 
-  // Ledger & payouts
+  // Ledger & payouts (payout first since ledger may reference it)
   await prisma.riderEarningLedger.deleteMany();
   await prisma.riderPayout.deleteMany();
 
@@ -441,7 +454,7 @@ async function getFKReferences() {
 
 let orderCounter = 1;
 // Convert timestamp to Base-36 (8 chars) to prevent VarChar(20) overflow
-const seedSessionId = Date.now().toString(36); 
+const seedSessionId = Date.now().toString(36);
 
 async function createDummyOrder(fk, placedAt) {
   const orderNumber = `D-${seedSessionId}-${orderCounter++}`;
@@ -569,6 +582,100 @@ async function createAssignmentLog(deliveryId, riderId, action, createdAt) {
 }
 
 /* ════════════════════════════════════════════════════════
+   PAYOUT BREAKDOWN BUILDERS
+   ════════════════════════════════════════════════════════ */
+
+function buildIndependentBreakdown({
+  deliveries,
+  baseFee,
+  surge,
+  floorTopup,
+  tips,
+  incentive,
+  deductions = [],
+  weekStartDate,
+}) {
+  const grossTotal = round2(baseFee + surge + floorTopup + tips + incentive);
+  const deductionTotal = deductions.reduce((s, d) => s + Number(d.amount || 0), 0);
+  const netTotal = round2(grossTotal - deductionTotal);
+
+  // Build daily array (7 days starting from Monday)
+  const daily = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStartDate);
+    d.setUTCDate(d.getUTCDate() + i);
+    const perDayDeliveries = Math.floor(deliveries / 7) + (i < deliveries % 7 ? 1 : 0);
+    const perDayBase = round2((baseFee / Math.max(deliveries, 1)) * perDayDeliveries);
+    const perDaySurge = round2((surge / Math.max(deliveries, 1)) * perDayDeliveries);
+    const perDayTips = round2((tips / Math.max(deliveries, 1)) * perDayDeliveries);
+
+    daily.push({
+      date: d.toISOString().split("T")[0],
+      day_name: DAY_NAMES[i],
+      deliveries: perDayDeliveries,
+      base: perDayBase,
+      surge: perDaySurge,
+      floor_topup: 0,
+      tips: perDayTips,
+      incentive: 0,
+      total: round2(perDayBase + perDaySurge + perDayTips),
+    });
+  }
+
+  return {
+    total_deliveries: deliveries,
+    base_fee: round2(baseFee),
+    surge_fee: round2(surge),
+    floor_topup_fee: round2(floorTopup),
+    tips: round2(tips),
+    incentive_earnings: round2(incentive),
+    gross_total: grossTotal,
+    deductions,
+    net_total: netTotal,
+    daily,
+  };
+}
+
+function buildTeamBreakdown({ amount, deductions = [], attendanceDaily = [] }) {
+  const deductionTotal = deductions.reduce((s, d) => s + Number(d.amount || 0), 0);
+  const netTotal = round2(amount - deductionTotal);
+
+  const totalHours = round2(attendanceDaily.reduce((s, d) => s + d.online_hours, 0));
+  const totalOrders = attendanceDaily.reduce((s, d) => s + d.orders, 0);
+  const daysActive = attendanceDaily.filter((d) => d.online_hours > 0).length;
+
+  return {
+    type: "TEAM_SALARY",
+    manual_amount: round2(amount),
+    deductions,
+    net_total: netTotal,
+    attendance: {
+      days_active: daysActive,
+      total_hours: totalHours,
+      total_orders: totalOrders,
+      daily: attendanceDaily,
+    },
+  };
+}
+
+function buildAttendanceDaily(weekStartDate) {
+  const daily = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStartDate);
+    d.setUTCDate(d.getUTCDate() + i);
+    const hours = i < 5 ? round2(7 + Math.random() * 2) : 0; // 5 working days
+    const orders = i < 5 ? randBetween(3, 8) : 0;
+    daily.push({
+      date: d.toISOString().split("T")[0],
+      day_name: DAY_NAMES[i],
+      online_hours: hours,
+      orders,
+    });
+  }
+  return daily;
+}
+
+/* ════════════════════════════════════════════════════════
    SEED DELIVERIES & ACTIVITY FOR A RIDER
    ════════════════════════════════════════════════════════ */
 
@@ -588,12 +695,11 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
   /* ── TODAY: 7 completed, 3 denied, 1 cancelled, 1 failed ── */
   console.log("   📅 Today (shift started 6AM):");
 
-  // 7 completed deliveries spread across today's shift
   for (let i = 0; i < 7; i++) {
-    const deliveredAt = minutesAgo(60 + i * 45); // every 45 min starting 1h ago
+    const deliveredAt = minutesAgo(60 + i * 45);
     const order = await createDummyOrder(fk, deliveredAt);
 
-    const surge = i < 3 ? randBetween(10, 20) : 0; // first few get surge
+    const surge = i < 3 ? randBetween(10, 20) : 0;
     const tip = i % 2 === 0 ? randBetween(10, 30) : 0;
 
     const delivery = await createDelivery({
@@ -619,7 +725,6 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
     completedCount++;
   }
 
-  // 3 denied orders
   for (let i = 0; i < 3; i++) {
     const deniedAt = minutesAgo(90 + i * 60);
     const order = await createDummyOrder(fk, deniedAt);
@@ -630,8 +735,6 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
       pricingConfigId,
     });
 
-    // Delete the delivery to simulate denial (just need the log)
-    // Actually we keep delivery row and only create the log
     await createAssignmentLog(
       delivery.delivery_id,
       rider.rider_id,
@@ -641,7 +744,6 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
     deniedCount++;
   }
 
-  // 1 cancelled (rider accepted but cancelled mid-delivery)
   const cancelledAt = minutesAgo(180);
   const cancelOrder = await createDummyOrder(fk, cancelledAt);
   const cancelDelivery = await createDelivery({
@@ -659,7 +761,6 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
   );
   cancelledCount++;
 
-  // 1 failed (customer unavailable)
   const failedAt = minutesAgo(240);
   const failedOrder = await createDummyOrder(fk, failedAt);
   const failedDelivery = await createDelivery({
@@ -679,12 +780,11 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
 
   console.log(`      ${completedCount} delivered, ${deniedCount} denied, ${cancelledCount} cancelled, ${failedCount} failed`);
 
-  // Today's online sessions (two sessions: morning + afternoon so far)
   await createOnlineSession(rider.rider_id, hoursAgo(7), hoursAgo(4));
   await createOnlineSession(rider.rider_id, hoursAgo(3), hoursAgo(0.5));
   console.log(`      Online sessions: 2 (~5.5h total today)`);
 
-  /* ── YESTERDAY: 5 completed, 2 denied, 1 cancelled ── */
+  /* ── YESTERDAY ── */
   console.log("   📅 Yesterday:");
   let yesterdayCompleted = 0;
 
@@ -729,7 +829,6 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
     );
   }
 
-  // Yesterday session
   await createOnlineSession(
     rider.rider_id,
     new Date(yesterdayStart.getTime() + 4 * 60 * 60 * 1000),
@@ -737,7 +836,7 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
   );
   console.log(`      ${yesterdayCompleted} delivered, ~8h online`);
 
-  /* ── EARLIER THIS WEEK (3 days ago, 5 days ago) ── */
+  /* ── EARLIER THIS WEEK ── */
   console.log("   📅 Earlier this week:");
   let weekExtraCompleted = 0;
   for (const dayOffset of [2, 3, 4, 5]) {
@@ -778,7 +877,7 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
   }
   console.log(`      ${weekExtraCompleted} delivered across 4 days`);
 
-  /* ── LAST WEEK (for WoW delta) ── */
+  /* ── LAST WEEK ── */
   console.log("   📅 Last week:");
   let lastWeekCompleted = 0;
   for (const dayOffset of [7, 8, 9, 10, 11, 12]) {
@@ -819,18 +918,19 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
   }
   console.log(`      ${lastWeekCompleted} delivered last week`);
 
-  /* ── EARLIER THIS MONTH (for TEAM monthly stats) ── */
-  console.log("   📅 Earlier this month:");
-  let monthExtraCompleted = 0;
-  for (const dayOffset of [15, 18, 22, 25]) {
+  /* ── 2 WEEKS AGO (for PROCESSING payout state) ── */
+  console.log("   📅 2 weeks ago (for PROCESSING payout):");
+  let twoWeeksAgoCompleted = 0;
+  for (const dayOffset of [14, 15, 16, 17, 18, 19]) {
     const dayDate = daysAgo(dayOffset);
-    const { shiftStart } = getShiftWindow(dayDate);
-    const dayDeliveries = randBetween(3, 6);
+    const { shiftStart, shiftEnd } = getShiftWindow(dayDate);
+    const dayDeliveries = randBetween(3, 5);
 
     for (let i = 0; i < dayDeliveries; i++) {
       const deliveredAt = new Date(
         shiftStart.getTime() + (5 + i * 2) * 60 * 60 * 1000,
       );
+      if (deliveredAt > shiftEnd) continue;
       const order = await createDummyOrder(fk, deliveredAt);
       const delivery = await createDelivery({
         riderId: rider.rider_id,
@@ -839,7 +939,7 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
         deliveredAt,
         pickupFee: randBetween(18, 28),
         dropFee: randBetween(28, 40),
-        tipAmount: i === 0 ? 20 : 0,
+        tipAmount: i === 0 ? 10 : 0,
         pricingConfigId,
       });
       await createAssignmentLog(
@@ -848,7 +948,7 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
         "ACCEPTED",
         new Date(deliveredAt.getTime() - 20 * 60_000),
       );
-      monthExtraCompleted++;
+      twoWeeksAgoCompleted++;
     }
 
     await createOnlineSession(
@@ -857,89 +957,456 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
       new Date(shiftStart.getTime() + 10 * 60 * 60 * 1000),
     );
   }
-  console.log(`      ${monthExtraCompleted} delivered earlier this month`);
+  console.log(`      ${twoWeeksAgoCompleted} delivered 2 weeks ago`);
 
-  /* ── PAYOUT (last week + ledger entries for current week) ── */
-  if (isIndependent) {
-    console.log("   💵 Creating payouts & ledger entries...");
+  /* ── 3 WEEKS AGO (for FAILED payout state) ── */
+  console.log("   📅 3 weeks ago (for FAILED payout):");
+  let threeWeeksAgoCompleted = 0;
+  for (const dayOffset of [21, 22, 23, 24, 25]) {
+    const dayDate = daysAgo(dayOffset);
+    const { shiftStart, shiftEnd } = getShiftWindow(dayDate);
+    const dayDeliveries = randBetween(3, 5);
 
-    const weekStart = getWeekStartMonday6AM(NOW);
-    const lastWeekStart = new Date(weekStart);
-    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-    const lastWeekEnd = new Date(weekStart);
-    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
-
-    // Last week's completed payout
-    const lastWeekPayout = await prisma.riderPayout.create({
-      data: {
-        payout_id: uuid(),
-        rider_id: rider.rider_id,
-        week_start: lastWeekStart,
-        week_end: lastWeekEnd,
-        gross_amount: 1850.0,
-        status: "COMPLETED",
-        payment_method: "MANUAL",
-        manual_reference: "UTR123456789",
-        manual_payment_date: lastWeekEnd,
-        manual_bank_used: "HDFC Business",
-        bank_snapshot: {
-          account_number: rider.bank_account_number,
-          ifsc: rider.bank_ifsc,
-          holder_name: rider.bank_holder_name,
-          bank_name: rider.bank_name,
-        },
-        processed_at: lastWeekEnd,
-      },
-    });
-
-    // Mark ledger entries for last week as paid
-    await prisma.riderEarningLedger.create({
-      data: {
-        ledger_id: uuid(),
-        rider_id: rider.rider_id,
-        payout_id: lastWeekPayout.payout_id,
-        type: "WEEKLY_CHALLENGE",
-        amount: 180,
-        description: "Weekly incentive reward (last week)",
-        week_start: lastWeekStart,
-        is_paid: true,
-      },
-    });
-
-    // Current week ledger entries (unpaid, feeds "accumulated_amount")
-    const weekStartDate = new Date(
-      Date.UTC(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()),
-    );
-
-    await prisma.riderEarningLedger.create({
-      data: {
-        ledger_id: uuid(),
-        rider_id: rider.rider_id,
-        type: "STREAK_BONUS",
-        amount: 80,
-        description: "Daily streak bonus - 2 days ago",
-        week_start: weekStartDate,
-        is_paid: false,
-        created_at: daysAgo(2),
-      },
-    });
-
-    await prisma.riderEarningLedger.create({
-      data: {
-        ledger_id: uuid(),
-        rider_id: rider.rider_id,
-        type: "SHIFT_BONUS",
-        amount: 50,
-        description: "Evening shift bonus",
-        week_start: weekStartDate,
-        is_paid: false,
-        created_at: daysAgo(1),
-      },
-    });
-
-    console.log(`      ✅ Last week payout: ₹1,850 (COMPLETED)`);
-    console.log(`      ✅ Current week accumulated: ₹130 (unpaid)`);
+    for (let i = 0; i < dayDeliveries; i++) {
+      const deliveredAt = new Date(
+        shiftStart.getTime() + (5 + i * 2) * 60 * 60 * 1000,
+      );
+      if (deliveredAt > shiftEnd) continue;
+      const order = await createDummyOrder(fk, deliveredAt);
+      const delivery = await createDelivery({
+        riderId: rider.rider_id,
+        orderId: order.order_id,
+        status: "DELIVERED",
+        deliveredAt,
+        pickupFee: randBetween(18, 28),
+        dropFee: randBetween(28, 40),
+        pricingConfigId,
+      });
+      await createAssignmentLog(
+        delivery.delivery_id,
+        rider.rider_id,
+        "ACCEPTED",
+        new Date(deliveredAt.getTime() - 20 * 60_000),
+      );
+      threeWeeksAgoCompleted++;
+    }
   }
+  console.log(`      ${threeWeeksAgoCompleted} delivered 3 weeks ago`);
+}
+
+/* ════════════════════════════════════════════════════════
+   SEED PAYOUTS (All statuses for Phase 1-4 testing)
+   ════════════════════════════════════════════════════════ */
+
+async function seedPayouts(independentRider, teamRider, superAdminId) {
+  console.log("\n💵 Creating payouts across all statuses...");
+
+  const thisWeekStart = getWeekStartMonday6AM(NOW);
+  const thisWeekStartUTC = getWeekStartDateUTC(NOW);
+  const thisWeekEnd = new Date(thisWeekStart);
+  thisWeekEnd.setDate(thisWeekEnd.getDate() + 6);
+  const thisWeekEndUTC = new Date(
+    Date.UTC(thisWeekEnd.getFullYear(), thisWeekEnd.getMonth(), thisWeekEnd.getDate()),
+  );
+
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const lastWeekStartUTC = getWeekStartDateUTC(lastWeekStart);
+  const lastWeekEnd = new Date(thisWeekStart);
+  lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+  const lastWeekEndUTC = new Date(
+    Date.UTC(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate()),
+  );
+
+  const twoWeeksStart = new Date(lastWeekStart);
+  twoWeeksStart.setDate(twoWeeksStart.getDate() - 7);
+  const twoWeeksStartUTC = getWeekStartDateUTC(twoWeeksStart);
+  const twoWeeksEnd = new Date(lastWeekStart);
+  twoWeeksEnd.setDate(twoWeeksEnd.getDate() - 1);
+  const twoWeeksEndUTC = new Date(
+    Date.UTC(twoWeeksEnd.getFullYear(), twoWeeksEnd.getMonth(), twoWeeksEnd.getDate()),
+  );
+
+  const threeWeeksStart = new Date(twoWeeksStart);
+  threeWeeksStart.setDate(threeWeeksStart.getDate() - 7);
+  const threeWeeksStartUTC = getWeekStartDateUTC(threeWeeksStart);
+  const threeWeeksEnd = new Date(twoWeeksStart);
+  threeWeeksEnd.setDate(threeWeeksEnd.getDate() - 1);
+  const threeWeeksEndUTC = new Date(
+    Date.UTC(threeWeeksEnd.getFullYear(), threeWeeksEnd.getMonth(), threeWeeksEnd.getDate()),
+  );
+
+  const indBank = {
+    account_number: independentRider.bank_account_number,
+    ifsc: independentRider.bank_ifsc,
+    holder_name: independentRider.bank_holder_name,
+    bank_name: independentRider.bank_name,
+    verified: independentRider.bank_verified,
+  };
+
+  const teamBank = {
+    account_number: teamRider.bank_account_number,
+    ifsc: teamRider.bank_ifsc,
+    holder_name: teamRider.bank_holder_name,
+    bank_name: teamRider.bank_name,
+    verified: teamRider.bank_verified,
+  };
+
+  /* ─────────────────────────────────────────────────────
+     INDEPENDENT RIDER — 4 payouts covering all statuses
+     ───────────────────────────────────────────────────── */
+
+  // 1. THIS WEEK → DRAFT (in progress, mid-week)
+  const thisWeekBreakdown = buildIndependentBreakdown({
+    deliveries: 12,
+    baseFee: 720,
+    surge: 90,
+    floorTopup: 0,
+    tips: 120,
+    incentive: 130,
+    weekStartDate: thisWeekStartUTC,
+  });
+
+  await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: independentRider.rider_id,
+      week_start: thisWeekStartUTC,
+      week_end: thisWeekEndUTC,
+      gross_amount: thisWeekBreakdown.gross_total,
+      net_amount: thisWeekBreakdown.net_total,
+      status: "DRAFT",
+      is_finalized: false,
+      breakdown_snapshot: thisWeekBreakdown,
+      deductions: [],
+      internal_notes: [],
+      bank_snapshot: indBank,
+      last_refreshed_at: hoursAgo(2),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  // Current week ledger entries (unpaid)
+  await prisma.riderEarningLedger.create({
+    data: {
+      ledger_id: uuid(),
+      rider_id: independentRider.rider_id,
+      type: "STREAK_BONUS",
+      amount: 80,
+      description: "Daily streak bonus - 2 days ago",
+      week_start: thisWeekStartUTC,
+      is_paid: false,
+      created_at: daysAgo(2),
+    },
+  });
+
+  await prisma.riderEarningLedger.create({
+    data: {
+      ledger_id: uuid(),
+      rider_id: independentRider.rider_id,
+      type: "SHIFT_BONUS",
+      amount: 50,
+      description: "Evening shift bonus",
+      week_start: thisWeekStartUTC,
+      is_paid: false,
+      created_at: daysAgo(1),
+    },
+  });
+
+  console.log(`      [INDEPENDENT] This week: DRAFT ₹${thisWeekBreakdown.gross_total}`);
+
+  // 2. LAST WEEK → PENDING (finalized, awaiting bank transfer)
+  const lastWeekBreakdown = buildIndependentBreakdown({
+    deliveries: 24,
+    baseFee: 1200,
+    surge: 150,
+    floorTopup: 25,
+    tips: 280,
+    incentive: 180,
+    deductions: [
+      { label: "COD Reconciliation", amount: 200, note: "2 COD orders pending settlement" },
+    ],
+    weekStartDate: lastWeekStartUTC,
+  });
+
+  const lastWeekPayout = await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: independentRider.rider_id,
+      week_start: lastWeekStartUTC,
+      week_end: lastWeekEndUTC,
+      gross_amount: lastWeekBreakdown.gross_total,
+      net_amount: lastWeekBreakdown.net_total,
+      status: "PENDING",
+      is_finalized: true,
+      finalized_at: daysAgo(0.1),
+      breakdown_snapshot: lastWeekBreakdown,
+      deductions: lastWeekBreakdown.deductions,
+      internal_notes: [
+        {
+          by: superAdminId,
+          at: daysAgo(0.1).toISOString(),
+          text: "Deduction added for pending COD reconciliation",
+        },
+      ],
+      bank_snapshot: indBank,
+      last_refreshed_at: daysAgo(0.1),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  await prisma.riderEarningLedger.create({
+    data: {
+      ledger_id: uuid(),
+      rider_id: independentRider.rider_id,
+      payout_id: lastWeekPayout.payout_id,
+      type: "WEEKLY_CHALLENGE",
+      amount: 180,
+      description: "Weekly incentive reward (last week)",
+      week_start: lastWeekStartUTC,
+      is_paid: true,
+      created_at: daysAgo(1),
+    },
+  });
+
+  console.log(`      [INDEPENDENT] Last week: PENDING ₹${lastWeekBreakdown.net_total} (net)`);
+
+  // 3. 2 WEEKS AGO → PROCESSING (CAdmin initiated bank transfer)
+  const twoWeeksBreakdown = buildIndependentBreakdown({
+    deliveries: 22,
+    baseFee: 1100,
+    surge: 60,
+    floorTopup: 0,
+    tips: 150,
+    incentive: 100,
+    weekStartDate: twoWeeksStartUTC,
+  });
+
+  const twoWeeksPayout = await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: independentRider.rider_id,
+      week_start: twoWeeksStartUTC,
+      week_end: twoWeeksEndUTC,
+      gross_amount: twoWeeksBreakdown.gross_total,
+      net_amount: twoWeeksBreakdown.net_total,
+      status: "PROCESSING",
+      is_finalized: true,
+      finalized_at: daysAgo(7.1),
+      breakdown_snapshot: twoWeeksBreakdown,
+      deductions: [],
+      internal_notes: [
+        {
+          by: superAdminId,
+          at: daysAgo(0.5).toISOString(),
+          text: "Transfer initiated via HDFC Corporate portal",
+        },
+      ],
+      manual_reference: "HDFC_NEFT_26100301",
+      manual_bank_used: "HDFC Corporate",
+      manual_notes: "Standard weekly batch transfer",
+      bank_snapshot: indBank,
+      processed_by: superAdminId,
+      processed_at: daysAgo(0.5),
+      last_refreshed_at: daysAgo(7.1),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  await prisma.riderEarningLedger.create({
+    data: {
+      ledger_id: uuid(),
+      rider_id: independentRider.rider_id,
+      payout_id: twoWeeksPayout.payout_id,
+      type: "STREAK_BONUS",
+      amount: 100,
+      description: "Streak bonus (2 weeks ago)",
+      week_start: twoWeeksStartUTC,
+      is_paid: true,
+      created_at: daysAgo(14),
+    },
+  });
+
+  console.log(`      [INDEPENDENT] 2 weeks ago: PROCESSING ₹${twoWeeksBreakdown.net_total} (UTR: HDFC_NEFT_26100301)`);
+
+  // 4. 3 WEEKS AGO → COMPLETED (fully paid)
+  const threeWeeksBreakdown = buildIndependentBreakdown({
+    deliveries: 18,
+    baseFee: 950,
+    surge: 30,
+    floorTopup: 50,
+    tips: 100,
+    incentive: 80,
+    weekStartDate: threeWeeksStartUTC,
+  });
+
+  const threeWeeksPayout = await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: independentRider.rider_id,
+      week_start: threeWeeksStartUTC,
+      week_end: threeWeeksEndUTC,
+      gross_amount: threeWeeksBreakdown.gross_total,
+      net_amount: threeWeeksBreakdown.net_total,
+      status: "COMPLETED",
+      is_finalized: true,
+      finalized_at: daysAgo(14.1),
+      breakdown_snapshot: threeWeeksBreakdown,
+      deductions: [],
+      internal_notes: [
+        {
+          by: superAdminId,
+          at: daysAgo(13).toISOString(),
+          text: "Payment confirmed via bank statement",
+        },
+      ],
+      manual_reference: "ICICI_RTGS_26092602",
+      manual_bank_used: "ICICI Business",
+      manual_payment_date: daysAgo(13),
+      manual_notes: "Confirmed via bank statement export",
+      bank_snapshot: indBank,
+      processed_by: superAdminId,
+      processed_at: daysAgo(13.5),
+      last_refreshed_at: daysAgo(14.1),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  await prisma.riderEarningLedger.create({
+    data: {
+      ledger_id: uuid(),
+      rider_id: independentRider.rider_id,
+      payout_id: threeWeeksPayout.payout_id,
+      type: "STREAK_BONUS",
+      amount: 80,
+      description: "Streak bonus (3 weeks ago)",
+      week_start: threeWeeksStartUTC,
+      is_paid: true,
+      created_at: daysAgo(21),
+    },
+  });
+
+  console.log(`      [INDEPENDENT] 3 weeks ago: COMPLETED ₹${threeWeeksBreakdown.net_total} (UTR: ICICI_RTGS_26092602)`);
+
+  /* ─────────────────────────────────────────────────────
+     TEAM RIDER — 3 payouts (DRAFT skipped — TEAM goes
+     straight to PENDING on manual create)
+     ───────────────────────────────────────────────────── */
+
+  // 1. LAST WEEK → PENDING (manual salary entered, awaiting payment)
+  const teamLastWeekBreakdown = buildTeamBreakdown({
+    amount: 15000,
+    attendanceDaily: buildAttendanceDaily(lastWeekStartUTC),
+  });
+
+  await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: teamRider.rider_id,
+      week_start: lastWeekStartUTC,
+      week_end: lastWeekEndUTC,
+      gross_amount: 15000,
+      net_amount: 15000,
+      status: "PENDING",
+      is_finalized: true,
+      finalized_at: hoursAgo(5),
+      breakdown_snapshot: teamLastWeekBreakdown,
+      deductions: [],
+      internal_notes: [
+        {
+          by: superAdminId,
+          at: hoursAgo(5).toISOString(),
+          text: "Weekly salary for TEAM rider",
+        },
+      ],
+      bank_snapshot: teamBank,
+      last_refreshed_at: hoursAgo(5),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  console.log(`      [TEAM] Last week: PENDING ₹15,000 (salary)`);
+
+  // 2. 2 WEEKS AGO → COMPLETED (paid with partial deduction)
+  const teamTwoWeeksBreakdown = buildTeamBreakdown({
+    amount: 15000,
+    deductions: [
+      { label: "Leave Deduction", amount: 1500, note: "2 days unpaid leave" },
+    ],
+    attendanceDaily: buildAttendanceDaily(twoWeeksStartUTC),
+  });
+
+  await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: teamRider.rider_id,
+      week_start: twoWeeksStartUTC,
+      week_end: twoWeeksEndUTC,
+      gross_amount: 15000,
+      net_amount: 13500,
+      status: "COMPLETED",
+      is_finalized: true,
+      finalized_at: daysAgo(7.5),
+      breakdown_snapshot: teamTwoWeeksBreakdown,
+      deductions: teamTwoWeeksBreakdown.deductions,
+      internal_notes: [
+        {
+          by: superAdminId,
+          at: daysAgo(6.5).toISOString(),
+          text: "Leave deducted. Payment via HDFC transfer.",
+        },
+      ],
+      manual_reference: "HDFC_IMPS_TEAM_26",
+      manual_bank_used: "HDFC Corporate",
+      manual_payment_date: daysAgo(6),
+      bank_snapshot: teamBank,
+      processed_by: superAdminId,
+      processed_at: daysAgo(6.5),
+      last_refreshed_at: daysAgo(7.5),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  console.log(`      [TEAM] 2 weeks ago: COMPLETED ₹13,500 (₹1,500 leave deduction)`);
+
+  // 3. 3 WEEKS AGO → FAILED (bank transfer failed, awaiting retry)
+  const teamThreeWeeksBreakdown = buildTeamBreakdown({
+    amount: 15000,
+    attendanceDaily: buildAttendanceDaily(threeWeeksStartUTC),
+  });
+
+  await prisma.riderPayout.create({
+    data: {
+      payout_id: uuid(),
+      rider_id: teamRider.rider_id,
+      week_start: threeWeeksStartUTC,
+      week_end: threeWeeksEndUTC,
+      gross_amount: 15000,
+      net_amount: 15000,
+      status: "FAILED",
+      is_finalized: true,
+      finalized_at: daysAgo(14.5),
+      breakdown_snapshot: teamThreeWeeksBreakdown,
+      deductions: [],
+      internal_notes: [
+        {
+          by: superAdminId,
+          at: daysAgo(13).toISOString(),
+          text: "Bank reported incorrect IFSC. Awaiting bank update from rider.",
+        },
+      ],
+      manual_reference: "HDFC_FAIL_TEAM_26",
+      manual_bank_used: "HDFC Corporate",
+      failed_reason: "IFSC code mismatch per bank response",
+      bank_snapshot: teamBank,
+      processed_by: superAdminId,
+      processed_at: daysAgo(13.5),
+      last_refreshed_at: daysAgo(14.5),
+      refreshed_by: superAdminId,
+    },
+  });
+
+  console.log(`      [TEAM] 3 weeks ago: FAILED ₹15,000 (IFSC mismatch — needs retry)`);
 }
 
 /* ════════════════════════════════════════════════════════
@@ -947,7 +1414,7 @@ async function seedRiderActivity(rider, fk, pricingConfigId, isIndependent) {
    ════════════════════════════════════════════════════════ */
 
 async function main() {
-  console.log("🌱 Rider Dashboard Seed Starting...");
+  console.log("🌱 Rider Dashboard + Payout Seed Starting...");
   console.log(`📆 Reference time: ${NOW.toISOString()}\n`);
 
   await cleanup();
@@ -976,22 +1443,47 @@ async function main() {
   const teamRider = await createTeamRider();
   await seedRiderActivity(teamRider, fk, pricingConfig.config_id, false);
 
+  // Payouts (across all statuses for Phase 1-4 testing)
+  const superAdmin = await prisma.cAdmin.findFirst({
+    where: { is_super_cadmin: true },
+  });
+  await seedPayouts(independentRider, teamRider, superAdmin?.cadmin_id);
+
   /* ── Summary ── */
   console.log("\n" + "═".repeat(60));
-  console.log("🎉 RIDER DASHBOARD SEED COMPLETED");
+  console.log("🎉 RIDER DASHBOARD + PAYOUT SEED COMPLETED");
   console.log("═".repeat(60));
   console.log("\n🔐 TEST LOGINS:\n");
   console.log(`   INDEPENDENT │ ${independentRider.phone} │ Qwerty@11`);
   console.log(`   TEAM        │ ${TEAM_RIDER.phone} │ Qwerty@11`);
-  console.log("\n📊 WHAT YOU'LL SEE:");
+  console.log("\n📊 RIDER APP DATA:");
   console.log("   • Today's deliveries, earnings breakdown, order stats");
   console.log("   • Yesterday delta comparison");
   console.log("   • This week + last week delta");
   console.log("   • Active DAILY + WEEKLY incentive stepper (INDEPENDENT only)");
   console.log("   • Active 1.5x Surge banner (INDEPENDENT only)");
-  console.log("   • Payout status: Last week ₹1,850 PAID, this week ₹130 pending");
-  console.log("   • TEAM rider: monthly stats, no earnings/incentives");
-  console.log("   • Rating card (4.5⭐ for Asif, 4.7⭐ for Rajesh)");
+  console.log("   • Payout history (visible to rider)");
+  console.log("\n💵 CADMIN PAYOUT PANEL — INDEPENDENT RIDER:");
+  console.log("   • This week    → DRAFT (recalculable, in progress)");
+  console.log("   • Last week    → PENDING (finalized, has deduction, awaits transfer)");
+  console.log("   • 2 weeks ago  → PROCESSING (UTR entered, bank transfer in progress)");
+  console.log("   • 3 weeks ago  → COMPLETED (fully paid, archived)");
+  console.log("\n💵 CADMIN PAYOUT PANEL — TEAM RIDER:");
+  console.log("   • Last week    → PENDING (₹15,000 salary entered, awaits transfer)");
+  console.log("   • 2 weeks ago  → COMPLETED (₹13,500 net, ₹1,500 leave deduction)");
+  console.log("   • 3 weeks ago  → FAILED (IFSC mismatch — retry needed)");
+  console.log("\n🧪 TEST SCENARIOS AVAILABLE:");
+  console.log("   • Refresh DRAFT payout → should recalculate");
+  console.log("   • Add deduction to PENDING → net amount updates");
+  console.log("   • Start Processing on PENDING → transitions to PROCESSING");
+  console.log("   • Mark PROCESSING as Paid → transitions to COMPLETED");
+  console.log("   • Retry FAILED → back to PROCESSING");
+  console.log("   • Create TEAM payout for current week (via '+' button)");
+  console.log("   • Edit TEAM amount in detail modal");
+  console.log("   • View attendance calendar for TEAM rider");
+  console.log("   • Export CSV with bank details for bank processing");
+  console.log("   • Bulk mark multiple PENDING as PROCESSING");
+  console.log("   • View historical payouts tab in detail modal");
   console.log("\n" + "═".repeat(60));
 }
 

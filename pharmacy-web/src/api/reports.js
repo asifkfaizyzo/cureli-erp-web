@@ -74,7 +74,6 @@ const reportsAPI = {
 
   // ── PURCHASE REPORTS ───────────────────────────────────────────────────────
 
-  // B1 — Purchase Register
   getPurchaseRegister: async (filters = {}) => {
     const response = await API.get("/reports/purchase/register", {
       params: filters,
@@ -83,7 +82,6 @@ const reportsAPI = {
     return response.data;
   },
 
-  // B2 — Purchase Outstanding & Payables
   getPurchaseOutstanding: async (filters = {}) => {
     const response = await API.get("/reports/purchase/outstanding", {
       params: filters,
@@ -92,7 +90,6 @@ const reportsAPI = {
     return response.data;
   },
 
-  // B3 — Purchase Returns
   getPurchaseReturnsReport: async (filters = {}) => {
     const response = await API.get("/reports/purchase/returns", {
       params: filters,
@@ -100,6 +97,7 @@ const reportsAPI = {
     });
     return response.data;
   },
+
   getCurrentStockReport: async (filters = {}) => {
     const response = await API.get("/reports/inventory/current-stock", {
       params: filters,
@@ -140,7 +138,7 @@ const reportsAPI = {
     return response.data;
   },
 
-   // ── GST REPORTS ────────────────────────────────────────────────────────────
+  // ── GST REPORTS ────────────────────────────────────────────────────────────
 
   getGstr1Report: async (filters = {}) => {
     const response = await API.get("/reports/gst/gstr1", {
@@ -226,7 +224,21 @@ const reportsAPI = {
     return response.data;
   },
 
+  getRevenueLeakage: async (filters = {}) => {
+    const response = await API.get("/reports/marketplace/revenue-leakage", {
+      params: filters,
+      headers: getBranchHeaders(),
+    });
+    return response.data;
+  },
 
+  getFulfillmentSpeed: async (filters = {}) => {
+    const response = await API.get("/reports/marketplace/fulfillment-speed", {
+      params: filters,
+      headers: getBranchHeaders(),
+    });
+    return response.data;
+  },
 };
 
 export default reportsAPI;

@@ -12,6 +12,7 @@ import {
   refreshToken,
   logout,
   logoutAll,
+  registerPushTokenHandler,  
   getMe,
 } from "./rider.auth.controller.js";
 
@@ -30,5 +31,5 @@ router.post("/refresh",         refreshToken);
 router.post("/logout",          riderAuth, logout);
 router.post("/logout-all",      riderAuth, logoutAll);
 router.get("/me",               riderAuth, getMe);
-
+router.post("/push-token",      riderAuth, registerPushTokenHandler);  
 export default router;

@@ -317,10 +317,11 @@ enum EarningType {
 }
 
 enum PayoutStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+  DRAFT        // Mid-week preview, recalculable
+  PENDING      // Week ended, finalized by cron or manual
+  PROCESSING   // CAdmin initiated bank transfer
+  COMPLETED    // Payment confirmed
+  FAILED       // Transfer failed, retry in place
 }
 
 enum PayoutMethod {
@@ -479,4 +480,10 @@ enum PricingConfigStatus {
   SCHEDULED
   ACTIVE
   ARCHIVED
+}
+
+enum SlashMode {
+  NONE
+  NEW
+  OLD
 }

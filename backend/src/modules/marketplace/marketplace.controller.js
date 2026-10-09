@@ -6,6 +6,7 @@ import * as PlacesService from "./places.service.js";
 import { success, fail } from "../../utils/response.js";
 import { marketplaceUpload, MARKETPLACE_ASSET_FOLDER } from "./marketplace.upload.js";
 import { uploadFile, getPublicUrl } from "../../services/fileStorage.service.js";
+import { getActiveTags } from "../cadmin/marketplace/cadmin.shopTags.service.js";
 
 function getExt(filename) {
   const parts = filename.split(".");
@@ -180,6 +181,23 @@ export const getPlacesSearch = async (req, res) => {
   } catch (error) {
     console.error("[marketplace] getPlacesSearch error:", error);
     return fail(res, "Failed to search places", 500);
+  }
+};
+
+// GET /api/marketplace/shop-tags
+export const getShopTags = async (req, res) => {
+  try {
+    const tags = await getActiveTags();
+    const formatted = tags.map((t) => ({
+      slug: t.slug,
+      label: t.label,
+      description: t.description,
+      color_hex: t.color_hex,
+    }));
+    return success(res, formatted, "Active shop tags fetched");
+  } catch (error) {
+    console.error("[marketplace] getShopTags error:", error);
+    return fail(res, "Failed to fetch shop tags", 500);
   }
 };
 

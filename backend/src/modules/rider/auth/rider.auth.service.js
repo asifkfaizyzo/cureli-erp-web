@@ -970,3 +970,51 @@ export async function getRiderMe(riderId) {
 
   return formatRiderForResponse(rider);
 }
+
+
+// ── registerPushToken ─────────────────────────────────────────
+
+/**
+ * Register or clear a push token on the rider's active session.
+ *
+ * Called by the rider app:
+ *   - After successful login / OTP verification → register token
+ *   - On logout → clear token (push_token = null)
+ *   - On token rotation (Android periodically refreshes) → update token
+ *
+ * The token is stored on the RiderSession row, not the Rider row,
+ * because a rider could theoretically have multiple active sessions
+ * on different devices, each with its own push token.
+ *
+ * @param {string} sessionId - The active RiderSession ID (from JWT)
+ * @param {string|null} pushToken - Expo push token, or null to clear
+ * @param {string} pushTokenType - "expo" or "fcm"
+ * @returns {Promise<{ success: boolean }>}
+ */
+export async function registerPushToken(sessionId, pushToken, pushTokenType = "expo") {
+  const session = await prisma.riderSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, is_active: true, rider_id: true },
+  });
+
+  if (!session || !session.is_active) {
+    const err = new Error("Session not found or inactive.");
+    err.code = "SESSION_INVALID";
+    throw err;
+  }
+
+  await prisma.riderSession.update({
+    where: { id: sessionId },
+    data: {
+      push_token: pushToken,
+      push_token_type: pushToken ? pushTokenType : null,
+      push_token_updated_at: new Date(),
+    },
+  });
+
+  console.log(
+    `[RiderAuth] Push token ${pushToken ? "registered" : "cleared"} for rider ${session.rider_id} (session ${sessionId})`,
+  );
+
+  return { success: true };
+}

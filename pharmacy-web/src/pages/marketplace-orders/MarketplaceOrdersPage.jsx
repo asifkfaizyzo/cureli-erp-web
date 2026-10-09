@@ -98,15 +98,15 @@ const MarketplaceOrdersPage = () => {
         <OrdersTabBar activeTab={activeTab} onTabChange={handleTabChange} counts={tabCounts} />
       </div>
 
-      {/* ── Main Content Area ── */}
+            {/* ── Main Content Area ── */}
       {isPrescriptionTab ? (
         <div className="flex-1 min-h-0 overflow-hidden">
           <PrescriptionRequestsTab />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr]">
-          {/* Left: Order List (isolated scroll) */}
-          <div className="min-h-0 overflow-hidden border-r border-white/[0.08]">
+        <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr] gap-4 p-4">
+          {/* Left: Order List (isolated scroll) — floating card with hover glow */}
+          <div className="min-h-0 overflow-hidden rounded-xl bg-white/[0.02] border border-white/[0.08] hover:border-indigo-400/40 transition-colors duration-200 shadow-lg shadow-black/20">
             <OrderListPanel
               activeTab={page.activeTab}
               orders={page.orders}
@@ -122,8 +122,8 @@ const MarketplaceOrdersPage = () => {
             />
           </div>
 
-          {/* Right: Order Detail (isolated scroll) */}
-          <div className="min-h-0 overflow-hidden">
+          {/* Right: Order Detail (isolated scroll) — floating card with hover glow */}
+          <div className="min-h-0 overflow-hidden rounded-xl bg-white/[0.02] border border-white/[0.08] hover:border-indigo-400/40 transition-colors duration-200 shadow-lg shadow-black/20">
             <OrderDetailPanel
               orderId={page.selectedOrderId}
               orderDetail={page.orderDetail}

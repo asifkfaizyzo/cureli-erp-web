@@ -55,6 +55,9 @@ export const EntityType = Object.freeze({
   MASTER_MEDICINE: "master_medicine",
   MASTER_MEDICINE_VARIANT: "master_medicine_variant",
   MASTER_MEDICINE_IMAGE: "master_medicine_image",
+
+  COMMISSION_RULE: "commission_rule",
+  COMMISSION_OVERRIDE: "commission_override",
 });
 
 export const VALID_ENTITY_TYPES = new Set(Object.values(EntityType));

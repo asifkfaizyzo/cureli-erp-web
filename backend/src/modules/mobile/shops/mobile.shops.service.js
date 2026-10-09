@@ -11,6 +11,11 @@ import {
   computeBranchStatus,
   buildBranchHolidayMap,
 } from "../../../utils/shopTiming.js";
+import {
+  buildTagMap,
+  resolveShopTags,
+  getActiveTags,
+} from "../../cadmin/marketplace/cadmin.shopTags.service.js";
 
 // ── Marketplace asset resolver ────────────────────────────────
 
@@ -207,6 +212,7 @@ export async function searchShops({ q, lat, lng, page = 1, limit = 20 }) {
         storefront_name: true,
         storefront_description: true,
         logo_url: true,
+        shop_tags: true, // ◄◄ ADDED
         shop: {
           select: { business_name: true, shop_id: true },
         },
@@ -271,6 +277,9 @@ export async function searchShops({ q, lat, lng, page = 1, limit = 20 }) {
     shopToBranches,
   );
 
+  // ◄◄ ADDED: Build tag map for resolving slugs → objects
+  const tagMap = await buildTagMap();
+
   const shops = profiles
     .map((profile) => {
       const name = profile.storefront_name || profile.shop.business_name;
@@ -326,6 +335,7 @@ export async function searchShops({ q, lat, lng, page = 1, limit = 20 }) {
         name,
         description: profile.storefront_description ?? null,
         logoUrl: resolveMarketplaceAsset(profile.logo_url),
+        tags: resolveShopTags(profile.shop_tags, tagMap), // ◄◄ ADDED
         nearestBranch,
         totalBranches: profile.branchSettings.length,
         listedMedicineCount,
@@ -384,6 +394,7 @@ export async function getShopProfile(shopId, lat, lng) {
       support_phone: true,
       logo_url: true,
       banner_url: true,
+      shop_tags: true, // ◄◄ ADDED
       is_live: true,
       marketplace_status: true,
       shop: {
@@ -483,6 +494,10 @@ export async function getShopProfile(shopId, lat, lng) {
 
   const name = profile.storefront_name || profile.shop.business_name;
 
+  // ◄◄ ADDED: Resolve shop tags
+  const tagMap = await buildTagMap();
+  const resolvedTags = resolveShopTags(profile.shop_tags, tagMap);
+
   return {
     shopId: profile.shop_id,
     name,
@@ -490,6 +505,7 @@ export async function getShopProfile(shopId, lat, lng) {
     logoUrl: resolveMarketplaceAsset(profile.logo_url),
     bannerUrl: resolveMarketplaceAsset(profile.banner_url),
     supportPhone: profile.support_phone ?? null,
+    tags: resolvedTags, // ◄◄ ADDED
     marketplaceStatus: profile.marketplace_status,
     isLive: profile.is_live,
     branches,
@@ -595,4 +611,15 @@ export async function getBranchMedicines(
       hasPrev: page > 1,
     },
   };
+}
+
+// ── GET ACTIVE SHOP TAGS ─────────────────────────────────────
+export async function fetchActiveShopTags() {
+  const tags = await getActiveTags();
+  return tags.map((t) => ({
+    slug: t.slug,
+    label: t.label,
+    colorHex: t.color_hex,
+    description: t.description,
+  }));
 }

@@ -19,9 +19,9 @@ const OrderListPanel = ({
   const tab = ORDER_TABS.find((t) => t.id === activeTab);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white/[0.01]">
+        <div className="flex flex-col h-full min-h-0">
       {/* Sticky Header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08] bg-[#010015] z-10">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.03] z-10 rounded-t-xl">
         <span className="text-xs font-bold text-white/70 uppercase tracking-wider">
           {total > 0 ? `${total} order${total !== 1 ? 's' : ''}` : 'Orders'}
         </span>
@@ -78,7 +78,7 @@ const OrderListPanel = ({
 
       {/* Sticky Pagination Footer */}
       {totalPages > 1 && orders.length > 0 && (
-        <div className="flex-shrink-0 flex items-center justify-between gap-2 py-2.5 px-4 border-t border-white/[0.08] bg-[#010015]">
+       <div className="flex-shrink-0 flex items-center justify-between gap-2 py-2.5 px-4 border-t border-white/[0.08] bg-white/[0.03] rounded-b-xl">
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1 || isLoading}

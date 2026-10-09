@@ -10,6 +10,7 @@ import {
   Check,
   ShieldCheck,
   Globe,
+  Info,
 } from "lucide-react";
 import { useMarketplaceStore } from "../../../store/useMarketplaceStore";
 import GoLiveCelebration from "../components/GoLiveCelebration";
@@ -23,6 +24,9 @@ const GoLiveStep = ({ onBack }) => {
   const allBranches = useMarketplaceStore((s) => s.allBranches);
   const selectedBranchIds = useMarketplaceStore((s) => s.selectedBranchIds);
   const branchConfigs = useMarketplaceStore((s) => s.branchConfigs);
+
+  const commissionRate = useMarketplaceStore((s) => s.commissionRate);
+  const isCommissionLoaded = useMarketplaceStore((s) => s.isCommissionLoaded);
 
   const [showCelebration, setShowCelebration] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -51,6 +55,32 @@ const GoLiveStep = ({ onBack }) => {
   const handleCelebrationComplete = () => {
     confirmGoLive();
   };
+
+  const getCommissionDisplay = () => {
+    if (!commissionRate) return null;
+
+    if (!commissionRate.has_commission || commissionRate.is_suspended) {
+      return {
+        rateText: "0%",
+        description: "Waived (Keep 100% of medicine sales)",
+        isZero: true,
+      };
+    }
+
+    const example = commissionRate.examples?.find(
+      (e) => e.order_subtotal === 500
+    );
+
+    return {
+      rateText: commissionRate.rate_description,
+      description: example
+        ? `On a ₹${example.order_subtotal} sale, you receive ₹${example.pharmacy_receives}`
+        : "Platform fee applies to processed sales",
+      isZero: false,
+    };
+  };
+
+  const commission = getCommissionDisplay();
 
   if (showCelebration) {
     return (
@@ -97,7 +127,7 @@ const GoLiveStep = ({ onBack }) => {
             listing at any time.
           </p>
 
-          <div className="space-y-3 mb-8">
+          <div className="space-y-3 mb-6">
             {[
               {
                 icon: Globe,
@@ -130,6 +160,25 @@ const GoLiveStep = ({ onBack }) => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* ── Commission/Platform Fee Strip (Design B) ── */}
+          <div className="mb-6">
+            {!isCommissionLoaded ? (
+              <div className="flex items-center gap-2 py-2 px-3.5 rounded-lg bg-white/[0.01] border border-white/[0.04]">
+                <Loader2 size={11} className="text-white/20 animate-spin flex-shrink-0" />
+                <span className="text-[10px] text-white/20 font-medium">Loading platform fee policies…</span>
+              </div>
+            ) : commission ? (
+              <div className="flex items-center gap-2.5 py-2 px-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[11px] text-white/40">
+                <Info size={12} className={commission.isZero ? "text-emerald-400/60" : "text-indigo-400/60"} />
+                <p className="leading-none">
+                  Platform Fee: <span className="font-bold text-white/70">{commission.rateText}</span>
+                  <span className="mx-2 text-white/10">•</span>
+                  <span className="text-white/50">{commission.description}</span>
+                </p>
+              </div>
+            ) : null}
           </div>
 
           {goLiveErrors.length > 0 && (

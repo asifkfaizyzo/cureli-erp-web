@@ -1,5 +1,4 @@
-// pharmacy-web/src/pages/marketplace-onboarding/steps/WelcomeStep.jsx (do not remove this comment)
-// src/pages/marketplace-onboarding/steps/WelcomeStep.jsx
+// src/pages/marketplace-onboarding/steps/WelcomeStep.jsx (do not remove this comment)
 
 import {
   ArrowRight,
@@ -8,7 +7,11 @@ import {
   Zap,
   ShieldCheck,
   Sparkles,
+  IndianRupee,
+  Info,
+  Loader2,
 } from "lucide-react";
+import { useMarketplaceStore } from "../../../store/useMarketplaceStore";
 
 const features = [
   {
@@ -34,6 +37,43 @@ const features = [
 ];
 
 const WelcomeStep = ({ onNext }) => {
+  const commissionRate = useMarketplaceStore((s) => s.commissionRate);
+  const isCommissionLoaded = useMarketplaceStore((s) => s.isCommissionLoaded);
+
+  const getCommissionDisplay = () => {
+    if (!commissionRate) return null;
+
+    if (!commissionRate.has_commission || commissionRate.is_suspended) {
+      return {
+        rateText: "0%",
+        description: commissionRate.is_suspended
+          ? "Commission is currently waived. You keep 100% of your medicine sales!"
+          : "No marketplace commission is currently configured.",
+        example: null,
+        isZero: true,
+      };
+    }
+
+    const example = commissionRate.examples?.find(
+      (e) => e.order_subtotal === 500
+    );
+
+    return {
+      rateText: commissionRate.rate_description,
+      description: `System platform fee of ${commissionRate.rate_description} applies to marketplace processed sales.`,
+      example: example
+        ? {
+            subtotal: example.order_subtotal,
+            commission: example.commission_amount,
+            receives: example.pharmacy_receives,
+          }
+        : null,
+      isZero: false,
+    };
+  };
+
+  const commission = getCommissionDisplay();
+
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
       <div className="w-full max-w-4xl">
@@ -114,9 +154,114 @@ const WelcomeStep = ({ onNext }) => {
           </div>
         </div>
 
-        {/* ── Bottom trust strip ────────────────────────────────── */}
+        {/* ── Commission Policy Widget ───────────────────────────── */}
+        <div className="mt-8">
+          {!isCommissionLoaded ? (
+            <div
+              className="flex items-center gap-3 px-5 py-4 rounded-2xl
+              bg-white/[0.025] border border-white/[0.06]"
+            >
+              <Loader2
+                size={16}
+                className="text-white/30 animate-spin"
+              />
+              <span className="text-xs text-white/30">
+                Loading commission details…
+              </span>
+            </div>
+          ) : commission ? (
+            <div
+              className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0c0a21]/20 backdrop-blur-md p-5"
+            >
+              {/* Subtle Glowing Policy Left Border */}
+              <div
+                className={`absolute left-0 top-0 bottom-0 w-[3px] ${
+                  commission.isZero ? "bg-emerald-500/40" : "bg-indigo-500/40"
+                }`}
+              />
+
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      commission.isZero
+                        ? "bg-emerald-500/[0.08] text-emerald-400"
+                        : "bg-indigo-500/[0.08] text-indigo-400"
+                    }`}
+                  >
+                    <IndianRupee size={16} />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-semibold text-white/80 tracking-wide">
+                        Platform Fee Policy
+                      </span>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                          commission.isZero
+                            ? "bg-emerald-500/[0.04] border-emerald-500/20 text-emerald-300"
+                            : "bg-indigo-500/[0.04] border-indigo-500/20 text-indigo-300"
+                        }`}
+                      >
+                        {commission.rateText} Rate
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-white/35 mt-1 leading-relaxed max-w-lg">
+                      {commission.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Integrated Settlement Ledger */}
+                {commission.example && (
+                  <div className="flex items-center gap-3 bg-white/[0.015] border border-white/[0.04] rounded-xl p-3 text-xs self-start md:self-auto">
+                    <div className="text-right">
+                      <span className="block text-[9px] text-white/20 uppercase tracking-wider">
+                        Sample Order
+                      </span>
+                      <span className="font-semibold text-white/70">
+                        ₹{commission.example.subtotal}
+                      </span>
+                    </div>
+                    <div className="h-6 w-px bg-white/[0.06]" />
+                    <div className="text-right">
+                      <span className="block text-[9px] text-white/20 uppercase tracking-wider">
+                        Platform Share
+                      </span>
+                      <span className="font-semibold text-red-400/80">
+                        -₹{commission.example.commission}
+                      </span>
+                    </div>
+                    <div className="h-6 w-px bg-white/[0.06]" />
+                    <div className="text-right">
+                      <span className="block text-[9px] text-white/20 uppercase tracking-wider">
+                        Your Payout
+                      </span>
+                      <span className="font-bold text-emerald-400">
+                        ₹{commission.example.receives}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!commission.isZero && (
+                <div className="mt-4 pt-3.5 border-t border-white/[0.04] flex items-center gap-2 text-[10px] text-white/20">
+                  <Info size={11} className="text-white/25 flex-shrink-0" />
+                  <span>
+                    Any adjustments to the baseline rate policies are notified automatically via your system dashboard and registered email profiles.
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {/* ── Bottom trust strip ──────────────────────────────────
         <div
-          className="mt-12 pt-6 border-t border-white/[0.04]
+          className="mt-8 pt-6 border-t border-white/[0.04]
           flex items-center justify-center gap-8"
         >
           {[
@@ -129,7 +274,7 @@ const WelcomeStep = ({ onNext }) => {
               <p className="text-[10px] text-white/25 mt-0.5">{stat.label}</p>
             </div>
           ))}
-        </div>
+        </div> */}
       </div>
     </div>
   );

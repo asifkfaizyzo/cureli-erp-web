@@ -34,6 +34,12 @@ export const storefrontSchema = z.object({
     message: "Logo is required",
   }),
   banner_url: assetUrlSchema.nullable().optional(),
+  // ── ADDED SHOP TAGS ──────────────────────────────────────
+  shop_tags: z
+    .array(z.string().max(100))
+    .max(5, "Maximum 5 tags allowed")
+    .optional(),
+  // ──────────────────────────────────────────────────────────
 });
 
 // Branch Selection Schema (Step 3)
@@ -226,3 +232,4 @@ export const draftSchema = z
 export const uploadSchema = z.object({
   type: z.enum(["logo", "banner", "branch_image"]),
 });
+

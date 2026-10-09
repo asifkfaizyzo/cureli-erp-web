@@ -105,15 +105,6 @@ import MedicinePLReportPage from "./pages/report/financial/MedicinePLReportPage.
 import PeriodPLReportPage from "./pages/report/financial/PeriodPLReportPage.jsx";
 
 // ============================================
-// ERP — REPORTS (MARKETPLACE — SECTION F)
-// ============================================
-import MarketplaceSalesSummaryPage from "./pages/report/marketplace/MarketplaceSalesSummaryPage.jsx";
-import OrderStatusFunnelPage from "./pages/report/marketplace/OrderStatusFunnelPage.jsx";
-import AcceptanceRatePage from "./pages/report/marketplace/AcceptanceRatePage.jsx";
-import PrescriptionRequestSummaryPage from "./pages/report/marketplace/PrescriptionRequestSummaryPage.jsx";
-import ListingHealthPage from "./pages/report/marketplace/ListingHealthPage.jsx";
-
-// ============================================
 // ERP — SETTINGS PAGES
 // ============================================
 import UsersPage from "./pages/settings/users/UsersPage.jsx";
@@ -144,6 +135,8 @@ import MarketplaceDashboardPage from "./pages/marketplace-dashboard/MarketplaceD
 import MarketplaceOrdersPage from "./pages/marketplace-orders/MarketplaceOrdersPage.jsx";
 import MarketplaceListingsPage from "./pages/marketplace-listings/MarketplaceListingsPage.jsx";
 import MarketplaceStorefrontPage from "./pages/marketplace-storefront/MarketplaceStorefrontPage.jsx";
+import MarketplacePayoutsPage from "./pages/marketplace-payouts/MarketplacePayoutsPage.jsx";
+import MarketplaceReportsPage from "./pages/marketplace-reports/MarketplaceReportsPage.jsx";
 
 import "./index.css";
 
@@ -646,58 +639,6 @@ const App = () => {
                           }
                         />
 
-                        {/* ── SECTION F: REPORTS — MARKETPLACE ── */}
-                        <Route
-                          path="/erp/reports/marketplace/sales-summary"
-                          element={
-                            <PermissionGuard
-                              permission={PERMISSIONS.REPORTS_SALES}
-                            >
-                              <MarketplaceSalesSummaryPage />
-                            </PermissionGuard>
-                          }
-                        />
-                        <Route
-                          path="/erp/reports/marketplace/order-funnel"
-                          element={
-                            <PermissionGuard
-                              permission={PERMISSIONS.REPORTS_SALES}
-                            >
-                              <OrderStatusFunnelPage />
-                            </PermissionGuard>
-                          }
-                        />
-                        <Route
-                          path="/erp/reports/marketplace/acceptance-rate"
-                          element={
-                            <PermissionGuard
-                              permission={PERMISSIONS.REPORTS_SALES}
-                            >
-                              <AcceptanceRatePage />
-                            </PermissionGuard>
-                          }
-                        />
-                        <Route
-                          path="/erp/reports/marketplace/prescription-summary"
-                          element={
-                            <PermissionGuard
-                              permission={PERMISSIONS.REPORTS_SALES}
-                            >
-                              <PrescriptionRequestSummaryPage />
-                            </PermissionGuard>
-                          }
-                        />
-                        <Route
-                          path="/erp/reports/marketplace/listing-health"
-                          element={
-                            <PermissionGuard
-                              permission={PERMISSIONS.REPORTS_SALES}
-                            >
-                              <ListingHealthPage />
-                            </PermissionGuard>
-                          }
-                        />
-
                         {/* ── SUPPLIERS ── */}
                         <Route
                           path="/erp/suppliers"
@@ -777,6 +718,20 @@ const App = () => {
                           <Route
                             path="/marketplace/storefront"
                             element={<MarketplaceStorefrontPage />}
+                          />
+                          <Route
+                            path="/marketplace/payouts"
+                            element={<MarketplacePayoutsPage />}
+                          />
+                          <Route
+                            path="/marketplace/reports"
+                            element={
+                              <PermissionGuard
+                                permission={PERMISSIONS.REPORTS_SALES}
+                              >
+                                <MarketplaceReportsPage />
+                              </PermissionGuard>
+                            }
                           />
                         </Route>
                       </Route>

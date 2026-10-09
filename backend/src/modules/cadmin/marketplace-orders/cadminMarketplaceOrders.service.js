@@ -566,8 +566,12 @@ function formatOrderDetail(order) {
 
     // ── NEW: Full billing breakdown ──
     service_charge: Number(order.service_charge ?? 0),
-    delivery_fee: Number(order.delivery_fee ?? 0),
-    km_surcharge: Number(order.km_surcharge ?? 0),
+    delivery_fee: parseFloat(
+      (
+        Number(order.delivery_fee ?? 0) + Number(order.km_surcharge ?? 0)
+      ).toFixed(2),
+    ),
+    km_surcharge: 0,
     tip: Number(order.tip ?? 0),
     distance_km: Number(order.distance_km ?? 0),
 

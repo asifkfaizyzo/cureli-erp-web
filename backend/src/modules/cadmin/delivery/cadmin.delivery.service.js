@@ -8,16 +8,25 @@ import {
   estimateDrivingDistance,
 } from "../../../services/distance.service.js";
 import { registerActiveDelivery } from "../../rider/presence/rider.presence.service.js";
+// ── NEW: Pricing engine for per-rider earning simulation ─────────────────
+import { calculateDeliveryEarnings } from "../fleet-pricing/pricingEngine.service.js";
+import { RiderPush, dismissRiderNotification } from "../../rider/push/rider.push.service.js";
 
 const MAX_REAL_DISTANCE_RIDERS = 25;
 
-export async function getAvailableRidersForOrder({ order_id, rider_type, search }) {
+export async function getAvailableRidersForOrder({
+  order_id,
+  rider_type,
+  search,
+}) {
   const order = await prisma.marketplaceOrder.findUnique({
     where: { order_id },
     select: {
       order_id: true,
       order_number: true,
       status: true,
+      tip: true, // ── NEW: needed for earning preview
+      delivery_address_snapshot: true, // ── NEW: needed for Leg 2 distance
       shop: { select: { business_name: true } },
       branch: {
         select: {
@@ -45,6 +54,27 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
   const pharmacyLng = order.branch?.marketplaceSettings?.longitude
     ? Number(order.branch.marketplaceSettings.longitude)
     : null;
+
+  // ── NEW: Extract customer drop coordinates for Leg 2 distance ────────
+  const dropSnapshot = order.delivery_address_snapshot || {};
+  const dropLat = dropSnapshot.latitude ? Number(dropSnapshot.latitude) : null;
+  const dropLng = dropSnapshot.longitude
+    ? Number(dropSnapshot.longitude)
+    : null;
+
+  // ── NEW: Compute Leg 2 distance once (same for all riders) ───────────
+  let leg2DistanceKm = 0;
+  if (pharmacyLat && pharmacyLng && dropLat && dropLng) {
+    const leg2 = await getDrivingDistance(
+      pharmacyLat,
+      pharmacyLng,
+      dropLat,
+      dropLng,
+    );
+    leg2DistanceKm = leg2.distanceKm;
+  }
+
+  const orderTip = Number(order.tip) || 0;
 
   const where = {
     status: "ACTIVE",
@@ -109,12 +139,13 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
       current_lng: rider.current_lng ? Number(rider.current_lng) : null,
       last_location_at: rider.last_location_at,
       distance_to_pharmacy_km: haversineKm,
-      is_estimate: true, // Will be overwritten for top N by real distance
+      is_estimate: true,
       has_active_delivery: Boolean(activeDelivery),
       active_delivery_id: activeDelivery?.delivery_id || null,
       active_delivery_status: activeDelivery?.status || null,
       is_currently_assigned_to_this_order:
         order.delivery?.rider_id === rider.rider_id,
+      estimated_earning: null, // ── NEW: populated below for INDEPENDENT riders
     };
   });
 
@@ -122,7 +153,10 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
   formattedRiders.sort((a, b) => {
     if (a.is_online && !b.is_online) return -1;
     if (!a.is_online && b.is_online) return 1;
-    if (a.distance_to_pharmacy_km !== null && b.distance_to_pharmacy_km !== null) {
+    if (
+      a.distance_to_pharmacy_km !== null &&
+      b.distance_to_pharmacy_km !== null
+    ) {
       return a.distance_to_pharmacy_km - b.distance_to_pharmacy_km;
     }
     if (a.distance_to_pharmacy_km !== null) return -1;
@@ -148,23 +182,60 @@ export async function getAvailableRidersForOrder({ order_id, rider_type, search 
         pharmacyLng,
       );
 
-      // Overwrite Haversine estimates with real distances for top N
       for (let i = 0; i < topRiders.length; i++) {
         topRiders[i].distance_to_pharmacy_km = realDistances[i].distanceKm;
         topRiders[i].is_estimate = realDistances[i].isEstimate;
       }
 
-      // Re-sort after real distances are applied
       formattedRiders.sort((a, b) => {
         if (a.is_online && !b.is_online) return -1;
         if (!a.is_online && b.is_online) return 1;
-        if (a.distance_to_pharmacy_km !== null && b.distance_to_pharmacy_km !== null) {
+        if (
+          a.distance_to_pharmacy_km !== null &&
+          b.distance_to_pharmacy_km !== null
+        ) {
           return a.distance_to_pharmacy_km - b.distance_to_pharmacy_km;
         }
         if (a.distance_to_pharmacy_km !== null) return -1;
         if (b.distance_to_pharmacy_km !== null) return 1;
         return 0;
       });
+    }
+  }
+
+  // ── Step 4: NEW — Simulate earnings for INDEPENDENT riders ───────────
+  // Only independent riders have per-order earnings. Team riders are salaried.
+  for (const rider of formattedRiders) {
+    if (rider.rider_type !== "INDEPENDENT") continue;
+    if (rider.distance_to_pharmacy_km == null) continue;
+
+    try {
+      const earnings = await calculateDeliveryEarnings({
+        pickup_distance_km: rider.distance_to_pharmacy_km,
+        drop_distance_km: leg2DistanceKm,
+        rider_type: "INDEPENDENT",
+      });
+
+      const baseEarning =
+        earnings.pickup_fee + earnings.drop_fee + earnings.floor_topup_fee;
+
+      rider.estimated_earning = {
+        base_earning: Number(baseEarning.toFixed(2)),
+        pickup_fee: earnings.pickup_fee,
+        drop_fee: earnings.drop_fee,
+        surge_fee: earnings.surge_fee,
+        floor_topup_fee: earnings.floor_topup_fee,
+        tip_amount: orderTip,
+        total_earning: Number(
+          (earnings.total_rider_earning + orderTip).toFixed(2),
+        ),
+      };
+    } catch (err) {
+      console.warn(
+        `[CAdminDelivery] Earning simulation failed for rider ${rider.rider_id}:`,
+        err.message,
+      );
+      // Non-fatal: rider still shows in the list, just without earning preview
     }
   }
 
@@ -235,10 +306,15 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
   }
 
   if (!rider.is_online) {
-    throw new Error("Rider is currently offline. Please choose an online partner.");
+    throw new Error(
+      "Rider is currently offline. Please choose an online partner.",
+    );
   }
 
-  if (rider.deliveries.length > 0 && rider.deliveries[0].order_id !== order_id) {
+  if (
+    rider.deliveries.length > 0 &&
+    rider.deliveries[0].order_id !== order_id
+  ) {
     throw new Error("Rider is already handling another active delivery.");
   }
 
@@ -251,7 +327,12 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
   // ── Calculate real driving distances (Leg 1 + Leg 2) ──────────────
   const [leg1, leg2] = await Promise.all([
     rider.current_lat && rider.current_lng && pharmacyLat && pharmacyLng
-      ? getDrivingDistance(rider.current_lat, rider.current_lng, pharmacyLat, pharmacyLng)
+      ? getDrivingDistance(
+          rider.current_lat,
+          rider.current_lng,
+          pharmacyLat,
+          pharmacyLng,
+        )
       : Promise.resolve({ distanceKm: 0, durationSecs: 0, isEstimate: true }),
     pharmacyLat && pharmacyLng && dropLat && dropLng
       ? getDrivingDistance(pharmacyLat, pharmacyLng, dropLat, dropLng)
@@ -262,11 +343,32 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
   const dropDistKm = leg2.distanceKm;
   const totalDistKm = parseFloat((pickupDistKm + dropDistKm).toFixed(2));
 
+  // ── NEW: Calculate rider earnings using the pricing engine ─────────
+  const earningsResult = await calculateDeliveryEarnings({
+    pickup_distance_km: pickupDistKm,
+    drop_distance_km: dropDistKm,
+    rider_type: rider.rider_type,
+  });
+
+  const orderTip = Number(order.tip) || 0;
+
   // Track previous rider before updating DB
   const oldRiderId = order.delivery?.rider_id;
 
   const result = await prisma.$transaction(async (tx) => {
     let deliveryRecord = order.delivery;
+
+    // ── NEW: Earning fields to write to the Delivery record ──────────
+    const earningFields = {
+      pickup_fee: earningsResult.pickup_fee,
+      drop_fee: earningsResult.drop_fee,
+      surge_fee: earningsResult.surge_fee,
+      floor_topup_fee: earningsResult.floor_topup_fee,
+      total_rider_earning: earningsResult.total_rider_earning,
+      tip_amount: orderTip,
+      pricing_config_id: earningsResult.pricing_config_id || null,
+      surge_rule_id: earningsResult.surge_rule_id || null,
+    };
 
     if (!deliveryRecord) {
       deliveryRecord = await tx.delivery.create({
@@ -283,6 +385,7 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
           pickup_distance_km: pickupDistKm,
           drop_distance_km: dropDistKm,
           total_distance_km: totalDistKm,
+          ...earningFields, // ── NEW
         },
       });
     } else {
@@ -300,6 +403,7 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
           pickup_distance_km: pickupDistKm,
           drop_distance_km: dropDistKm,
           total_distance_km: totalDistKm,
+          ...earningFields, // ── NEW: overwrites on reassignment
         },
       });
     }
@@ -324,7 +428,24 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     order.branch?.address_line_1 ||
     "Pharmacy Location";
 
-  // Fire SSE to Rider
+  // ── NEW: Compute earning summary for SSE payload ──────────────────
+  const baseEarning =
+    earningsResult.pickup_fee +
+    earningsResult.drop_fee +
+    earningsResult.floor_topup_fee;
+  const earningsPayload = {
+    base_earning: Number(baseEarning.toFixed(2)),
+    pickup_fee: earningsResult.pickup_fee,
+    drop_fee: earningsResult.drop_fee,
+    surge_fee: earningsResult.surge_fee,
+    floor_topup_fee: earningsResult.floor_topup_fee,
+    tip_amount: orderTip,
+    total_earning: Number(
+      (earningsResult.total_rider_earning + orderTip).toFixed(2),
+    ),
+  };
+
+  // ── Fire SSE to Rider (instant, foreground) ──────────────────────────────
   sseService.notifyRider(rider.rider_id, "delivery_assigned", {
     delivery_id: result.delivery_id,
     order_id: order.order_id,
@@ -338,9 +459,31 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     drop_distance_km: dropDistKm,
     total_distance_km: totalDistKm,
     is_estimate: leg1.isEstimate || leg2.isEstimate,
+    rider_type: rider.rider_type,
+    earnings: earningsPayload,
     timestamp: now.toISOString(),
   });
 
+  // ── Fire Push to Rider (failsafe — background/locked/killed) ─────────────
+  // This runs fire-and-forget. We do NOT await it because:
+  //   1. Expo Push API latency (1-5s) should not block the assignment response
+  //   2. SSE already delivered the instant foreground alert
+  //   3. Push is the backup channel — failure is non-fatal
+  RiderPush.incomingDelivery(
+    rider.rider_id,
+    result.delivery_id,
+    order.order_id,
+    order.order_number,
+    order.shop?.business_name || "Pharmacy",
+    earningsPayload,
+  ).catch((err) => {
+    console.error(
+      `[CAdminDelivery] Push notification failed for rider ${rider.rider_id}:`,
+      err.message,
+    );
+  });
+
+  // ── Notify CAdmins ────────────────────────────────────────────────────────
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id: order.order_id,
     delivery_id: result.delivery_id,
@@ -350,16 +493,31 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
     timestamp: now.toISOString(),
   });
 
-  // Notify old rider they have been unassigned/replaced
+  // ── Notify old rider they have been unassigned/replaced ───────────────────
   if (oldRiderId && oldRiderId !== rider.rider_id) {
-    const { unregisterActiveDelivery } = await import("../../rider/presence/rider.presence.service.js");
+    const { unregisterActiveDelivery } =
+      await import("../../rider/presence/rider.presence.service.js");
     unregisterActiveDelivery(oldRiderId);
 
+    // SSE cancellation
     sseService.notifyRider(oldRiderId, "delivery_cancelled", {
       delivery_id: result.delivery_id,
       order_id: order.order_id,
       order_number: order.order_number,
       reason: "Reassigned by admin to another delivery partner",
+    });
+
+    // Push cancellation — dismisses the sticky notification on old rider's device
+    RiderPush.deliveryCancelled(
+      oldRiderId,
+      result.delivery_id,
+      order.order_number,
+      "Reassigned by admin to another delivery partner",
+    ).catch((err) => {
+      console.error(
+        `[CAdminDelivery] Push dismissal failed for old rider ${oldRiderId}:`,
+        err.message,
+      );
     });
   }
 
@@ -392,18 +550,19 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     throw new Error("No rider is currently assigned to this order.");
   }
 
-  const TERMINAL_DELIVERY = ["DELIVERED", "FAILED", "CANCELLED"];
-  if (TERMINAL_DELIVERY.includes(delivery.status)) {
+  // Prevent unassigning if order is already terminal or already picked up / en route
+  const NON_UNASSIGNABLE = ["PICKED_UP", "EN_ROUTE", "ARRIVED_AT_CUSTOMER", "DELIVERED", "FAILED", "CANCELLED"];
+  if (NON_UNASSIGNABLE.includes(delivery.status)) {
     throw new Error(
-      `Cannot unassign — delivery is already in terminal state '${delivery.status}'.`,
+      `Cannot unassign — delivery is in '${delivery.status}' state.`,
     );
   }
 
   const oldRiderId = delivery.rider_id;
   const now = new Date();
 
+  // 1. Reset ONLY the delivery record (Do NOT touch order.status)
   await prisma.$transaction(async (tx) => {
-    // 1. Reset delivery to unassigned state
     await tx.delivery.update({
       where: { delivery_id: delivery.delivery_id },
       data: {
@@ -418,7 +577,6 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
       },
     });
 
-    // 2. Write audit log
     await tx.deliveryAssignmentLog.create({
       data: {
         delivery_id: delivery.delivery_id,
@@ -429,13 +587,12 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     });
   });
 
-  // 3. Clear rider's active delivery cache
-  const { unregisterActiveDelivery } = await import(
-    "../../rider/presence/rider.presence.service.js"
-  );
+  // 2. Clear rider presence lock
+  const { unregisterActiveDelivery } =
+    await import("../../rider/presence/rider.presence.service.js");
   unregisterActiveDelivery(oldRiderId);
 
-  // 4. Notify the unassigned rider instantly
+    // 3. Notify the old rider that they were unassigned
   sseService.notifyRider(oldRiderId, "delivery_cancelled", {
     delivery_id: delivery.delivery_id,
     order_id,
@@ -443,7 +600,15 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     reason: `Unassigned by admin: ${unassigned_by || "CAdmin"}`,
   });
 
-  // 5. Broadcast to all CAdmins
+  // 3b. Push: Dismiss sticky notification on old rider's device
+  dismissRiderNotification(oldRiderId, delivery.delivery_id).catch((err) => {
+    console.error(
+      `[CAdminDelivery] Push dismissal failed on unassign for rider ${oldRiderId}:`,
+      err.message,
+    );
+  });
+
+  // 4. Notify CAdmins to update their live delivery board
   sseService.notifyAllCAdmins("delivery_status_changed", {
     order_id,
     delivery_id: delivery.delivery_id,
@@ -452,24 +617,15 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     timestamp: now.toISOString(),
   });
 
-  // 6. Notify pharmacy ERP operators so their delivery progress resets
-  try {
-    const { fireOrderStatusChangedEvents } = await import(
-      "../../marketplace-orders/marketplace.orders.events.js"
-    );
-    await fireOrderStatusChangedEvents({
+  // 5. Notify Customer tracking screen via silent SSE (resets map/rider pin without sending push notification)
+  if (order.customer_id && sseService.notifyCustomer) {
+    sseService.notifyCustomer(order.customer_id, "delivery_status_changed", {
       order_id,
-      order_number: order.order_number,
-      shop_id: order.shop_id,
-      customer_id: order.customer_id,
-      new_status: order.status,
-      customer_name: order.customer_name_snapshot,
+      delivery_id: delivery.delivery_id,
+      status: "PENDING_ASSIGNMENT",
+      rider: null,
+      timestamp: now.toISOString(),
     });
-  } catch (err) {
-    console.error(
-      "[CAdmin Delivery] Failed to notify ERP after unassign:",
-      err.message,
-    );
   }
 
   return {

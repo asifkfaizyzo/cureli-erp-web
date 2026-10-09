@@ -287,8 +287,12 @@ function renderPage1({ shop, branch, order, invoice, items, gstSummary }) {
 function renderPage2({ order, invoice }) {
   const shopNetAmount  = Number(invoice.net_amount || 0);
   const serviceCharge  = Number(order.service_charge || 0);
-  const deliveryFee    = Number(order.delivery_fee || 0);
-  const kmSurcharge    = Number(order.km_surcharge || 0);
+  // ── Merge delivery_fee + km_surcharge into single "Delivery Fee" ──
+  // New orders: delivery_fee already includes km, km_surcharge = 0.
+  // Legacy orders: km_surcharge may be > 0, so we merge for consistency.
+  const deliveryFee    = parseFloat(
+    (Number(order.delivery_fee || 0) + Number(order.km_surcharge || 0)).toFixed(2),
+  );
   const tip            = Number(order.tip || 0);
   const grandTotal     = Number(order.total_amount || 0);
 
@@ -334,7 +338,6 @@ function renderPage2({ order, invoice }) {
           <tr><td class="label">Medicine Total (see Page 1)</td><td class="value">₹ ${fmt(shopNetAmount)}</td></tr>
           ${serviceCharge > 0 ? `<tr><td class="label">Service Charge</td><td class="value">₹ ${fmt(serviceCharge)}</td></tr>` : ''}
           ${deliveryFee > 0 ? `<tr><td class="label">Delivery Fee</td><td class="value">₹ ${fmt(deliveryFee)}</td></tr>` : ''}
-          ${kmSurcharge > 0 ? `<tr><td class="label">Distance Surcharge</td><td class="value">₹ ${fmt(kmSurcharge)}</td></tr>` : ''}
           ${tip > 0 ? `<tr><td class="label">Tip</td><td class="value">₹ ${fmt(tip)}</td></tr>` : ''}
           <tr class="grand"><td>Grand Total</td><td class="value">₹ ${fmt(grandTotal)}</td></tr>
         </tbody>

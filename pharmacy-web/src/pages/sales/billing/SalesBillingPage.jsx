@@ -12,6 +12,8 @@ import {
   ShoppingBag,
   Loader2,
   XCircle,
+  IndianRupee,
+  TrendingUp,
 } from "lucide-react";
 
 import SalesHeader from "./components/SalesHeader";
@@ -393,8 +395,8 @@ const SalesBillingPage = () => {
           ]
             .filter(Boolean)
             .join(", "),
-          paymentType: "CASH",
-          cashReceived: Number(data.total_amount || 0).toFixed(2),
+          paymentType: "ONLINE",
+          cashReceived: Number(data.subtotal || 0).toFixed(2),
           sameAsCustomer: !data.patient?.name,
         }));
 
@@ -1078,6 +1080,15 @@ const SalesBillingPage = () => {
   const hasData = hasUnsavedData();
   const isConfirmed = currentInvoice?.status === "CONFIRMED";
 
+  // ── Marketplace earning breakdown helpers ────────────────────────────────────
+  const mktSubtotal = Number(marketplaceOrderData?.subtotal || 0);
+  const mktTotalPaid = Number(marketplaceOrderData?.total_amount || 0);
+  const mktPlatformFee = Number((mktTotalPaid - mktSubtotal).toFixed(2));
+  const mktCommissionRate = marketplaceOrderData?.commission_rate;
+  const mktCommissionAmt = Number(marketplaceOrderData?.commission_amount || 0);
+  const mktEarning = Number(marketplaceOrderData?.pharmacy_earning || mktSubtotal);
+  const mktHasCommission = mktCommissionRate !== null && mktCommissionRate !== undefined;
+
   // ── Marketplace loading overlay ──────────────────────────────────────────────
   if (isMarketplaceMode && loadingStates.marketplace) {
     return (
@@ -1112,6 +1123,35 @@ const SalesBillingPage = () => {
                 Customer: <strong>{marketplaceOrderData.customer_name}</strong>
                 {" · "}Payment already collected via app.
               </p>
+
+              {/* ── EARNING BREAKDOWN ── */}
+              <div className="mt-2.5 bg-white/70 rounded-lg border border-indigo-200 px-3 py-2 max-w-xl">
+                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1.5">
+                  Earning Breakdown
+                </p>
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-[11px]">
+                  <div>
+                    <span className="text-gray-500">Medicines Value (Subtotal)</span>
+                    <p className="font-bold text-indigo-700 text-sm">₹{mktSubtotal.toFixed(2)}</p>
+                    <p className="text-[9px] text-indigo-500">This is your invoice value</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded px-3 py-1.5 border border-emerald-100">
+                    <span className="text-emerald-600 flex items-center gap-0.5 font-semibold">
+                      <TrendingUp size={11} /> Your Earning
+                    </span>
+                    <p className="font-bold text-emerald-700 text-sm">
+                      ₹{mktEarning.toFixed(2)}
+                    </p>
+                    <p className="text-[9px] text-emerald-500">
+                      {mktHasCommission
+                        ? `after ${mktCommissionRate}% commission`
+                        : "commission applied at settlement"}
+                      {" · "}settled weekly
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-3 mt-2">
                 <span className="inline-flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-100 px-2 py-1 rounded">
                   Quantities locked to ordered amounts

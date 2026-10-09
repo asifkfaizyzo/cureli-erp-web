@@ -39,15 +39,19 @@ import MarketplaceUsersPage from "./pages/marketplace/Users/MarketplaceUsersPage
 import MarketplaceOrdersPage from "./pages/marketplace/Orders/MarketplaceOrdersPage";
 import MarketplaceShopsPage from "./pages/marketplace/Shops/MarketplaceShopsPage";
 import MarketplacePricingPage from "./pages/marketplace/Pricing/MarketplacePricingPage";
+import DeliveryPricingPage from "./pages/marketplace/Pricing/DeliveryPricingPage";
+import CommissionPricingPage from "./pages/marketplace/Pricing/CommissionPricingPage";
 import AppConfigPage from "./pages/AppConfig/AppConfigPage";
 import BannersPage from "./pages/AppConfig/banners/BannersPage";
 import HomeScreenPage from "./pages/AppConfig/home-screen/HomeScreenPage";
+import ShopTagsPage from "./pages/AppConfig/shop-tags/ShopTagsPage";
 
 // ── Marketplace Communications ──────────────────────────────────────────────
 import MarketplaceCommunicationsPage from "./pages/marketplace/Communications/MarketplaceCommunicationsPage";
 import CustomerTicketsPage from "./pages/Communications/pages/CustomerTickets/CustomerTicketsPage";
 import MobileBroadcastPage from "./pages/Communications/pages/Broadcast/Mobile/MobileBroadcastPage";
 import MobileEmailBroadcastPage from "./pages/marketplace/Communications/pages/Email/MobileEmailBroadcastPage";
+import PharmacyPayoutsPage from "./pages/marketplace/Payouts/PharmacyPayoutsPage";
 
 // ── Fleet ────────────────────────────────────────────────────────────────────
 import FleetDashboard from "./pages/Fleet/Dashboard/FleetDashboard";
@@ -57,6 +61,7 @@ import FleetCommunicationsPage from "./pages/Fleet/Communications/FleetCommunica
 import FleetPricingPage from "./pages/Fleet/Pricing/FleetPricingPage";
 import BasePayPage from "./pages/Fleet/Pricing/BasePayPage";
 import IncentivesPage from "./pages/Fleet/Pricing/IncentivesPage";
+import RiderPayoutsPage from "./pages/Fleet/Payouts/RiderPayoutsPage";
 
 import AppLayout from "./components/layout/AppLayout";
 import { AuthProvider } from "./context/AuthContext";
@@ -326,9 +331,22 @@ function App() {
             path="/marketplace/orders"
             element={<MarketplaceOrdersPage />}
           />
+          {/* ── Marketplace Pricing ──────────────────────────────── */}
           <Route
             path="/marketplace/pricing"
             element={<MarketplacePricingPage />}
+          />
+          <Route
+            path="/marketplace/pricing/delivery"
+            element={<DeliveryPricingPage />}
+          />
+          <Route
+            path="/marketplace/pricing/commission"
+            element={
+              <PermissionGuard permission={CADMIN_PERMISSIONS.COMMISSION_VIEW}>
+                <CommissionPricingPage />
+              </PermissionGuard>
+            }
           />
           <Route path="/marketplace/shops" element={<MarketplaceShopsPage />} />
 
@@ -373,6 +391,16 @@ function App() {
                 requireAll={false}
               >
                 <MobileEmailBroadcastPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/payouts"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_VIEW}
+              >
+                <PharmacyPayoutsPage />
               </PermissionGuard>
             }
           />
@@ -423,6 +451,14 @@ function App() {
             element={
               <PermissionGuard permission={CADMIN_PERMISSIONS.APP_CONFIG_VIEW}>
                 <HomeScreenPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/marketplace/app-config/shop-tags"
+            element={
+              <PermissionGuard permission={CADMIN_PERMISSIONS.APP_CONFIG_VIEW}>
+                <ShopTagsPage />
               </PermissionGuard>
             }
           />
@@ -500,6 +536,16 @@ function App() {
                 permission={CADMIN_PERMISSIONS.FLEET_INCENTIVES_VIEW}
               >
                 <IncentivesPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/fleet/rider-payouts"
+            element={
+              <PermissionGuard
+                permission={CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_VIEW}
+              >
+                <RiderPayoutsPage />
               </PermissionGuard>
             }
           />

@@ -45,9 +45,7 @@ import {
   Shield,
   Receipt,
   CircleDollarSign,
-  Filter,       // Added to fix uncaught ReferenceError
-  CheckCircle2, // Added to fix uncaught ReferenceError
-  Activity,     // Added to fix uncaught ReferenceError
+  IndianRupee,
 } from "lucide-react";
 import { useMenuStore } from "../../store/useMenuStore";
 import { useMenuPermissions } from "../../hooks/usePermission";
@@ -112,11 +110,9 @@ const ERPMenuItem = ({
   disabledReason = "",
 }) => {
   const Icon = item.icon;
-  
-  // Track open nested subcategories inside this parent menu item
+
   const [openCategoryId, setOpenCategoryId] = useState("");
 
-  // Check if any standard submenu or nested child submenu item is active
   const isChildActive = useMemo(() => {
     return item.submenu?.some((sub) => {
       if (sub.items?.length > 0) {
@@ -129,18 +125,13 @@ const ERPMenuItem = ({
   const isActive = activeMenu === item.id || isChildActive;
   const isOpen = openMenuId === item.id;
 
-  const isGlobalMode = useAuthStore(selectIsGlobalMode);
-  const isSuperAdmin = useAuthStore(selectIsSuperAdmin);
-  const needsRenewal = useSubscriptionStore(selectNeedsRenewal);
-
   const showBadgeOnIcon = showRenewalBadge && !isExpanded && !isActive;
   const showBadgeOnText = showRenewalBadge && isExpanded && !isActive;
 
-  // Auto-expand nested category if one of its items becomes active
   useEffect(() => {
     if (isOpen && item.submenu) {
       const activeCategory = item.submenu.find((sub) =>
-        sub.items?.some((child) => child.id === activeMenu)
+        sub.items?.some((child) => child.id === activeMenu),
       );
       if (activeCategory) {
         setOpenCategoryId(activeCategory.id);
@@ -234,17 +225,21 @@ const ERPMenuItem = ({
               const SubIcon = sub.icon;
               const hasSubItems = sub.items?.length > 0;
 
-              // ── CATEGORY ACCORDION ──
+              // Category Accordion
               if (hasSubItems) {
                 const isCategoryOpen = openCategoryId === sub.id;
-                const isCategoryActive = sub.items.some((child) => child.id === activeMenu);
+                const isCategoryActive = sub.items.some(
+                  (child) => child.id === activeMenu,
+                );
 
                 return (
                   <div key={sub.id} className="flex flex-col w-full">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setOpenCategoryId((prev) => (prev === sub.id ? "" : sub.id));
+                        setOpenCategoryId((prev) =>
+                          prev === sub.id ? "" : sub.id,
+                        );
                       }}
                       className={`
                         flex items-center w-full h-9 px-3 rounded-lg text-sm transition-all duration-150
@@ -295,7 +290,10 @@ const ERPMenuItem = ({
                                 `}
                                 whileHover={{ x: 4 }}
                               >
-                                <SubItemIcon size={14} className="mr-2 opacity-70" />
+                                <SubItemIcon
+                                  size={14}
+                                  className="mr-2 opacity-70"
+                                />
                                 <span>{subItem.label}</span>
                               </motion.button>
                             );
@@ -307,14 +305,18 @@ const ERPMenuItem = ({
                 );
               }
 
-              // ── STANDARD SUBMENU ITEM ──
+              // Standard Submenu Item
               const isSubActive = activeMenu === sub.id;
               const subShowBadge =
-                isSuperAdmin && needsRenewal && sub.id === "settings-profile";
+                useAuthStore.getState().user?.role === "super_admin" &&
+                useSubscriptionStore.getState().needsRenewal &&
+                sub.id === "settings-profile";
               const hasBadge = sub.badge !== null && sub.badge !== undefined;
               const isSubWriteRoute = ERP_WRITE_ROUTES.includes(sub.path);
               const isSubDisabled =
-                isSubWriteRoute && isSuperAdmin && isGlobalMode;
+                isSubWriteRoute &&
+                useAuthStore.getState().user?.role === "super_admin" &&
+                useAuthStore.getState().branchContext?.mode === "GLOBAL";
 
               return (
                 <motion.button
@@ -864,54 +866,6 @@ const Sidebar = () => {
               },
             ],
           },
-          {
-            id: "reports-marketplace",
-            label: "Marketplace Reports",
-            icon: ShoppingBag,
-            permissionKey: "salesReport",
-            items: [
-              {
-                id: "report-mkt-sales-summary",
-                label: "Sales Summary",
-                icon: BarChart2,
-                path: "/erp/reports/marketplace/sales-summary",
-                breadcrumbs: ["Reports", "Marketplace Sales Summary"],
-                permissionKey: "salesReport",
-              },
-              {
-                id: "report-mkt-order-funnel",
-                label: "Order Status Funnel",
-                icon: Filter,
-                path: "/erp/reports/marketplace/order-funnel",
-                breadcrumbs: ["Reports", "Order Status Funnel"],
-                permissionKey: "salesReport",
-              },
-              {
-                id: "report-mkt-acceptance-rate",
-                label: "Acceptance Rate",
-                icon: CheckCircle2,
-                path: "/erp/reports/marketplace/acceptance-rate",
-                breadcrumbs: ["Reports", "Acceptance Rate"],
-                permissionKey: "salesReport",
-              },
-              {
-                id: "report-mkt-prescription-summary",
-                label: "Prescription Requests",
-                icon: FileText,
-                path: "/erp/reports/marketplace/prescription-summary",
-                breadcrumbs: ["Reports", "Prescription Request Summary"],
-                permissionKey: "salesReport",
-              },
-              {
-                id: "report-mkt-listing-health",
-                label: "Listing Health",
-                icon: Activity,
-                path: "/erp/reports/marketplace/listing-health",
-                breadcrumbs: ["Reports", "Listing Health"],
-                permissionKey: "salesReport",
-              },
-            ],
-          },
         ],
       },
       {
@@ -1004,18 +958,57 @@ const Sidebar = () => {
         breadcrumbs: ["Marketplace", "Storefront"],
         permissionKey: "marketplaceStorefront",
       },
+      {
+        id: "marketplace-payouts",
+        label: "Payouts & Earnings",
+        icon: IndianRupee,
+        path: "/marketplace/payouts",
+        breadcrumbs: ["Marketplace", "Payouts & Earnings"],
+        permissionKey: "marketplacePayouts",
+      },
+      {
+        id: "marketplace-reports",
+        label: "Reports & Analytics",
+        icon: PieChart,
+        path: "/marketplace/reports",
+        breadcrumbs: ["Marketplace", "Reports & Analytics"],
+        permissionKey: "marketplaceReports",
+      },
     ],
     [],
   );
 
-  const allMenuItems = isMarketplace ? marketplaceMenuItems : erpMenuItems;
+  const handleNavigation = useCallback(
+    (item, isDisabled = false, disabledReason = "") => {
+      if (isDisabled) {
+        toast.warning(
+          "Branch Required",
+          disabledReason ||
+            "Please select a specific branch to access this feature",
+        );
+        return;
+      }
+      navigate(item.path);
+      setActiveMenu(item.id);
+      setBreadcrumbs(item.breadcrumbs);
+    },
+    [navigate, setActiveMenu, setBreadcrumbs, toast],
+  );
 
-  /* ─────────── Permission filtering ─────────── */
+  const handleToggleSubmenu = useCallback((id) => {
+    isManualToggle.current = true;
+    setOpenMenuId((prev) => (prev === id ? "" : id));
+    setTimeout(() => {
+      isManualToggle.current = false;
+    }, 100);
+  }, []);
+
+  /* ─────────── Visible / Accessible items ─────────── */
   const visibleMenuItems = useMemo(() => {
     if (isMarketplace) {
       return marketplaceMenuItems.filter((item) => {
         const p = permissions[item.permissionKey];
-        return p?.visible !== false;
+        return p?.visible !== false && !p?.disabled;
       });
     }
 
@@ -1051,64 +1044,7 @@ const Sidebar = () => {
       .filter(Boolean);
   }, [isMarketplace, erpMenuItems, marketplaceMenuItems, permissions]);
 
-  /* ─────────── Accessible items list ─────────── */
-  const allAccessibleItems = useMemo(() => {
-    if (isMarketplace) return marketplaceMenuItems;
-
-    return erpMenuItems
-      .map((item) => {
-        if (item.submenu?.length > 0) {
-          const accessible = item.submenu
-            .map((sub) => {
-              if (sub.items?.length > 0) {
-                const accessibleChildren = sub.items.filter((child) => {
-                  const p = permissions[child.permissionKey];
-                  return p?.visible !== false && !p?.disabled;
-                });
-                if (accessibleChildren.length === 0) return null;
-                return { ...sub, items: accessibleChildren };
-              }
-              const p = permissions[sub.permissionKey];
-              if (p?.visible === false || p?.disabled) return null;
-              return sub;
-            })
-            .filter(Boolean);
-
-          if (accessible.length === 0) return null;
-          return { ...item, submenu: accessible };
-        }
-        const p = permissions[item.permissionKey];
-        if (p?.visible === false || p?.disabled) return null;
-        return item;
-      })
-      .filter(Boolean);
-  }, [isMarketplace, erpMenuItems, marketplaceMenuItems, permissions]);
-
-  /* ─────────── Navigation handler ─────────── */
-  const handleNavigation = useCallback(
-    (item, isDisabled = false, disabledReason = "") => {
-      if (isDisabled) {
-        toast.warning(
-          "Branch Required",
-          disabledReason ||
-            "Please select a specific branch to access this feature",
-        );
-        return;
-      }
-      navigate(item.path);
-      setActiveMenu(item.id);
-      setBreadcrumbs(item.breadcrumbs);
-    },
-    [navigate, setActiveMenu, setBreadcrumbs, toast],
-  );
-
-  const handleToggleSubmenu = useCallback((id) => {
-    isManualToggle.current = true;
-    setOpenMenuId((prev) => (prev === id ? "" : id));
-    setTimeout(() => {
-      isManualToggle.current = false;
-    }, 100);
-  }, []);
+  const allAccessibleItems = visibleMenuItems;
 
   /* ─────────── Sync active menu from URL ─────────── */
   useEffect(() => {
@@ -1150,88 +1086,13 @@ const Sidebar = () => {
           return s.items.some((child) => child.id === activeMenu);
         }
         return s.id === activeMenu;
-      })
+      }),
     );
     if (parent && openMenuId !== parent.id) {
       setOpenMenuId(parent.id);
     }
   }, [activeMenu, allAccessibleItems, openMenuId]);
 
-  /* ─────────── Fallback navigation if activeMenu invalid ─────────── */
-  useEffect(() => {
-    const isValid =
-      allAccessibleItems.some((m) => m.id === activeMenu) ||
-      allAccessibleItems.some((m) =>
-        m.submenu?.some((s) => {
-          if (s.items?.length > 0) {
-            return s.items.some((child) => child.id === activeMenu);
-          }
-          return s.id === activeMenu;
-        })
-      );
-
-    if (!isValid && allAccessibleItems.length > 0) {
-      const isOnCorrectNamespace = isMarketplace
-        ? location.pathname.startsWith("/marketplace")
-        : location.pathname.startsWith("/erp");
-
-      if (!isOnCorrectNamespace) return;
-
-      const activeMenuIsFromERP = erpMenuItems.some(
-        (m) =>
-          m.id === activeMenu ||
-          m.submenu?.some((s) => {
-            if (s.items?.length > 0) {
-              return s.items.some((child) => child.id === activeMenu);
-            }
-            return s.id === activeMenu;
-          })
-      );
-      const activeMenuIsFromMarketplace = marketplaceMenuItems.some(
-        (m) => m.id === activeMenu,
-      );
-
-      if (isMarketplace && activeMenuIsFromERP) return;
-      if (!isMarketplace && activeMenuIsFromMarketplace) return;
-
-      const defaultId = isMarketplace ? "marketplace-dashboard" : "dashboard";
-      const fallbackItem =
-        allAccessibleItems.find((m) => m.id === defaultId) ||
-        allAccessibleItems[0];
-
-      if (fallbackItem) {
-        if (fallbackItem.submenu?.length > 0) {
-          const firstSub = fallbackItem.submenu[0];
-          if (firstSub.items?.length > 0) {
-            const firstChild = firstSub.items[0];
-            setActiveMenu(firstChild.id);
-            setBreadcrumbs(firstChild.breadcrumbs);
-            navigate(firstChild.path);
-          } else {
-            setActiveMenu(firstSub.id);
-            setBreadcrumbs(firstSub.breadcrumbs);
-            navigate(firstSub.path);
-          }
-        } else {
-          setActiveMenu(fallbackItem.id);
-          setBreadcrumbs(fallbackItem.breadcrumbs);
-          navigate(fallbackItem.path);
-        }
-      }
-    }
-  }, [
-    activeMenu,
-    allAccessibleItems,
-    navigate,
-    setActiveMenu,
-    setBreadcrumbs,
-    isMarketplace,
-    location.pathname,
-    erpMenuItems,
-    marketplaceMenuItems,
-  ]);
-
-  /* ─────────── Render ─────────── */
   return (
     <motion.aside
       onMouseEnter={() => setHovered(true)}

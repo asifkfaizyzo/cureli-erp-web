@@ -15,6 +15,7 @@ import {
   Globe,
   EyeOff,
   ExternalLink,
+  Tag,
 } from "lucide-react";
 import ShopOverviewTab from "./comps/ShopOverviewTab";
 import ShopBranchesTab from "./comps/ShopBranchesTab";
@@ -147,8 +148,8 @@ const ShopDetailView = ({ shop, loading, onBack, onRefresh }) => {
               </div>
             </div>
 
-            {/* Status badges — marketplace only, no Active/Blocked */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Status badges + Tags */}
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
               <span
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${statusColors[mpStatusConfig.color]}`}
               >
@@ -170,6 +171,27 @@ const ShopDetailView = ({ shop, loading, onBack, onRefresh }) => {
                     <EyeOff size={11} /> Hidden on App
                   </span>
                 ))}
+
+              {/* Shop Tags */}
+              {shop.marketplaceProfile?.shop_tags?.length > 0 && (
+                <div className="flex items-center gap-1 ml-1">
+                  <Tag size={10} className="text-gray-400" />
+                  {shop.marketplaceProfile.shop_tags.slice(0, 3).map((slug) => (
+                    <span
+                      key={slug}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full
+                        bg-gray-100 text-gray-600 border border-gray-200"
+                    >
+                      {slug}
+                    </span>
+                  ))}
+                  {shop.marketplaceProfile.shop_tags.length > 3 && (
+                    <span className="text-[10px] text-gray-400">
+                      +{shop.marketplaceProfile.shop_tags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

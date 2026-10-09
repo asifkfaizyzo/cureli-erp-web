@@ -13,7 +13,12 @@ import {
   Upload,
   Loader2,
   AlertCircle,
+  Tag,
+  Plus,
+  Search,
+  Check,
 } from "lucide-react";
+import { fetchActiveShopTags } from "../../../api/marketplace";
 
 // Mirrors the pattern from PreviewStep.jsx
 const resolveImageUrl = (url) => {
@@ -21,6 +26,8 @@ const resolveImageUrl = (url) => {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${import.meta.env.VITE_API_URL}${url}`;
 };
+
+const CIRCLED = ["①", "②", "③", "④", "⑤"];
 
 function validateStorefront(data) {
   const errors = {};
@@ -95,9 +102,165 @@ const TextArea = ({ value, onChange, placeholder, error, maxLength, rows = 3 }) 
   />
 );
 
+// ── Inline Tag Picker (dark theme, self-contained) ────────────
+const TagPickerInline = ({ selectedSlugs, onAdd, onRemove }) => {
+  const [allTags, setAllTags] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const dropdownRef = useRef(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchActiveShopTags();
+        if (!cancelled) setAllTags(res.data?.data || []);
+      } catch (err) {
+        console.error("[TagPickerInline] Failed to load tags:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
+
+  useEffect(() => {
+    if (dropdownOpen && searchRef.current) {
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
+  }, [dropdownOpen]);
+
+  const selectedSet = new Set(selectedSlugs);
+  const maxed = selectedSlugs.length >= 5;
+  const tagMap = new Map(allTags.map((t) => [t.slug, t]));
+
+  const filtered = allTags.filter((t) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return t.label.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q);
+  });
+
+  return (
+    <div>
+      {/* Selected pills */}
+      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+        {selectedSlugs.length === 0 && (
+          <p className="text-[11px] text-white/15 py-0.5">No tags selected</p>
+        )}
+        {selectedSlugs.map((slug, index) => {
+          const tag = tagMap.get(slug);
+          const label = tag?.label || slug;
+          const color = tag?.color_hex || "#6366F1";
+          return (
+            <span
+              key={slug}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                text-[11px] font-semibold border"
+              style={{
+                backgroundColor: `${color}20`,
+                borderColor: `${color}40`,
+                color: color,
+              }}
+            >
+              <span className="text-[9px] opacity-60">{CIRCLED[index]}</span>
+              {label}
+              <button
+                type="button"
+                onClick={() => onRemove(slug)}
+                className="ml-0.5 p-0.5 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X size={9} />
+              </button>
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Add button + dropdown */}
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => { if (!maxed && !loading) setDropdownOpen(!dropdownOpen); }}
+          disabled={maxed || loading}
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px]
+            font-medium border transition-all
+            ${maxed
+              ? "border-white/5 text-white/15 cursor-not-allowed"
+              : "border-white/10 text-white/40 hover:border-white/20 hover:text-white/60 bg-white/[0.02]"
+            }`}
+        >
+          {loading ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
+          {maxed ? "Max 5" : "Add Tag"}
+        </button>
+
+        {dropdownOpen && (
+          <div className="absolute top-full left-0 mt-1 w-64 bg-[#1a1a2e] border border-white/10
+            rounded-xl shadow-2xl z-50 overflow-hidden">
+            <div className="p-2 border-b border-white/5">
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25" />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search tags..."
+                  className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-white/5 border border-white/10
+                    text-white text-xs placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
+                />
+              </div>
+            </div>
+            <div className="max-h-44 overflow-y-auto py-1">
+              {filtered.length === 0 ? (
+                <p className="px-3 py-3 text-[11px] text-white/25 text-center">No tags found</p>
+              ) : (
+                filtered.map((tag) => {
+                  const isSelected = selectedSet.has(tag.slug);
+                  return (
+                    <button
+                      key={tag.slug}
+                      type="button"
+                      onClick={() => { if (!isSelected) onAdd(tag.slug); }}
+                      disabled={isSelected}
+                      className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors
+                        ${isSelected ? "opacity-40 cursor-default" : "hover:bg-white/5 cursor-pointer"}`}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: tag.color_hex }}
+                      />
+                      <span className="text-xs text-white flex-1 truncate">{tag.label}</span>
+                      {isSelected && <Check size={11} className="text-green-400 flex-shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Image Upload Zone ─────────────────────────────────────────
 const ImageUploadZone = ({
   type,
-  currentUrl,       // raw URL from form state (may need resolution for display)
+  currentUrl,
   onUpload,
   onClear,
   isUploading,
@@ -106,9 +269,7 @@ const ImageUploadZone = ({
   aspectLabel,
 }) => {
   const inputRef = useRef(null);
-  const isLogo   = type === "logo";
-
-  // Resolve URL for display — handles both full S3 URLs and relative paths
+  const isLogo = type === "logo";
   const displayUrl = resolveImageUrl(currentUrl);
 
   const handleFileChange = async (e) => {
@@ -140,7 +301,6 @@ const ImageUploadZone = ({
           error ? "border-red-500/30" : "border-white/10 hover:border-white/20"
         } ${isLogo ? "w-24 h-24" : "h-24 w-full"}`}
       >
-        {/* Current image */}
         {displayUrl && !isUploading && (
           <>
             <img
@@ -166,7 +326,6 @@ const ImageUploadZone = ({
           </>
         )}
 
-        {/* Upload progress */}
         {isUploading && (
           <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5 z-20">
             <Loader2 size={16} className="text-white/60 animate-spin" />
@@ -180,7 +339,6 @@ const ImageUploadZone = ({
           </div>
         )}
 
-        {/* Empty state */}
         {!displayUrl && !isUploading && (
           <button
             type="button"
@@ -211,6 +369,7 @@ const ImageUploadZone = ({
   );
 };
 
+// ── Main Modal ────────────────────────────────────────────────
 const EditBrandingModal = ({
   isOpen,
   onClose,
@@ -226,13 +385,12 @@ const EditBrandingModal = ({
     support_phone:          "",
     logo_url:               null,
     banner_url:             null,
+    shop_tags:              [],
   });
   const [errors,    setErrors]    = useState({});
   const [isSaving,  setIsSaving]  = useState(false);
   const [submitErr, setSubmitErr] = useState(null);
 
-  // Seed form on open — use raw URLs from storefront (hook already resolved them,
-  // but we store them as-is in form state; ImageUploadZone resolves for display)
   useEffect(() => {
     if (!isOpen || !storefront) return;
     setForm({
@@ -241,6 +399,7 @@ const EditBrandingModal = ({
       support_phone:          storefront.support_phone          ?? "",
       logo_url:               storefront.logo_url               ?? null,
       banner_url:             storefront.banner_url             ?? null,
+      shop_tags:              storefront.shop_tags              ?? [],
     });
     setErrors({});
     setSubmitErr(null);
@@ -280,6 +439,7 @@ const EditBrandingModal = ({
       support_phone:          form.support_phone.trim(),
       logo_url:               form.logo_url,
       banner_url:             form.banner_url ?? null,
+      shop_tags:              form.shop_tags,
     });
     setIsSaving(false);
 
@@ -389,6 +549,20 @@ const EditBrandingModal = ({
                     rows={4}
                   />
                   <p className="text-[10px] text-white/15 text-right">{form.storefront_description.length} / 1000</p>
+                </Field>
+
+                {/* Shop Tags */}
+                <Field label="Pharmacy Type Tags" icon={Tag} hint="Click order = display priority on customer app">
+                  <TagPickerInline
+                    selectedSlugs={form.shop_tags}
+                    onAdd={(slug) => {
+                      if (form.shop_tags.length >= 5) return;
+                      patch("shop_tags", [...form.shop_tags, slug]);
+                    }}
+                    onRemove={(slug) => {
+                      patch("shop_tags", form.shop_tags.filter((s) => s !== slug));
+                    }}
+                  />
                 </Field>
 
                 {/* Support phone */}

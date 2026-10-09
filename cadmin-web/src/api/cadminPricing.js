@@ -8,3 +8,9 @@ export const getPricingConfig = () =>
 
 export const updatePricingConfig = (data) =>
   CAdminAPI.put("/marketplace/pricing-config", data);
+
+export const getSlashConfig = () =>
+  CAdminAPI.get("/marketplace/slash-config");
+
+export const updateSlashConfig = (data) =>
+  CAdminAPI.put("/marketplace/slash-config", data);

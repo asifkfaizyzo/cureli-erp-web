@@ -35,6 +35,7 @@ function normalizeStorefront(raw) {
     marketplace_status:     raw.marketplace_status     ?? "LIVE",
     is_live:                raw.is_live                ?? false,
     onboarding_completed:   raw.onboarding_completed   ?? false,
+    shop_tags:              raw.shop_tags              ?? [],
 
     // ── BANKING DETAILS ───────────────────────────────────────
     bank_account_holder:   raw.bank_account_holder    ?? null,

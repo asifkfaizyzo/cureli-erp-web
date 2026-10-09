@@ -1,5 +1,5 @@
 // cadmin-web/src/config/cadminPermissions.js (do not remove this comment)
-// cadmin-web/src/config/cadminPermissions.js
+// backend/src/config/cadminPermissions.js
 
 export const CADMIN_PERMISSIONS = {
   // ── Admin Management ──────────────────────────────────────────
@@ -156,6 +156,20 @@ export const CADMIN_PERMISSIONS = {
   FLEET_PRICING_MANAGE_SURGE: "fleet_pricing.manage_surge",
   FLEET_INCENTIVES_VIEW: "fleet_incentives.view",
   FLEET_INCENTIVES_MANAGE: "fleet_incentives.manage",
+
+  // ── Fleet — Rider Payouts ────────────────────────────────────
+  FLEET_RIDER_PAYOUTS_VIEW: "fleet_rider_payouts.view",
+  FLEET_RIDER_PAYOUTS_MANAGE: "fleet_rider_payouts.manage",
+
+  // ── Marketplace Commission ──────────────────────────────
+  COMMISSION_VIEW: "commission.view",
+  COMMISSION_MANAGE_RULES: "commission.manage_rules",
+  COMMISSION_MANAGE_OVERRIDES: "commission.manage_overrides",
+  COMMISSION_SUSPEND: "commission.suspend",
+
+  // ── Marketplace Pharmacy Payouts ──────────────────────────────
+  MARKETPLACE_PAYOUTS_VIEW: "marketplace_payouts.view",
+  MARKETPLACE_PAYOUTS_MANAGE: "marketplace_payouts.manage",
 };
 
 export const CADMIN_PERMISSION_GROUPS = [
@@ -739,6 +753,52 @@ export const CADMIN_PERMISSION_GROUPS = [
     ],
   },
   {
+    module: "Marketplace Commission",
+    key: "commission",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_VIEW,
+        label: "View Commission Rules",
+        description: "View all commission rules, rates, and pharmacy overrides",
+      },
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_MANAGE_RULES,
+        label: "Manage Commission Rules",
+        description: "Create, edit, delete, and set default commission rules",
+      },
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_MANAGE_OVERRIDES,
+        label: "Manage Pharmacy Overrides",
+        description:
+          "Assign or remove custom commission rates for specific pharmacies",
+      },
+      {
+        key: CADMIN_PERMISSIONS.COMMISSION_SUSPEND,
+        label: "Suspend / Resume Commission",
+        description:
+          "Temporarily disable or re-enable all marketplace commission",
+      },
+    ],
+  },
+  {
+    module: "Marketplace Pharmacy Payouts",
+    key: "marketplace_payouts",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_VIEW,
+        label: "View Pharmacy Payouts",
+        description:
+          "View pharmacy payout summaries, histories, and weekly cycles",
+      },
+      {
+        key: CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_MANAGE,
+        label: "Manage Pharmacy Payouts",
+        description:
+          "Refresh, process, edit adjustments, and complete pharmacy payouts",
+      },
+    ],
+  },
+  {
     module: "Fleet Management",
     key: "fleet",
     permissions: [
@@ -796,6 +856,24 @@ export const CADMIN_PERMISSION_GROUPS = [
         key: CADMIN_PERMISSIONS.FLEET_COMMUNICATIONS_VIEW,
         label: "View Fleet Communications",
         description: "Manage rider tickets and broadcasts",
+      },
+    ],
+  },
+  {
+    module: "Fleet Rider Payouts",
+    key: "fleet_rider_payouts",
+    permissions: [
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_VIEW,
+        label: "View Rider Payouts",
+        description:
+          "View rider payout summaries, breakdowns, and payment status",
+      },
+      {
+        key: CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_MANAGE,
+        label: "Manage Rider Payouts",
+        description:
+          "Refresh, finalize, process, and mark rider payouts as paid",
       },
     ],
   },
@@ -928,6 +1006,9 @@ export const CADMIN_ROUTE_PERMISSIONS = {
   "/fleet/verification": [CADMIN_PERMISSIONS.FLEET_VERIFICATION_VIEW],
   "/fleet/pricing": [CADMIN_PERMISSIONS.FLEET_PRICING_VIEW],
   "/fleet/incentives": [CADMIN_PERMISSIONS.FLEET_INCENTIVES_VIEW],
+  "/fleet/rider-payouts": [CADMIN_PERMISSIONS.FLEET_RIDER_PAYOUTS_VIEW],
+
+  "/marketplace/payouts": [CADMIN_PERMISSIONS.MARKETPLACE_PAYOUTS_VIEW],
 };
 
 export const ALL_CADMIN_PERMISSION_KEYS = Object.values(CADMIN_PERMISSIONS);

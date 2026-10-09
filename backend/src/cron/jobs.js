@@ -1,5 +1,4 @@
 // backend/src/cron/jobs.js (do not remove this comment)
-// backend/src/cron/jobs.js
 import cron from "node-cron";
 import prisma from "../config/prisma.js";
 import { withCronLock, getInstanceId } from "./cronLock.js";
@@ -10,6 +9,8 @@ import { processExpiredLoyaltyPoints } from "./loyaltyExpiryWorker.js";
 import { runBirthdayPushJob } from "./birthdayPushWorker.js";
 import { staleRiderWorker } from "./staleRiderWorker.js";
 import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
+import { checkCommissionSuspensionExpiry } from "./commissionSuspensionWorker.js";
+import { riderAssignmentTimeoutWorker } from "./riderAssignmentTimeoutWorker.js";  
 
 import {
   cleanupOldPendingUsers,
@@ -46,6 +47,9 @@ import {
 // Import Fleet Incentives and Pricing services for daily evaluations
 import { evaluateDailyIncentivesForShift } from "../modules/cadmin/fleet-incentives/incentiveEngine.service.js";
 import { checkAndActivateScheduledConfigs } from "../modules/cadmin/fleet-pricing/fleetPricing.service.js";
+import { runRiderPayoutFinalization } from "./riderPayoutFinalizationWorker.js";
+import { runPharmacyPayoutCalculation } from "./pharmacyPayoutCalculationWorker.js";
+import { runPharmacyPayoutFinalization } from "./pharmacyPayoutFinalizationWorker.js";
 
 async function processScheduledBroadcasts() {
   cronLogger.info("Checking for scheduled broadcasts...");
@@ -504,52 +508,57 @@ function initializeMarketplaceSchedulerJob() {
 
 async function runQuoteExpiryJob() {
   try {
-    const result = await expireStaleQuotes();
-    if (result.expired > 0) {
+    // 1. Expire stale quotes (15-30 min window)
+    const quoteResult = await expireStaleQuotes();
+    if (quoteResult.expired > 0) {
       cronLogger.info(
-        `[PRx] Expired ${result.expired} stale quote recipient(s)`,
+        `[PRx] Expired ${quoteResult.expired} stale quote recipient(s)`,
+      );
+    }
+
+    // 2. Expire stale requests (30 min window)
+    const requestResult = await expireStaleRequests();
+    if (requestResult.expired > 0) {
+      cronLogger.info(
+        `[PRx] Expired ${requestResult.expired} stale prescription request(s)`,
       );
     }
   } catch (err) {
-    cronLogger.error("Prescription quote expiry job failed", err);
+    cronLogger.error("Prescription expiry job failed", err);
   }
 }
 
 function initializePrescriptionQuoteExpiryJob() {
-  cron.schedule("*/5 * * * *", () =>
-    withCronLock("prescription-quote-expiry", 4, runQuoteExpiryJob),
+  // Runs every 2 minutes so requests expire promptly
+  cron.schedule("*/2 * * * *", () =>
+    withCronLock("prescription-expiry", 2, runQuoteExpiryJob),
   );
-  cronLogger.info("Prescription quote expiry job scheduled (every 5 minutes)");
+  cronLogger.info("Prescription quote & request expiry job scheduled (every 2 minutes)");
 }
 
 async function runPrescriptionRequestCleanupJob() {
   try {
-    cronLogger.info("[PRx] Starting prescription request cleanup run");
-
-    const requestResult = await expireStaleRequests();
-    cronLogger.info(
-      `[PRx] Expired ${requestResult.expired} stale prescription request(s)`,
-    );
+    cronLogger.info("[PRx] Starting daily prescription file cleanup");
 
     const fileResult = await cleanupExpiredRequestFiles();
     cronLogger.info(
       `[PRx] File cleanup: ${fileResult.deleted} deleted, ${fileResult.failed} failed`,
     );
   } catch (err) {
-    cronLogger.error("Prescription request cleanup job failed", err);
+    cronLogger.error("Prescription file cleanup job failed", err);
   }
 }
 
 function initializePrescriptionRequestCleanupJob() {
   cron.schedule("30 20 * * *", () =>
     withCronLock(
-      "prescription-request-cleanup",
+      "prescription-file-cleanup",
       30,
       runPrescriptionRequestCleanupJob,
     ),
   );
   cronLogger.info(
-    "Prescription request cleanup job scheduled (daily at 02:00 IST / 20:30 UTC)",
+    "Prescription file cleanup job scheduled (daily at 02:00 IST / 20:30 UTC)",
   );
 }
 
@@ -608,11 +617,35 @@ function initializeStaleRiderJob() {
   );
   cronLogger.info("Stale rider cleanup job scheduled (every 2 minutes)");
 }
+
 function initializeStaleAssignmentJob() {
   cron.schedule("*/2 * * * *", () =>
     withCronLock("stale-assignment-worker", 2, staleAssignmentWorker),
   );
   cronLogger.info("Stale assignment alert job scheduled (every 2 minutes)");
+}
+
+function initializeRiderAssignmentTimeoutJob() {
+  // Uses setInterval (30s) instead of node-cron because cron minimum is 1 min.
+  // withCronLock prevents overlapping runs across multiple server instances.
+  setInterval(
+    () => withCronLock("rider-assignment-timeout", 25, riderAssignmentTimeoutWorker),
+    30 * 1000,
+  );
+  // Run once immediately on startup
+  withCronLock("rider-assignment-timeout", 25, riderAssignmentTimeoutWorker);
+  cronLogger.info(
+    "Rider assignment timeout job initialized (every 30 seconds, 90s threshold)",
+  );
+}
+
+function initializeCommissionSuspensionJob() {
+  cron.schedule("*/15 * * * *", () =>
+    withCronLock("commission-suspension", 5, checkCommissionSuspensionExpiry),
+  );
+  cronLogger.info(
+    "Commission suspension auto-resume job scheduled (every 15 minutes)"
+  );
 }
 
 export function initializeCronJobs() {
@@ -646,9 +679,27 @@ export function initializeCronJobs() {
   initializePrescriptionRequestCleanupJob();
   initializeLoyaltyPointsExpiryJob();
   initializeShiftEvaluationJob();
+  initializeCommissionSuspensionJob();
+
+  cron.schedule("5 7 * * 1", () =>
+    withCronLock("rider-payout-finalization", 30, runRiderPayoutFinalization)
+  );
+  cronLogger.info("Rider payout finalization scheduled (Monday 7:05 AM IST)");
+
+  cron.schedule("30 6 * * *", () =>
+    withCronLock("pharmacy-payout-calculation", 30, runPharmacyPayoutCalculation)
+  );
+  cronLogger.info("Pharmacy payout calculation scheduled (Daily at 6:30 AM IST)");
+
+  cron.schedule("5 6 * * 1", () =>
+    withCronLock("pharmacy-payout-finalization", 30, runPharmacyPayoutFinalization)
+  );
+  cronLogger.info("Pharmacy payout finalization scheduled (Monday 6:05 AM IST)");
+
   initializeBirthdayPushJob();
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
+  initializeRiderAssignmentTimeoutJob();  
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -725,7 +776,12 @@ export function initializeCronJobs() {
   cronLogger.info("  - Prescription request cleanup: Daily at 02:00 IST");
   cronLogger.info("  - Loyalty points expiry: Daily at 2:00 AM IST");
   cronLogger.info("  - Shift evaluation: Daily at 6:05 AM");
+  cronLogger.info("  - Rider payout finalization: Monday 7:05 AM IST");
+  cronLogger.info("  - Pharmacy payout calculation: Daily at 6:30 AM IST");
+  cronLogger.info("  - Pharmacy payout finalization: Monday 6:05 AM IST");
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
   cronLogger.info("  - Stale assignment alerts: Every 2 minutes");
+  cronLogger.info("  - Rider assignment auto-decline: Every 30 seconds (90s timeout)"); 
+  cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
 }

@@ -1,8 +1,8 @@
 // pharmacy-web/src/pages/prescription-requests/components/RequestListPanel.jsx (do not remove this comment)
 
-import { Loader2, RefreshCw, FileText } from 'lucide-react';
-import RequestCard from './RequestCard';
-import { REQUEST_TABS } from '../../../hooks/marketplace/usePrescriptionRequestsPage';
+import { Loader2, RefreshCw, FileText } from "lucide-react";
+import RequestCard from "./RequestCard";
+import { REQUEST_TABS } from "../../../hooks/marketplace/usePrescriptionRequestsPage";
 
 const RequestListPanel = ({
   activeTab,
@@ -24,20 +24,18 @@ const RequestListPanel = ({
   const tab = REQUEST_TABS.find((t) => t.id === activeTab);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white/[0.01]">
-      {/* Sticky Panel header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#010015] z-10">
+    <div className="flex flex-col h-full min-h-0">
+      {/* Sticky Header */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.03] z-10 rounded-t-xl">
         <span className="text-xs font-bold text-white/70 uppercase tracking-wider">
-          {total > 0
-            ? `${total} request${total !== 1 ? 's' : ''}`
-            : 'Requests'}
+          {total > 0 ? `${total} request${total !== 1 ? "s" : ""}` : "Requests"}
         </span>
         <button
           onClick={onRefresh}
           disabled={isLoading}
           className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/60 hover:text-white/90 transition-colors focus:outline-none"
         >
-          <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
         </button>
       </div>
 
@@ -64,16 +62,17 @@ const RequestListPanel = ({
               <FileText size={20} className="text-white/20" />
             </div>
             <p className="text-sm font-semibold text-white/70 text-center">
-              {tab?.emptyLabel ?? 'No requests'}
+              {tab?.emptyLabel ?? "No requests"}
             </p>
             <p className="text-xs text-white/45 text-center max-w-[220px]">
-              {tab?.emptyDesc ?? ''}
+              {tab?.emptyDesc ?? ""}
             </p>
           </div>
         ) : (
           recipients.map((recipient) => {
-            const isAlerting = pendingRequestIds?.[recipient.recipient_id] === true;
-            const isMuted    = mutedRequestIds?.[recipient.recipient_id] === true;
+            const isAlerting =
+              pendingRequestIds?.[recipient.recipient_id] === true;
+            const isMuted = mutedRequestIds?.[recipient.recipient_id] === true;
 
             return (
               <RequestCard
@@ -93,7 +92,7 @@ const RequestListPanel = ({
 
       {/* Sticky Pagination Footer */}
       {totalPages > 1 && recipients.length > 0 && (
-        <div className="flex-shrink-0 flex items-center justify-between gap-2 py-2.5 px-4 border-t border-white/[0.06] bg-[#010015]">
+        <div className="flex-shrink-0 flex items-center justify-between gap-2 py-2.5 px-4 border-t border-white/[0.08] bg-white/[0.03] rounded-b-xl">
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1 || isLoading}
@@ -102,7 +101,8 @@ const RequestListPanel = ({
             Previous
           </button>
           <span className="text-xs text-white/60 font-medium">
-            <span className="text-white/90 font-bold">{page}</span> / {totalPages}
+            <span className="text-white/90 font-bold">{page}</span> /{" "}
+            {totalPages}
           </span>
           <button
             onClick={() => onPageChange(page + 1)}

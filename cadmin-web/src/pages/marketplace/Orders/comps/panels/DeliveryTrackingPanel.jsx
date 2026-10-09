@@ -19,6 +19,7 @@ import {
   Compass,
   UserCheck,
   Store,
+  Coins, // ── NEW: Earning badge icon
 } from "lucide-react";
 import {
   getAvailableRidersForOrder,
@@ -87,7 +88,6 @@ const CUSTOMER_MARKER_SVG = {
   anchor: { x: 12, y: 22 },
 };
 
-// Pure SVG circle path — works consistently without depending on window.google at parse time
 const CIRCLE_SVG_PATH = "M 0, 0 m -6, 0 a 6,6 0 1,0 12,0 a 6,6 0 1,0 -12,0";
 
 const RIDER_DOT_SVG = (isBusy, isSelected) => ({
@@ -154,11 +154,8 @@ const RiderMapView = ({
 }) => {
   const mapRef = useRef(null);
   const [activeInfoWindowRider, setActiveInfoWindowRider] = useState(null);
-
-  // Track if we have already fitted the map boundary constraints during this order lifecycle
   const hasFitBoundsRef = useRef(false);
 
-  // If selecting a different order or changing pharmacy/customer locations, reset tracking flag
   useEffect(() => {
     hasFitBoundsRef.current = false;
   }, [
@@ -197,21 +194,17 @@ const RiderMapView = ({
     return bounds;
   }, [pharmacy, customerAddress, riders]);
 
-  // Execute boundary auto-zoom ONCE. Do NOT let recurring GPS location ticks snap the user's viewport constraints!
   useEffect(() => {
     if (mapRef.current && isLoaded && !hasFitBoundsRef.current) {
       const bounds = getBounds();
       if (bounds && !bounds.isEmpty()) {
-        console.log(
-          "🗺️ [Map Engine] Constraints initialized. Adjusting map boundaries.",
-        );
         mapRef.current.fitBounds(bounds, {
           top: 50,
           right: 50,
           bottom: 50,
           left: 50,
         });
-        hasFitBoundsRef.current = true; // Lock boundaries. Allow smooth marker panning on following ticks
+        hasFitBoundsRef.current = true;
       }
     }
   }, [getBounds, isLoaded]);
@@ -222,9 +215,6 @@ const RiderMapView = ({
       selectedRider?.current_lat &&
       selectedRider?.current_lng
     ) {
-      console.log(
-        `🗺️ [Map Engine] Panning camera to active rider tracking target: ${selectedRider.rider_id}`,
-      );
       mapRef.current.panTo({
         lat: Number(selectedRider.current_lat),
         lng: Number(selectedRider.current_lng),
@@ -343,12 +333,25 @@ const RiderMapView = ({
               <p className="text-[9px] text-slate-500 font-mono mt-0.5">
                 {activeInfoWindowRider.phone}
               </p>
+
+              {/* ── NEW: Earning display in Map InfoWindow ── */}
+              {activeInfoWindowRider.rider_type === "INDEPENDENT" &&
+                activeInfoWindowRider.estimated_earning && (
+                  <p className="text-[10px] font-bold text-emerald-700 mt-1 flex items-center gap-1">
+                    <Coins size={10} />₹
+                    {activeInfoWindowRider.estimated_earning.total_earning.toFixed(
+                      2,
+                    )}{" "}
+                    est. pay
+                  </p>
+                )}
+
               <div className="flex items-center gap-1.5 mt-2 pt-1 border-t border-slate-100">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
                     activeInfoWindowRider.has_active_delivery
-                      ? "bg-amber-500"
-                      : "bg-emerald-500"
+                      ? "bg-amber-50"
+                      : "bg-emerald-50"
                   }`}
                 />
                 <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-600">
@@ -510,18 +513,21 @@ const RiderAssignList = ({
                       : "bg-white border-gray-100 hover:border-[#05015A]/25"
                 }`}
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="text-xs font-bold text-gray-800 truncate">
-                      {rider.full_name}
-                    </h4>
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        rider.is_online
-                          ? "bg-emerald-500 animate-pulse"
-                          : "bg-gray-300"
-                      }`}
-                    />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h4 className="text-xs font-bold text-gray-800 truncate">
+                        {rider.full_name}
+                      </h4>
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          rider.is_online
+                            ? "bg-emerald-500 animate-pulse"
+                            : "bg-gray-300"
+                        }`}
+                      />
+                    </div>
+                    
                   </div>
                   <p className="text-[10px] text-gray-400 font-mono mt-0.5">
                     {rider.phone}
@@ -552,6 +558,32 @@ const RiderAssignList = ({
                       )
                     )}
                   </div>
+
+                  {/* ── Detailed Pricing Breakdown ── */}
+                  {rider.rider_type === "INDEPENDENT" &&
+                    rider.estimated_earning && (
+                      <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50/90 border border-emerald-200/70 px-2 py-1 rounded-md">
+                        <Coins
+                          size={11}
+                          className="text-emerald-600 flex-shrink-0"
+                        />
+                        <span>
+                          ₹{rider.estimated_earning.total_earning.toFixed(2)}{" "}
+                          est.
+                        </span>
+                        <span className="text-emerald-600/80 font-medium text-[9px] ml-0.5">
+                          (₹{rider.estimated_earning.base_earning.toFixed(2)}{" "}
+                          base
+                          {rider.estimated_earning.surge_fee > 0
+                            ? ` · +₹${rider.estimated_earning.surge_fee} surge`
+                            : ""}
+                          {rider.estimated_earning.tip_amount > 0
+                            ? ` · +₹${rider.estimated_earning.tip_amount} tip`
+                            : ""}
+                          )
+                        </span>
+                      </div>
+                    )}
                 </div>
 
                 <button
@@ -627,7 +659,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   // ── 2. Real-time SSE updates (No polling!) ──
   const handleRiderAvailability = useCallback((payload) => {
     if (!payload?.rider_id) return;
-    console.log(`👤 [DeliveryPanel] Rider availability changed:`, payload);
     setRiders((prev) =>
       prev.map((r) =>
         r.rider_id === payload.rider_id
@@ -642,10 +673,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     const pLat = pharmacyRef.current.latitude;
     const pLng = pharmacyRef.current.longitude;
     if (!pLat || !pLng) return;
-
-    console.log(
-      `📍 [DeliveryPanel] Rider GPS tick received: ${payload.rider_id}`,
-    );
 
     setRiders((prev) =>
       prev.map((r) => {
@@ -666,8 +693,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   const handleDeliveryChanged = useCallback(
     (payload) => {
       if (!payload?.order_id || payload.order_id !== order.order_id) return;
-      console.log(`📦 [DeliveryPanel] Delivery status changed:`, payload);
-      // Trigger parent to re-fetch order data so milestones update
       onUpdated();
     },
     [order.order_id, onUpdated],
@@ -677,7 +702,6 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
   const handleStatusChanged = useCallback(
     (payload) => {
       if (!payload?.order_id || payload.order_id !== order.order_id) return;
-      console.log(`📋 [DeliveryPanel] Order status changed:`, payload);
       onUpdated();
     },
     [order.order_id, onUpdated],
@@ -801,17 +825,41 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
 
         {/* Right Side: 40% Control & Milestones */}
         <div className="lg:col-span-2 space-y-4 overflow-y-auto pr-1 h-full">
+          {/* ── NEW: Live Status Alert for Notified state ── */}
+          {delivery.status === "RIDER_NOTIFIED" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 animate-pulse flex items-start gap-2.5">
+              <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} />
+              <div>
+                <h5 className="text-xs font-bold text-amber-900">Pending Partner Acceptance</h5>
+                <p className="text-[10px] text-amber-700 font-semibold mt-0.5 leading-normal">
+                  An alert notification has been sent to {delivery.rider?.full_name || "the partner"}. 
+                  They have not accepted the request yet. This screen will auto-update when they respond or if the request times out.
+                </p>
+              </div>
+            </div>
+          )}
+
           <Card className="border-l-4 border-l-[#05015A]">
             <SectionTitle icon={UserCheck} title="Assigned Rider" />
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#05015A]/10 flex items-center justify-center">
-                  <User size={18} className="text-[#05015A]" />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  delivery.status === "RIDER_NOTIFIED" ? "bg-amber-100 animate-pulse" : "bg-[#05015A]/10"
+                }`}>
+                  <User size={18} className={delivery.status === "RIDER_NOTIFIED" ? "text-amber-600 animate-pulse" : "text-[#05015A]"} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-800">
-                    {delivery.rider?.full_name || "Driver"}
-                  </h4>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-gray-800">
+                      {delivery.rider?.full_name || "Driver"}
+                    </h4>
+                    {/* ── NEW: Pulsing orange label to specify not-yet-accepted state ── */}
+                    {delivery.status === "RIDER_NOTIFIED" && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300 rounded animate-pulse">
+                        Awaiting Accept
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-gray-400 font-mono mt-0.5">
                     {delivery.rider?.phone || "—"}
                   </p>
@@ -849,16 +897,28 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
                     </span>
                   </div>
                 )}
-                {delivery.total_rider_earning != null && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400 font-medium">
-                      Rider Earning
-                    </span>
-                    <span className="text-emerald-600">
-                      ₹{delivery.total_rider_earning}
-                    </span>
-                  </div>
-                )}
+                {delivery.total_rider_earning != null &&
+                  delivery.rider?.rider_type !== "TEAM" && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">
+                        Rider Base Pay
+                      </span>
+                      <span className="text-emerald-600">
+                        ₹{delivery.total_rider_earning}
+                      </span>
+                    </div>
+                  )}
+                {delivery.tip_amount != null &&
+                  Number(delivery.tip_amount) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 font-medium">
+                        Customer Tip
+                      </span>
+                      <span className="text-emerald-600">
+                        + ₹{delivery.tip_amount}
+                      </span>
+                    </div>
+                  )}
               </div>
 
               {[

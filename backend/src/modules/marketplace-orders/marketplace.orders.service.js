@@ -11,6 +11,7 @@ import {
   computePricing,
   normaliseConfig,
 } from "../mobile/checkout/pricing.engine.js";
+import { RiderPush } from "../rider/push/rider.push.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -398,7 +399,7 @@ export async function placeOrder({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRANSITION ORDER STATUS — Single domain function for ALL transitions
+// TRANSITION ORDER STATUS — Unified state transition handler
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -567,19 +568,44 @@ export async function transitionOrderStatus({
   });
 
   // ── Post-commit: Notify rider about critical transitions ──────────────────
+    // ── Post-commit: Notify rider about critical transitions ──────────────────
   const delivery = await prisma.delivery.findUnique({
     where: { order_id },
-    select: { delivery_id: true, rider_id: true },
+    select: {
+      delivery_id: true,
+      rider_id: true,
+      order: {
+        select: {
+          shop: { select: { business_name: true } },
+        },
+      },
+    },
   });
 
   if (delivery?.rider_id) {
     const { sseService } = await import("../../services/sse.service.js");
 
     if (target_status === "READY_FOR_PICKUP") {
+      // SSE: instant foreground notification
       sseService.notifyRider(delivery.rider_id, "order_ready_for_pickup", {
         delivery_id: delivery.delivery_id,
         order_id,
         order_number: order.order_number,
+      });
+
+      // Push: background/lockscreen notification (failsafe)
+      const shopName =
+        delivery.order?.shop?.business_name || "Pharmacy";
+      RiderPush.orderReadyForPickup(
+        delivery.rider_id,
+        delivery.delivery_id,
+        order.order_number,
+        shopName,
+      ).catch((err) => {
+        console.error(
+          `[OrderTransition] Push (READY_FOR_PICKUP) failed for rider ${delivery.rider_id}:`,
+          err.message,
+        );
       });
     }
 
@@ -593,6 +619,19 @@ export async function transitionOrderStatus({
         order_id,
         order_number: order.order_number,
         reason: `Order cancelled by ${actor_type}`,
+      });
+
+      // Push: dismiss sticky notification + send cancellation alert
+      RiderPush.deliveryCancelled(
+        delivery.rider_id,
+        delivery.delivery_id,
+        order.order_number,
+        `Order ${target_status.toLowerCase()} by ${actor_type}`,
+      ).catch((err) => {
+        console.error(
+          `[OrderTransition] Push (CANCELLED/REJECTED) failed for rider ${delivery.rider_id}:`,
+          err.message,
+        );
       });
     }
   }
@@ -663,6 +702,9 @@ export async function getErpOrders(shop_id, query = {}) {
         customer_name_snapshot: true,
         customer_phone_snapshot: true,
         total_amount: true,
+        subtotal: true,
+        commission_rate_snapshot: true,
+        commission_amount_snapshot: true,
         requires_prescription: true,
         placed_at: true,
         accepted_at: true,
@@ -1208,6 +1250,20 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
     }),
   );
 
+  const subtotal = Number(order.subtotal || 0);
+  const commissionAmount =
+    order.commission_amount_snapshot !== null
+      ? Number(order.commission_amount_snapshot)
+      : null;
+  const commissionRate =
+    order.commission_rate_snapshot !== null
+      ? Number(order.commission_rate_snapshot)
+      : null;
+  const pharmacyEarning =
+    commissionAmount !== null
+      ? Number((subtotal - commissionAmount).toFixed(2))
+      : subtotal;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1221,9 +1277,12 @@ export async function getMarketplaceBillingData(order_id, shop_id) {
       age: order.patient_age_snapshot,
       sex: order.patient_sex_snapshot,
     },
-    subtotal: Number(order.subtotal),
+    subtotal: subtotal,
     total_amount: Number(order.total_amount),
     payment_method: order.payment_method,
+    commission_rate: commissionRate,
+    commission_amount: commissionAmount,
+    pharmacy_earning: pharmacyEarning,
     items: itemsWithBatches,
   };
 }
@@ -1273,6 +1332,20 @@ export async function regenerateInvoicePdf(order_id, shop_id) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatErpOrderSummary(order) {
+  const subtotal = Number(order.subtotal || 0);
+  const commissionAmount =
+    order.commission_amount_snapshot !== null
+      ? Number(order.commission_amount_snapshot)
+      : null;
+  const commissionRate =
+    order.commission_rate_snapshot !== null
+      ? Number(order.commission_rate_snapshot)
+      : null;
+  const pharmacyEarning =
+    commissionAmount !== null
+      ? Number((subtotal - commissionAmount).toFixed(2))
+      : subtotal;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1280,6 +1353,10 @@ function formatErpOrderSummary(order) {
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     total_amount: Number(order.total_amount),
+    subtotal: subtotal,
+    commission_rate: commissionRate,
+    commission_amount: commissionAmount,
+    pharmacy_earning: pharmacyEarning,
     requires_prescription: order.requires_prescription,
     prescription_count: order._count?.prescriptions ?? 0,
     item_count: order.items?.length ?? 0,
@@ -1307,6 +1384,20 @@ function formatErpOrderDetail(order) {
   const deliveryMode =
     order.branch?.marketplaceSettings?.delivery_mode || "CURELI";
 
+  const subtotal = Number(order.subtotal || 0);
+  const commissionAmount =
+    order.commission_amount_snapshot !== null
+      ? Number(order.commission_amount_snapshot)
+      : null;
+  const commissionRate =
+    order.commission_rate_snapshot !== null
+      ? Number(order.commission_rate_snapshot)
+      : null;
+  const pharmacyEarning =
+    commissionAmount !== null
+      ? Number((subtotal - commissionAmount).toFixed(2))
+      : subtotal;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
@@ -1316,10 +1407,20 @@ function formatErpOrderDetail(order) {
     customer_phone: order.customer_phone_snapshot,
     delivery_address: order.delivery_address_snapshot,
     total_amount: Number(order.total_amount),
-    subtotal: Number(order.subtotal),
+    subtotal: subtotal,
+    commission_rate: commissionRate,
+    commission_amount: commissionAmount,
+    pharmacy_earning: pharmacyEarning,
+    // ── Platform fees ───────────────────────────────────────────
+    // ERP sees actual charges only. No slash anchors exposed.
+    // delivery_fee merged with km_surcharge for consistency.
     service_charge: Number(order.service_charge ?? 0),
-    delivery_fee: Number(order.delivery_fee ?? 0),
-    km_surcharge: Number(order.km_surcharge ?? 0),
+    delivery_fee: parseFloat(
+      (
+        Number(order.delivery_fee ?? 0) + Number(order.km_surcharge ?? 0)
+      ).toFixed(2),
+    ),
+    km_surcharge: 0,
     tip: Number(order.tip ?? 0),
     requires_prescription: order.requires_prescription,
     payment_method: order.payment_method,
@@ -1505,11 +1606,32 @@ function formatMobileOrderDetail(order) {
     subtotal: Number(order.subtotal),
     payment_method: order.payment_method,
     payment_status: order.payment_status,
+
+    // ── Platform fees (post-slash actuals) ──────────────────────
+    // delivery_fee is the combined charge (delivery + distance).
+    // For legacy orders (pre-slash), km_surcharge may be > 0,
+    // so we merge them for consistent customer display.
     service_charge: Number(order.service_charge ?? 0),
-    delivery_fee: Number(order.delivery_fee ?? 0),
-    km_surcharge: Number(order.km_surcharge ?? 0),
+    delivery_fee: parseFloat(
+      (
+        Number(order.delivery_fee ?? 0) + Number(order.km_surcharge ?? 0)
+      ).toFixed(2),
+    ),
+    km_surcharge: 0,
     tip: Number(order.tip ?? 0),
-    grand_total: Number(order.grand_total ?? order.total_amount),
+    grand_total: Number(order.total_amount),
+
+    // ── Slash Display Anchors (null = no slash on this order) ──
+    service_charge_anchor:
+      order.service_charge_anchor != null
+        ? Number(order.service_charge_anchor)
+        : null,
+    delivery_charge_anchor:
+      order.delivery_charge_anchor != null
+        ? Number(order.delivery_charge_anchor)
+        : null,
+    platform_savings:
+      order.platform_savings != null ? Number(order.platform_savings) : 0,
 
     // ── Coupon & Loyalty breakdown for expanded tracking sheet ──
     coupon_code: order.coupon_code ?? null,
@@ -1560,6 +1682,7 @@ function formatMobileOrderDetail(order) {
     })),
   };
 }
+
 function formatOrderItem(item) {
   return {
     item_id: item.item_id,

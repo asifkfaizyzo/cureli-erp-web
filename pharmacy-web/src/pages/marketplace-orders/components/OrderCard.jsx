@@ -54,6 +54,7 @@ function formatDate(iso) {
 const OrderCard = ({ order, isSelected, onSelect }) => {
   const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.PLACED;
   const hasRider = order.has_rider || order.delivery_status;
+  const earning = Number(order.pharmacy_earning ?? order.total_amount ?? 0);
 
   return (
     <button
@@ -99,10 +100,13 @@ const OrderCard = ({ order, isSelected, onSelect }) => {
           </p>
         </div>
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          <span className="text-[13px] font-bold text-white">
-            ₹{Number(order.total_amount).toFixed(2)}
+          <span className="text-[13px] font-bold text-emerald-300">
+            ₹{earning.toFixed(2)}
           </span>
-          <div className="flex items-center gap-1 text-white/40">
+          <span className="text-[8px] font-semibold text-emerald-400/70 uppercase tracking-wider">
+            earning
+          </span>
+          <div className="flex items-center gap-1 text-white/40 mt-0.5">
             <Clock size={9} />
             <span className="text-[9px] font-medium">
               {formatDate(order.placed_at)} · {formatTime(order.placed_at)}

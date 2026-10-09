@@ -1,5 +1,4 @@
 // cadmin-web/src/components/layout/AdminSidebar.jsx (do not remove this comment)
-// cadmin-web/src/components/layout/AdminSidebar.jsx
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
@@ -19,6 +18,8 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   BadgeIndianRupee,
+  HandCoins,
+  Landmark,
 } from "lucide-react";
 
 import { useMenuStore } from "../../store/useMenuStore";
@@ -198,6 +199,14 @@ const MARKETPLACE_MENU_ITEMS = [
     path: "/marketplace/communications",
     breadcrumbs: ["Marketplace", "Communications"],
   },
+  {
+    id: "mp-payouts",
+    label: "Payouts & Settlement",
+    icon: HandCoins,
+    path: "/marketplace/payouts",
+    breadcrumbs: ["Marketplace", "Payouts & Settlement"],
+    permissionKey: "marketplacePayouts",
+  },
 ];
 
 const FLEET_MENU_ITEMS = [
@@ -240,6 +249,14 @@ const FLEET_MENU_ITEMS = [
     path: "/fleet/pricing",
     breadcrumbs: ["Fleet", "Pricing"],
     permissionKey: "fleet",
+  },
+  {
+    id: "fleet-payouts",
+    label: "Payouts",
+    icon: HandCoins,
+    path: "/fleet/rider-payouts",
+    breadcrumbs: ["Fleet", "Payouts"],
+    permissionKey: "fleetPayouts",
   },
 ];
 
@@ -297,6 +314,14 @@ const MARKETPLACE_CHILD_ROUTES = {
   "/marketplace/orders/sessions": {
     parentId: "mp-orders",
     breadcrumbs: ["Orders", "Sessions"],
+  },
+  "/marketplace/pricing/delivery": {
+    parentId: "mp-pricing",
+    breadcrumbs: ["Marketplace", "Pricing", "Delivery"],
+  },
+  "/marketplace/pricing/commission": {
+    parentId: "mp-pricing",
+    breadcrumbs: ["Marketplace", "Pricing", "Commission"],
   },
   "/marketplace/orders/pending": {
     parentId: "mp-orders",
@@ -393,11 +418,15 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
   const { isMarketplace, isAdmin, isFleet } = useAdminMode();
 
   // Badges
-  const pendingTickets         = useCommunicationBadgeStore((s) => s.pendingTickets);
-  const pendingEnquiries       = useCommunicationBadgeStore((s) => s.pendingEnquiries);
-  const pendingCustomerTickets = useCommunicationBadgeStore((s) => s.pendingCustomerTickets);
+  const pendingTickets = useCommunicationBadgeStore((s) => s.pendingTickets);
+  const pendingEnquiries = useCommunicationBadgeStore(
+    (s) => s.pendingEnquiries,
+  );
+  const pendingCustomerTickets = useCommunicationBadgeStore(
+    (s) => s.pendingCustomerTickets,
+  );
 
-  const hasAdminPendingComms       = pendingTickets > 0 || pendingEnquiries > 0;
+  const hasAdminPendingComms = pendingTickets > 0 || pendingEnquiries > 0;
   const hasMarketplacePendingComms = pendingCustomerTickets > 0;
 
   const [expandedWidth, setExpandedWidth] = useState(getExpandedWidth);
@@ -502,9 +531,26 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
     const currentPath = location.pathname;
     if (currentPath === defaultPath) return;
 
-    if (isFleet && !currentPath.startsWith("/fleet") && currentPath !== "/settings" && currentPath !== "/notifications") return;
-    if (isMarketplace && !currentPath.startsWith("/marketplace") && currentPath !== "/settings" && currentPath !== "/notifications") return;
-    if (isAdmin && (currentPath.startsWith("/marketplace") || currentPath.startsWith("/fleet"))) return;
+    if (
+      isFleet &&
+      !currentPath.startsWith("/fleet") &&
+      currentPath !== "/settings" &&
+      currentPath !== "/notifications"
+    )
+      return;
+    if (
+      isMarketplace &&
+      !currentPath.startsWith("/marketplace") &&
+      currentPath !== "/settings" &&
+      currentPath !== "/notifications"
+    )
+      return;
+    if (
+      isAdmin &&
+      (currentPath.startsWith("/marketplace") ||
+        currentPath.startsWith("/fleet"))
+    )
+      return;
 
     const isValidMain = visibleMenuItems.some((m) => m.path === currentPath);
     const isValidChild = Object.keys(currentChildRoutes).includes(currentPath);

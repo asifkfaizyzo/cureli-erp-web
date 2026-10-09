@@ -6,6 +6,7 @@ import {
   verifyMobilePaymentSignature,
 } from "../../../config/razorpay.js";
 import { computePricing, normaliseConfig } from "./pricing.engine.js";
+import { applySlash, normaliseSlashConfig } from "./slash.engine.js";
 import { getDrivingDistance } from "../../../services/distance.service.js";
 import { fireOrderPlacedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
 import { generateDistinctOtps } from "../../marketplace-orders/marketplace.orders.service.js";
@@ -14,6 +15,7 @@ import {
   validateCouponForCustomer,
   recordCouponUsage,
 } from "../../coupons/coupon.service.js";
+import { getEffectiveRateForShop } from "../../cadmin/commission/cadmin.commission.service.js";
 import { redeemPoints } from "../../loyalty/loyalty.service.js";
 import { getLoyaltyConfig } from "../../loyalty/loyalty.config.service.js";
 import { validateRedemption } from "../../loyalty/loyalty.engine.js";
@@ -38,6 +40,28 @@ async function getConfig() {
   }
 
   return _configCache;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOAD SLASH CONFIG (cached in memory, invalidated by version change)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _slashCache = null;
+let _slashVersion = null;
+
+async function getSlashConfig() {
+  const row = await prisma.slashDisplayConfig.findFirst();
+  if (!row) {
+    return normaliseSlashConfig(null);
+  }
+
+  const version = row.version;
+  if (_slashVersion !== version || !_slashCache) {
+    _slashCache = normaliseSlashConfig(row);
+    _slashVersion = version;
+  }
+
+  return _slashCache;
 }
 
 /**
@@ -92,6 +116,10 @@ export async function getQuote({
   if (!basePricing.delivery_available) {
     return {
       ...basePricing,
+      delivery_charge: 0,
+      service_charge_anchor: null,
+      delivery_charge_anchor: null,
+      platform_savings: 0,
       coupon_code: null,
       coupon_discount: 0,
       coupon_reason: null,
@@ -100,6 +128,14 @@ export async function getQuote({
       loyalty_reason: null,
     };
   }
+
+  // ── 0. Apply Slash Display ────────────────────────────────────
+  const slashConfig = await getSlashConfig();
+  const slashed = applySlash({
+    ...basePricing,
+    distance_km,
+    config: slashConfig,
+  });
 
   // ── 1. Coupon Discount Calculation ─────────────────────────
   let coupon_discount = 0;
@@ -153,11 +189,20 @@ export async function getQuote({
 
   // Combined discounts cannot reduce payable total below ₹1.00 (Razorpay minimum)
   const combinedDiscounts = coupon_discount + loyalty_discount;
-  const rawGrandTotal = basePricing.grand_total - combinedDiscounts;
+  const rawGrandTotal = slashed.grand_total - combinedDiscounts;
   const grand_total = parseFloat(Math.max(1, rawGrandTotal).toFixed(2));
 
   return {
-    ...basePricing,
+    subtotal: slashed.subtotal ?? subtotal,
+    service_charge: slashed.service_charge,
+    service_charge_anchor: slashed.service_charge_anchor,
+    delivery_fee: slashed.delivery_charge,
+    delivery_charge_anchor: slashed.delivery_charge_anchor,
+    km_surcharge: 0,
+    tip: slashed.tip ?? tip,
+    platform_savings: slashed.platform_savings,
+    delivery_available: slashed.delivery_available,
+    unavailable_reason: slashed.unavailable_reason,
     coupon_code: applied_coupon_code,
     coupon_discount,
     coupon_reason,
@@ -209,7 +254,6 @@ export async function createCheckoutSession({
   if (!address) throw new Error("Delivery address not found");
 
   // ── 3. Validate branch ───────────────────────────────────
-    // ── 3. Validate branch ───────────────────────────────────
   const branchSettings = await prisma.branchMarketplaceSettings.findUnique({
     where: { branch_id },
     select: {
@@ -227,24 +271,30 @@ export async function createCheckoutSession({
   const shop_id = branchSettings.branch.shop_id;
 
   // ── 3b. Server-side distance validation ─────────────────
-  // latitude/longitude are columns on BranchMarketplaceSettings itself,
-  // NOT a nested relation. The previous select omitted them, causing
-  // branchLat/branchLng to always be null and silently skipping validation.
-  const branchLat = branchSettings.latitude ? Number(branchSettings.latitude) : null;
-  const branchLng = branchSettings.longitude ? Number(branchSettings.longitude) : null;
+  const branchLat = branchSettings.latitude
+    ? Number(branchSettings.latitude)
+    : null;
+  const branchLng = branchSettings.longitude
+    ? Number(branchSettings.longitude)
+    : null;
   const addrLat = address.latitude ? Number(address.latitude) : null;
   const addrLng = address.longitude ? Number(address.longitude) : null;
 
   let validatedDistanceKm = distance_km;
 
   if (branchLat && branchLng && addrLat && addrLng) {
-    const serverDist = await getDrivingDistance(branchLat, branchLng, addrLat, addrLng);
+    const serverDist = await getDrivingDistance(
+      branchLat,
+      branchLng,
+      addrLat,
+      addrLng,
+    );
     const clientDist = Number(distance_km) || 0;
     const tolerance = serverDist.distanceKm * 0.2;
 
     if (Math.abs(clientDist - serverDist.distanceKm) > tolerance) {
       console.warn(
-        `[Checkout] Distance mismatch: client=${clientDist}km, server=${serverDist.distanceKm}km. Using server value.`
+        `[Checkout] Distance mismatch: client=${clientDist}km, server=${serverDist.distanceKm}km. Using server value.`,
       );
       validatedDistanceKm = serverDist.distanceKm;
     }
@@ -262,11 +312,24 @@ export async function createCheckoutSession({
   }
 
   // ── 6. Base pricing calculation ──────────────────────────
-  const pricing = computePricing({ subtotal, distance_km: validatedDistanceKm, tip, config });
+  const pricing = computePricing({
+    subtotal,
+    distance_km: validatedDistanceKm,
+    tip,
+    config,
+  });
 
   if (!pricing.delivery_available) {
     throw new Error(pricing.unavailable_reason);
   }
+
+  // ── 6b. Apply Slash Display ──────────────────────────────────
+  const slashConfig = await getSlashConfig();
+  const slashed = applySlash({
+    ...pricing,
+    distance_km: validatedDistanceKm,
+    config: slashConfig,
+  });
 
   // ── 7. Validate & Calculate Coupon Discount ──────────────
   let coupon_discount_amount = 0;
@@ -318,7 +381,7 @@ export async function createCheckoutSession({
   // Final grand total after all discounts (min payable ₹1.00)
   const totalDiscount = coupon_discount_amount + loyalty_discount_amount;
   const grand_total = parseFloat(
-    Math.max(1, pricing.grand_total - totalDiscount).toFixed(2),
+    Math.max(1, slashed.grand_total - totalDiscount).toFixed(2),
   );
 
   // ── 9. Snapshot address ──────────────────────────────────
@@ -363,10 +426,13 @@ export async function createCheckoutSession({
       delivery_address_id,
       delivery_address_snapshot: address_snapshot,
       subtotal: pricing.subtotal,
-      service_charge: pricing.service_charge,
-      delivery_fee: pricing.delivery_fee,
-      km_surcharge: pricing.km_surcharge,
-      tip: pricing.tip,
+      service_charge: slashed.service_charge,
+      delivery_fee: slashed.delivery_charge,
+      km_surcharge: 0,
+      tip: slashed.tip ?? pricing.tip,
+      service_charge_anchor: slashed.service_charge_anchor,
+      delivery_charge_anchor: slashed.delivery_charge_anchor,
+      platform_savings: slashed.platform_savings,
       coupon_code: applied_coupon_code,
       coupon_discount_amount,
       loyalty_points_redeemed: points_to_redeem,
@@ -393,7 +459,14 @@ export async function createCheckoutSession({
     currency: RAZORPAY_MOBILE_CURRENCY,
     key_id: process.env.RAZORPAY_MOBILE_KEY_ID,
     pricing: {
-      ...pricing,
+      subtotal: pricing.subtotal,
+      service_charge: slashed.service_charge,
+      service_charge_anchor: slashed.service_charge_anchor,
+      delivery_fee: slashed.delivery_charge,
+      delivery_charge_anchor: slashed.delivery_charge_anchor,
+      km_surcharge: 0,
+      tip: slashed.tip ?? pricing.tip,
+      platform_savings: slashed.platform_savings,
       coupon_code: applied_coupon_code,
       coupon_discount: coupon_discount_amount,
       loyalty_points_redeemed: points_to_redeem,
@@ -566,6 +639,31 @@ async function _createOrderFromSession({
   });
   const shop_id = branchSettings.branch.shop_id;
 
+  // ── Commission Snapshot ──────────────────────────────────────
+  let commissionRateSnapshot = 0;
+  let commissionRuleIdSnapshot = null;
+  let commissionAmountSnapshot = 0;
+
+  try {
+    const effectiveRate = await getEffectiveRateForShop(shop_id);
+    if (effectiveRate.has_commission && !effectiveRate.is_suspended) {
+      const rate = Number(effectiveRate.flat_percent || 0);
+      commissionRateSnapshot = rate;
+      commissionAmountSnapshot = parseFloat(
+        ((Number(session.subtotal) * rate) / 100).toFixed(2),
+      );
+      // Try to capture the rule_id if available from the source
+      // The effective rate object doesn't expose rule_id directly,
+      // so we store null for now. Can be enhanced later.
+      commissionRuleIdSnapshot = null;
+    }
+  } catch (err) {
+    console.error(
+      "[Checkout] Commission snapshot failed (non-fatal):",
+      err.message,
+    );
+  }
+
   // Fetch customer snapshot
   const customer = await prisma.cureliMobileUser.findUnique({
     where: { id: session.customer_id },
@@ -617,12 +715,18 @@ async function _createOrderFromSession({
         subtotal: session.subtotal,
         service_charge: session.service_charge,
         delivery_fee: session.delivery_fee,
-        km_surcharge: session.km_surcharge,
+        km_surcharge: session.km_surcharge ?? 0,
         tip: session.tip,
+        service_charge_anchor: session.service_charge_anchor,
+        delivery_charge_anchor: session.delivery_charge_anchor,
+        platform_savings: session.platform_savings,
         coupon_code: session.coupon_code,
         coupon_discount_amount: session.coupon_discount_amount,
         loyalty_points_redeemed: session.loyalty_points_redeemed,
         loyalty_discount_amount: session.loyalty_discount_amount,
+        commission_rate_snapshot: commissionRateSnapshot,
+        commission_rule_id_snapshot: commissionRuleIdSnapshot,
+        commission_amount_snapshot: commissionAmountSnapshot,
         total_amount: session.grand_total,
         distance_km: session.distance_km,
         requires_prescription: requiresPrescription,

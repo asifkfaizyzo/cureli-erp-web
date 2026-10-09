@@ -49,7 +49,7 @@ function round2(n) {
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// ── Guard ────────────────────────────────────────────────────
+// ── Guards ───────────────────────────────────────────────────
 
 async function ensureIndependent(riderId) {
   const rider = await prisma.rider.findUnique({
@@ -64,6 +64,23 @@ async function ensureIndependent(riderId) {
   if (rider.rider_type !== "INDEPENDENT") {
     const err = new Error("Earnings are only available for independent riders");
     err.code = "FORBIDDEN";
+    throw err;
+  }
+  return rider;
+}
+
+/**
+ * Lightweight guard that only checks rider existence.
+ * Used by getPayouts() which is available to both INDEPENDENT and TEAM riders.
+ */
+async function ensureRiderExists(riderId) {
+  const rider = await prisma.rider.findUnique({
+    where: { rider_id: riderId },
+    select: { rider_id: true, rider_type: true },
+  });
+  if (!rider) {
+    const err = new Error("Rider not found");
+    err.code = "NOT_FOUND";
     throw err;
   }
   return rider;
@@ -159,21 +176,36 @@ export async function getOverview(riderId) {
   ]);
   const lwTotal = lwDeliveries.total_rider_earning + lwIncentives;
 
-  // Payout summary
+  // ── Weekly breakdown by category ────────────────────────────
+  const cwBreakdown = {
+    base_fee: round2(cwDeliveries.pickup_fee + cwDeliveries.drop_fee),
+    surge_fee: round2(cwDeliveries.surge),
+    floor_topup_fee: round2(cwDeliveries.floor_topup),
+    tips: round2(cwDeliveries.tips),
+    incentive_earnings: round2(cwIncentives),
+    total: round2(cwTotal),
+  };
+
+  // Payout summary — exclude DRAFT (internal CAdmin state)
   const [currentWeekAccumulated, lastPayout] = await Promise.all([
     prisma.riderEarningLedger.aggregate({
       where: { rider_id: riderId, week_start: weekStart, is_paid: false },
       _sum: { amount: true },
     }),
     prisma.riderPayout.findFirst({
-      where: { rider_id: riderId },
+      where: {
+        rider_id: riderId,
+        status: { not: "DRAFT" },
+      },
       orderBy: { week_end: "desc" },
       select: {
         week_start: true,
         week_end: true,
         gross_amount: true,
+        net_amount: true,
         status: true,
         processed_at: true,
+        manual_reference: true, // ← Database column name
       },
     }),
   ]);
@@ -196,23 +228,24 @@ export async function getOverview(riderId) {
         cwDeliveries.count > 0 ? round2(cwTotal / cwDeliveries.count) : 0,
       delta_pct_vs_last_week: deltaPct(round2(cwTotal), round2(lwTotal)),
     },
+    current_week_breakdown: cwBreakdown,
     payout: {
-      current_week_accumulated: round2(
-        currentWeekAccumulated._sum.amount || 0,
-      ),
+      current_week_accumulated: round2(currentWeekAccumulated._sum.amount || 0),
       last_payout: lastPayout
         ? {
             week_start: new Date(lastPayout.week_start)
               .toISOString()
               .split("T")[0],
-            week_end: new Date(lastPayout.week_end)
-              .toISOString()
-              .split("T")[0],
+            week_end: new Date(lastPayout.week_end).toISOString().split("T")[0],
             gross_amount: round2(lastPayout.gross_amount),
+            net_amount: round2(
+              lastPayout.net_amount || lastPayout.gross_amount,
+            ),
             status: lastPayout.status,
             processed_at: lastPayout.processed_at
               ? lastPayout.processed_at.toISOString()
               : null,
+            utr_reference: lastPayout.manual_reference || null,
           }
         : null,
     },
@@ -282,16 +315,9 @@ export async function getWeeklyData(riderId, weekStartStr) {
   );
 
   // Distribute incentive earnings proportionally across days that have deliveries
-  // (or add to the total without per-day breakdown — simpler approach)
-  const totalDeliveryEarnings = dayBuckets.reduce(
-    (s, b) => s + b.earnings,
-    0,
-  );
+  const totalDeliveryEarnings = dayBuckets.reduce((s, b) => s + b.earnings, 0);
   const totalEarnings = totalDeliveryEarnings + incentiveTotal;
-  const totalDeliveries = dayBuckets.reduce(
-    (s, b) => s + b.deliveries,
-    0,
-  );
+  const totalDeliveries = dayBuckets.reduce((s, b) => s + b.deliveries, 0);
 
   // Build days array
   let bestDay = null;
@@ -350,7 +376,6 @@ export async function getOrders(riderId, { from, to, day, page, limit }) {
   let gte, lte;
 
   if (day) {
-    // Single-day filter: 6AM-6AM shift window
     const parts = day.split("-");
     const dayDate = new Date(
       Number(parts[0]),
@@ -365,7 +390,6 @@ export async function getOrders(riderId, { from, to, day, page, limit }) {
     lte = new Date(dayDate);
     lte.setDate(lte.getDate() + 1);
   } else {
-    // Date range (lazy-load window, typically 2 months)
     if (from) {
       const f = from.split("-");
       gte = new Date(Number(f[0]), Number(f[1]) - 1, Number(f[2]), 0, 0, 0, 0);
@@ -451,11 +475,16 @@ export async function getOrders(riderId, { from, to, day, page, limit }) {
 }
 
 // ── 4. GET /payouts ──────────────────────────────────────────
+// Available to both INDEPENDENT and TEAM riders.
+// DRAFT payouts are excluded (internal CAdmin state).
 
 export async function getPayouts(riderId, { page, limit }) {
-  await ensureIndependent(riderId);
+  await ensureRiderExists(riderId);
 
-  const where = { rider_id: riderId };
+  const where = {
+    rider_id: riderId,
+    status: { not: "DRAFT" },
+  };
 
   const [total, payouts] = await Promise.all([
     prisma.riderPayout.count({ where }),
@@ -466,9 +495,14 @@ export async function getPayouts(riderId, { page, limit }) {
         week_start: true,
         week_end: true,
         gross_amount: true,
+        net_amount: true,
         status: true,
         payment_method: true,
         processed_at: true,
+        manual_reference: true, // ← Database column name
+        breakdown_snapshot: true,
+        deductions: true,
+        bank_snapshot: true,
       },
       orderBy: { week_end: "desc" },
       skip: (page - 1) * limit,
@@ -482,11 +516,14 @@ export async function getPayouts(riderId, { page, limit }) {
       week_start: new Date(p.week_start).toISOString().split("T")[0],
       week_end: new Date(p.week_end).toISOString().split("T")[0],
       gross_amount: round2(p.gross_amount),
+      net_amount: round2(p.net_amount || p.gross_amount),
       status: p.status,
       payment_method: p.payment_method,
-      processed_at: p.processed_at
-        ? p.processed_at.toISOString()
-        : null,
+      processed_at: p.processed_at ? p.processed_at.toISOString() : null,
+      utr_reference: p.manual_reference || null,
+      deductions: p.deductions || [],
+      breakdown_snapshot: p.breakdown_snapshot || null,
+      bank_snapshot: p.bank_snapshot || null,
     })),
     pagination: {
       page,

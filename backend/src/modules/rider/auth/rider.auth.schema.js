@@ -72,3 +72,18 @@ export const resetPasswordSchema = z.object({
 export const refreshTokenSchema = z.object({
   refresh_token: z.string().min(1, "Refresh token is required"),
 });
+
+
+export const registerPushTokenSchema = z.object({
+  push_token: z
+    .string()
+    .min(1, "push_token is required")
+    .max(500)
+    .nullable()
+    .describe("Expo push token string, or null to unregister"),
+  push_token_type: z
+    .enum(["expo", "fcm"])
+    .default("expo")
+    .optional()
+    .describe("Token type — defaults to 'expo'"),
+});

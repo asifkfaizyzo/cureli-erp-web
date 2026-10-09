@@ -1,5 +1,4 @@
 // cadmin-web/src/components/common/Breadcrumb.jsx (do not remove this comment)
-// cadmin-web/src/components/common/Breadcrumb.jsx
 
 import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -38,7 +37,14 @@ const MARKETPLACE_PATHS = {
   Shops: "/marketplace/shops",
   Orders: "/marketplace/orders",
   Pricing: "/marketplace/pricing",
+  Delivery: "/marketplace/pricing/delivery",
+  Commission: "/marketplace/pricing/commission",
   "Master Medicines": "/marketplace/master-medicines",
+
+  // Marketplace Payouts
+  "Payouts & Settlement": "/marketplace/payouts",
+  Payouts: "/marketplace/payouts",
+  "Pharmacy Payouts": "/marketplace/payouts",
 
   // App Config
   "App Config": "/marketplace/app-config",
@@ -65,12 +71,16 @@ const FLEET_PATHS = {
   "Fleet Communications": "/fleet/communications",
   Pricing: "/fleet/pricing",
   "Fleet Pricing": "/fleet/pricing",
-  
-  // ── Fleet Pricing & Incentives (NEW) ───────────────────────────────────────
+
+  // Fleet Pricing & Incentives
   "Base Pay": "/fleet/pricing/base-pay",
   "Base Pay & Surge": "/fleet/pricing/base-pay",
   Incentives: "/fleet/pricing/incentives",
   "Incentives & Quests": "/fleet/pricing/incentives",
+
+  // Fleet Payouts
+  Payouts: "/fleet/rider-payouts",
+  "Rider Payouts": "/fleet/rider-payouts",
 };
 
 const Breadcrumb = () => {
@@ -80,7 +90,7 @@ const Breadcrumb = () => {
   const setBreadcrumbs = useMenuStore((s) => s.setBreadcrumbs);
 
   const isMarketplace = location.pathname.startsWith("/marketplace");
-  const isFleet       = location.pathname.startsWith("/fleet");
+  const isFleet = location.pathname.startsWith("/fleet");
 
   const activePathMap = isFleet
     ? FLEET_PATHS
