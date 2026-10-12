@@ -133,7 +133,7 @@ export default function CustomPlanCard() {
           Self-hover: scale only
         */}
         <a
-          href="mailto:info@cureliofficial.com?subject=Custom%20Plan%20Inquiry"
+          href="mailto:info@curelihealth.com?subject=Custom%20Plan%20Inquiry"
           className="w-full py-2.5 rounded-xl text-sm font-semibold text-center
                      transition-colors duration-300
                      hover:scale-[1.03] active:scale-[0.98]

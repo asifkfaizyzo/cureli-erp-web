@@ -27,6 +27,9 @@ import {
   REVIEW_PHONE,
   REVIEW_OTP,
 } from "../../../config/reviewCredentials.js";
+import { notifyAsync } from "../../notifications/notification.service.js";
+import { NOTIFICATION_EVENTS } from "../../notifications/notification.events.js";
+import { MobilePush } from "../push/mobile.push.service.js";
 
 // ── Constants ─────────────────────────────────────────────────
 const OTP_LENGTH              = 6;
@@ -74,6 +77,42 @@ function formatUserForResponse(user) {
     created_at:        user.created_at,
     last_seen_at:      user.last_seen_at,
   };
+}
+
+/**
+ * Triggers the customer welcome email and push notification on first signup.
+ * Fire-and-forget (non-blocking).
+ */
+export function triggerCustomerWelcomeFlow(user) {
+  try {
+    if (!user || !user.id) return;
+
+    // 1. Dispatch Welcome Email (AWS SES via notifyAsync)
+    if (user.email) {
+      notifyAsync({
+        type: NOTIFICATION_EVENTS.MOBILE_USER_WELCOME,
+        audience: [
+          {
+            email: user.email,
+            name: user.full_name || "Valued Customer",
+            user_id: user.id,
+            type: "mobile_user",
+          },
+        ],
+        context: {
+          recipientName: user.full_name || "Valued Customer",
+          email: user.email,
+        },
+      });
+    }
+
+    // 2. Dispatch Mobile Push / Inbox Notification
+    MobilePush.welcomeUser(user.id, user.full_name).catch((err) => {
+      console.error("[MobileAuth] Welcome push notification failed:", err.message);
+    });
+  } catch (err) {
+    console.error("[MobileAuth] triggerCustomerWelcomeFlow error:", err.message);
+  }
 }
 
 // ── registerMobile ────────────────────────────────────────────
@@ -137,7 +176,7 @@ export async function registerMobile({ phone, password, email, full_name, device
     },
   });
 
-  return await _completeVerification(user, deviceInfo, requestMeta);
+  return await _completeVerification(user, deviceInfo, requestMeta, true);
 }
 
 // ── loginMobileWithPassword ───────────────────────────────────
@@ -232,7 +271,7 @@ export async function loginMobileWithPassword({ identifier, password, deviceInfo
     },
   });
 
-  return await _completeVerification(user, deviceInfo, requestMeta);
+  return await _completeVerification(user, deviceInfo, requestMeta, false);
 }
 
 // ── sendMobileResetOtp ────────────────────────────────────────
@@ -532,13 +571,15 @@ export async function verifyMobileOtp(phone, otp, deviceInfo = {}, requestMeta =
     throw err;
   }
 
+  const isNew = !user.phone_verified;
+
   if (otp === "000000" && process.env.NODE_ENV === "development") {
-    return await _completeVerification(user, deviceInfo, requestMeta);
+    return await _completeVerification(user, deviceInfo, requestMeta, isNew);
   }
 
   if (isReviewPhone(user.phone) && (otp === REVIEW_OTP || otp === "123456")) {
     console.log("[MobileAuth] Review bypass verify successful.");
-    return await _completeVerification(user, deviceInfo, requestMeta);
+    return await _completeVerification(user, deviceInfo, requestMeta, isNew);
   }
 
   const isValid = await verifyOtp(otp, user.login_otp_hash);
@@ -577,13 +618,13 @@ export async function verifyMobileOtp(phone, otp, deviceInfo = {}, requestMeta =
     throw err;
   }
 
-  return await _completeVerification(user, deviceInfo, requestMeta);
+  return await _completeVerification(user, deviceInfo, requestMeta, isNew);
 }
 
 // ── _completeVerification ─────────────────────────────────────
 
-async function _completeVerification(user, deviceInfo, requestMeta) {
-  const isNewUser = !user.phone_verified;
+async function _completeVerification(user, deviceInfo, requestMeta, isNewRegistration = false) {
+  const isNewUser = isNewRegistration || !user.phone_verified;
   const now       = new Date();
 
   const refreshTokenPlain = generateRefreshToken();
@@ -623,6 +664,11 @@ async function _completeVerification(user, deviceInfo, requestMeta) {
 
     return [updated, newSession];
   });
+
+  // Trigger welcome email and push notification on new user signup
+  if (isNewUser) {
+    triggerCustomerWelcomeFlow(updatedUser);
+  }
 
   const accessToken = signMobileAccessToken({
     userId:    updatedUser.id,
@@ -980,5 +1026,5 @@ export async function registerMobileVerify({ phone, password, email, full_name, 
     },
   });
 
-  return await _completeVerification(updatedUser, deviceInfo, requestMeta);
+  return await _completeVerification(updatedUser, deviceInfo, requestMeta, true);
 }

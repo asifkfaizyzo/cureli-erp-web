@@ -2,6 +2,7 @@
 // backend/src/modules/mobile/push/mobile.push.controller.js
 
 import prisma from '../../../config/prisma.js';
+import { flushPendingUserPushes } from './mobile.push.service.js';
 
 // ── Register push token ───────────────────────────────────────────────────────
 // Called by mobile app after getting Expo push token.
@@ -11,6 +12,7 @@ export async function registerPushToken(req, res) {
   try {
     const { push_token, push_token_type = 'expo' } = req.body;
     const sessionId = req.mobileSession.id;
+    const userId = req.mobileUser?.id;
 
     if (!push_token || typeof push_token !== 'string') {
       return res.status(400).json({
@@ -42,6 +44,13 @@ export async function registerPushToken(req, res) {
     console.log(
       `[Push] Token registered for session ${sessionId}: ${push_token.slice(0, 30)}...`,
     );
+
+    // Flush any pending notifications (e.g. welcome push) created before token registration
+    if (userId) {
+      flushPendingUserPushes(userId).catch((err) =>
+        console.error('[Push] Flush pending pushes error:', err.message)
+      );
+    }
 
     return res.json({
       success: true,
@@ -141,7 +150,6 @@ export async function updatePreferences(req, res) {
       'cart_abandonment',
     ];
 
-    // Only pick known fields and validate they are booleans
     const updateData = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
@@ -190,7 +198,6 @@ export async function updatePreferences(req, res) {
 }
 
 // ── Get notification inbox ────────────────────────────────────────────────────
-// Returns paginated list of notifications for the mobile user.
 
 export async function getNotificationInbox(req, res) {
   try {
@@ -273,14 +280,13 @@ export async function markNotificationsRead(req, res) {
       await prisma.cureliMobileNotification.updateMany({
         where: {
           id:      { in: notification_ids },
-          user_id: userId, // Scope to this user — prevent marking others' notifications
+          user_id: userId,
           is_read: false,
         },
         data: { is_read: true, read_at: new Date() },
       });
     }
 
-    // Return updated unread count
     const unreadCount = await prisma.cureliMobileNotification.count({
       where: { user_id: userId, is_read: false },
     });

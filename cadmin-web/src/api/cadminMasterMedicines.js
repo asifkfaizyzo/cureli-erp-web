@@ -223,3 +223,16 @@ export function unignoreMedicine(medicineId) {
 
 export const createVariantUnderMaster = (masterId, variantData) =>
   cadminApi.post(`/master-medicines/${masterId}/variants`, variantData);
+
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY APIs
+// ══════════════════════════════════════════════════════════════
+
+export function getAdminActivitySummary(params = {}) {
+  return CAdminAPI.get("/master-medicines/admin-activity/summary", { params });
+}
+
+export function getAdminActivityDetail(params = {}) {
+  return CAdminAPI.get("/master-medicines/admin-activity/detail", { params });
+}

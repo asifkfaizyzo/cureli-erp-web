@@ -31,7 +31,8 @@ import {
   createMasterMedicine,
   createVariantForMasterMedicine,
   getMappingHistory,
-  unignoreShopMedicine,
+  getAdminActivitySummary,
+  getAdminActivityDetail,
 } from "./cadminMasterMedicines.service.js";
 
 import { extractRequestContext } from "../../audit/audit.utils.js";
@@ -689,5 +690,69 @@ export async function unignoreMedicine(req, res) {
   } catch (error) {
     console.error("Error un-ignoring medicine:", error);
     return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY SUMMARY
+// ══════════════════════════════════════════════════════════════
+
+export async function listAdminActivitySummary(req, res) {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    const result = await getAdminActivitySummary({
+      dateFrom: dateFrom || "",
+      dateTo: dateTo || "",
+    });
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Error fetching admin activity summary:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch admin activity summary",
+      error: error.message,
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY DETAIL (Paginated per-admin drilldown)
+// ══════════════════════════════════════════════════════════════
+
+export async function listAdminActivityDetail(req, res) {
+  try {
+    const { actorId, actorType, dateFrom, dateTo, page, limit } = req.query;
+
+    if (!actorType) {
+      return res.status(400).json({
+        success: false,
+        message: "actorType is required (cadmin | system | erp_user)",
+      });
+    }
+
+    if (actorType !== "system" && !actorId) {
+      return res.status(400).json({
+        success: false,
+        message: "actorId is required for non-system actors",
+      });
+    }
+
+    const result = await getAdminActivityDetail({
+      actorId: actorId || null,
+      actorType,
+      dateFrom: dateFrom || "",
+      dateTo: dateTo || "",
+      page,
+      limit,
+    });
+
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Error fetching admin activity detail:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch admin activity detail",
+      error: error.message,
+    });
   }
 }

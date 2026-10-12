@@ -2,28 +2,6 @@
 // backend/src/modules/mobile/push/mobile.push.service.js
 //
 // Core push notification service for Cureli Mobile.
-//
-// Responsibilities:
-//   1. Send push notifications via Expo Push API
-//   2. Respect per-user preferences before sending
-//   3. Persist notifications to CureliMobileNotification inbox
-//   4. Handle Expo push receipts (delivery confirmation)
-//
-// Expo Push API docs: https://docs.expo.dev/push-notifications/sending-notifications/
-//
-// Flow for a single notification:
-//   caller → sendPushToUser()
-//     → check user preferences
-//     → create inbox record
-//     → get push token from active session
-//     → send to Expo API
-//     → update inbox record with ticket ID
-//
-// Flow for a broadcast:
-//   caller → sendPushToMany()
-//     → chunk recipients into batches of 100 (Expo limit)
-//     → for each batch: send to Expo API
-//     → persist all inbox records
 
 import prisma from "../../../config/prisma.js";
 
@@ -35,7 +13,6 @@ const EXPO_RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
 const EXPO_BATCH_SIZE = 100;
 
 // ── Category → Android channel mapping ───────────────────────────────────────
-// Matches the channels created in pushNotificationService.ts on the mobile side
 const CATEGORY_CHANNEL_MAP = {
   order_updates: "order_updates",
   promotions: "default",
@@ -49,10 +26,6 @@ const CATEGORY_CHANNEL_MAP = {
 /**
  * Check if a user has enabled a specific notification category.
  * If no preference row exists, defaults to enabled (new users).
- *
- * @param {string} userId
- * @param {string} category - matches PUSH_CATEGORIES values
- * @returns {Promise<boolean>}
  */
 async function isUserCategoryEnabled(userId, category) {
   const pref = await prisma.cureliMobilePushPreference.findUnique({
@@ -67,11 +40,9 @@ async function isUserCategoryEnabled(userId, category) {
     },
   });
 
-  // No preference row → all enabled by default
   if (!pref) return true;
   if (!pref.master_enabled) return false;
 
-  // Map category string to column name
   const columnMap = {
     order_updates: "order_updates",
     promotions: "promotions",
@@ -81,18 +52,13 @@ async function isUserCategoryEnabled(userId, category) {
   };
 
   const column = columnMap[category];
-  if (!column) return true; // Unknown category → allow
+  if (!column) return true;
 
   return pref[column] ?? true;
 }
 
 /**
  * Get the active push token for a user.
- * Returns the most recently updated active session token.
- * A user may have multiple active sessions (multiple devices).
- *
- * @param {string} userId
- * @returns {Promise<string[]>} Array of push tokens (one per device)
  */
 async function getUserPushTokens(userId) {
   const sessions = await prisma.cureliMobileSession.findMany({
@@ -100,7 +66,6 @@ async function getUserPushTokens(userId) {
       user_id: userId,
       is_active: true,
       push_token: { not: null },
-      // Only sessions that haven't expired
       expires_at: { gt: new Date() },
     },
     select: {
@@ -109,7 +74,6 @@ async function getUserPushTokens(userId) {
     orderBy: { push_token_updated_at: "desc" },
   });
 
-  // Deduplicate tokens (same device could appear in multiple sessions)
   const unique = [
     ...new Set(sessions.map((s) => s.push_token).filter(Boolean)),
   ];
@@ -119,16 +83,6 @@ async function getUserPushTokens(userId) {
 
 /**
  * Send a batch of messages to the Expo Push API.
- * Returns the array of tickets (one per message).
- *
- * Expo ticket shape (success):
- *   { status: 'ok', id: 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX' }
- *
- * Expo ticket shape (error):
- *   { status: 'error', message: '...', details: { error: 'DeviceNotRegistered' } }
- *
- * @param {Object[]} messages
- * @returns {Promise<Object[]>} tickets
  */
 async function sendBatchToExpo(messages) {
   const response = await fetch(EXPO_PUSH_URL, {
@@ -136,8 +90,6 @@ async function sendBatchToExpo(messages) {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      // Add Expo access token if you have one (optional for development)
-      // 'Authorization': `Bearer ${process.env.EXPO_ACCESS_TOKEN}`,
     },
     body: JSON.stringify(messages),
   });
@@ -153,10 +105,6 @@ async function sendBatchToExpo(messages) {
 
 /**
  * Chunk an array into sub-arrays of at most `size` elements.
- *
- * @param {any[]} arr
- * @param {number} size
- * @returns {any[][]}
  */
 function chunk(arr, size) {
   const chunks = [];
@@ -168,13 +116,6 @@ function chunk(arr, size) {
 
 /**
  * Build an Expo message object from our notification data.
- *
- * @param {string} token - Expo push token
- * @param {string} title
- * @param {string} body
- * @param {string} category
- * @param {Object} data  - tap routing data
- * @returns {Object} Expo message
  */
 function buildExpoMessage(token, title, body, category, data = {}) {
   return {
@@ -184,10 +125,7 @@ function buildExpoMessage(token, title, body, category, data = {}) {
     data,
     sound: "default",
     priority: category === "order_updates" ? "high" : "normal",
-    // Android-specific
     channelId: CATEGORY_CHANNEL_MAP[category] ?? "default",
-    // iOS badge — we don't manage badge count server-side for now
-    // badge:        undefined,
   };
 }
 
@@ -195,18 +133,6 @@ function buildExpoMessage(token, title, body, category, data = {}) {
 
 /**
  * Send a push notification to a single user.
- *
- * This is the primary function called by event handlers
- * (order status changed, prescription updated, etc.)
- *
- * @param {Object} options
- * @param {string}   options.userId
- * @param {string}   options.title
- * @param {string}   options.body
- * @param {string}   options.category   - PUSH_CATEGORIES value
- * @param {Object}   [options.data]     - tap routing { screen, orderId, ... }
- * @param {string}   [options.campaignId] - set when sent from broadcast
- * @returns {Promise<{ notificationId: string, pushed: boolean }>}
  */
 export async function sendPushToUser({
   userId,
@@ -216,19 +142,14 @@ export async function sendPushToUser({
   data = {},
   campaignId = null,
 }) {
-  // ── 1. Check preference ───────────────────────────────────────────────────
-  // order_updates cannot be disabled (canDisable: false in constants)
-  // but we still check master_enabled
   const enabled = await isUserCategoryEnabled(userId, category);
   if (!enabled) {
     console.log(
       `[Push] Skipping ${category} for user ${userId} — disabled by preference`,
     );
-    // Still create the inbox record even if push is suppressed
-    // so the user can see it in the notification center
   }
 
-  // ── 2. Create inbox record ────────────────────────────────────────────────
+  // 1. Create inbox record
   const notification = await prisma.cureliMobileNotification.create({
     data: {
       user_id: userId,
@@ -237,7 +158,7 @@ export async function sendPushToUser({
       category,
       data,
       campaign_id: campaignId,
-      push_sent: false, // updated below if push succeeds
+      push_sent: false,
     },
   });
 
@@ -245,14 +166,14 @@ export async function sendPushToUser({
     return { notificationId: notification.id, pushed: false };
   }
 
-  // ── 3. Get push tokens ────────────────────────────────────────────────────
+  // 2. Get push tokens
   const tokens = await getUserPushTokens(userId);
   if (tokens.length === 0) {
     console.log(`[Push] No push token for user ${userId}`);
     return { notificationId: notification.id, pushed: false };
   }
 
-  // ── 4. Send to Expo ───────────────────────────────────────────────────────
+  // 3. Send to Expo
   try {
     const messages = tokens.map((token) =>
       buildExpoMessage(token, title, body, category, data),
@@ -260,11 +181,9 @@ export async function sendPushToUser({
 
     const tickets = await sendBatchToExpo(messages);
 
-    // Use the first successful ticket ID for the inbox record
     const successTicket = tickets.find((t) => t.status === "ok");
     const ticketId = successTicket?.id ?? null;
 
-    // Handle DeviceNotRegistered — remove stale token
     tickets.forEach(async (ticket, index) => {
       if (
         ticket.status === "error" &&
@@ -283,7 +202,6 @@ export async function sendPushToUser({
       }
     });
 
-    // Update inbox record with ticket ID
     await prisma.cureliMobileNotification.update({
       where: { id: notification.id },
       data: {
@@ -304,20 +222,61 @@ export async function sendPushToUser({
 }
 
 /**
- * Send a push notification to multiple users.
- * Used by the cadmin mobile broadcast system.
- *
- * Batches messages into groups of 100 (Expo limit).
- * Creates inbox records for all users regardless of push success.
- *
- * @param {Object} options
- * @param {string[]}  options.userIds
- * @param {string}    options.title
- * @param {string}    options.body
- * @param {string}    options.category
- * @param {Object}    [options.data]
- * @param {string}    [options.campaignId]
- * @returns {Promise<{ targeted: number, pushed: number, failed: number }>}
+ * Flush any pending notifications for a user whose push token was just registered.
+ */
+export async function flushPendingUserPushes(userId) {
+  try {
+    const pending = await prisma.cureliMobileNotification.findMany({
+      where: {
+        user_id: userId,
+        push_sent: false,
+        created_at: { gte: new Date(Date.now() - 10 * 60 * 1000) }, // created in last 10 mins
+      },
+      orderBy: { created_at: "asc" },
+    });
+
+    if (pending.length === 0) return;
+
+    const tokens = await getUserPushTokens(userId);
+    if (tokens.length === 0) return;
+
+    for (const notif of pending) {
+      const enabled = await isUserCategoryEnabled(userId, notif.category);
+      if (!enabled) continue;
+
+      const messages = tokens.map((token) =>
+        buildExpoMessage(
+          token,
+          notif.title,
+          notif.body,
+          notif.category,
+          notif.data || {},
+        ),
+      );
+
+      const tickets = await sendBatchToExpo(messages);
+      const successTicket = tickets.find((t) => t.status === "ok");
+
+      if (successTicket) {
+        await prisma.cureliMobileNotification.update({
+          where: { id: notif.id },
+          data: {
+            push_sent: true,
+            push_ticket_id: successTicket.id,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.error(
+      `[Push] Failed to flush pending pushes for user ${userId}:`,
+      err.message,
+    );
+  }
+}
+
+/**
+ * Send a push notification to multiple users (broadcast).
  */
 export async function sendPushToMany({
   userIds,
@@ -335,7 +294,6 @@ export async function sendPushToMany({
     `[Push] Starting broadcast to ${userIds.length} users (category: ${category})`,
   );
 
-  // ── 1. Get all tokens for all users in one query ──────────────────────────
   const sessions = await prisma.cureliMobileSession.findMany({
     where: {
       user_id: { in: userIds },
@@ -349,12 +307,6 @@ export async function sendPushToMany({
     },
   });
 
-  // ── ADD THESE THREE LINES RIGHT HERE ──────────────────────────────────────
-  console.log("[Push Debug] userIds:", userIds);
-  console.log("[Push Debug] sessions:", sessions);
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Build user_id → tokens[] map
   const userTokenMap = new Map();
   for (const session of sessions) {
     if (!session.push_token) continue;
@@ -364,14 +316,6 @@ export async function sendPushToMany({
     userTokenMap.get(session.user_id).add(session.push_token);
   }
 
-  // ── ADD THIS LINE RIGHT HERE ──────────────────────────────────────────────
-  console.log(
-    "[Push Debug] userTokenMap keys:",
-    Array.from(userTokenMap.keys()),
-  );
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // ── 2. Check preferences in bulk ─────────────────────────────────────────
   const preferences = await prisma.cureliMobilePushPreference.findMany({
     where: { user_id: { in: userIds } },
     select: {
@@ -396,8 +340,6 @@ export async function sendPushToMany({
   };
   const column = columnMap[category];
 
-  // ── 3. Create inbox records for all users ─────────────────────────────────
-  // createMany is much faster than individual creates for large audiences
   await prisma.cureliMobileNotification.createMany({
     data: userIds.map((userId) => ({
       user_id: userId,
@@ -411,20 +353,17 @@ export async function sendPushToMany({
     skipDuplicates: true,
   });
 
-  // ── 4. Build message list (filtered by preference + token availability) ───
-  const messages = []; // { token, userId }
+  const messages = [];
 
   for (const userId of userIds) {
     const tokens = userTokenMap.get(userId);
     if (!tokens || tokens.size === 0) continue;
 
-    // Check preference
     const pref = prefMap.get(userId);
     if (pref) {
       if (!pref.master_enabled) continue;
       if (column && pref[column] === false) continue;
     }
-    // No pref row → send (default all enabled)
 
     for (const token of tokens) {
       messages.push({ token, userId });
@@ -436,7 +375,6 @@ export async function sendPushToMany({
     return { targeted: userIds.length, pushed: 0, failed: 0 };
   }
 
-  // ── 5. Send in batches of 100 ─────────────────────────────────────────────
   const batches = chunk(messages, EXPO_BATCH_SIZE);
   let pushed = 0;
   let failed = 0;
@@ -455,26 +393,17 @@ export async function sendPushToMany({
           pushed++;
         } else {
           failed++;
-          // ── ADD THIS ──────────────────────────────────────────────────────────
-          console.log(
-            "[Push Debug] Expo ticket error:",
-            JSON.stringify(ticket),
-          );
-          // ─────────────────────────────────────────────────────────────────────
           if (ticket.details?.error === "DeviceNotRegistered") {
             staleTokens.push(batch[index].token);
           }
         }
       });
     } catch (err) {
-      // ── ADD THIS ──────────────────────────────────────────────────────────
-      console.error(`[Push] Batch send failed FULL ERROR:`, err);
-      // ─────────────────────────────────────────────────────────────────────
+      console.error(`[Push] Batch send failed:`, err);
       failed += batch.length;
     }
   }
 
-  // ── 6. Clean up stale tokens ──────────────────────────────────────────────
   if (staleTokens.length > 0) {
     console.log(`[Push] Removing ${staleTokens.length} stale token(s)`);
     await prisma.cureliMobileSession.updateMany({
@@ -487,9 +416,6 @@ export async function sendPushToMany({
     });
   }
 
-  // ── 7. Mark inbox records as push_sent for successful ones ────────────────
-  // We bulk-mark all as sent for simplicity — per-user tracking is available
-  // via the campaign_id + push_ticket_id if needed later
   if (pushed > 0) {
     await prisma.cureliMobileNotification.updateMany({
       where: {
@@ -501,21 +427,11 @@ export async function sendPushToMany({
     });
   }
 
-  console.log(
-    `[Push] Broadcast complete: ${pushed} pushed, ${failed} failed ` +
-      `out of ${messages.length} messages to ${userIds.length} users`,
-  );
-
   return { targeted: userIds.length, pushed, failed };
 }
 
 /**
  * Get Expo push receipts for previously sent tickets.
- * Call this ~15 minutes after sending to confirm delivery.
- * Intended to be called by a cron job.
- *
- * @param {string[]} ticketIds
- * @returns {Promise<Object>} receipt map { ticketId: receipt }
  */
 export async function getPushReceipts(ticketIds) {
   if (ticketIds.length === 0) return {};
@@ -543,12 +459,20 @@ export async function getPushReceipts(ticketIds) {
 }
 
 /**
- * Convenience wrappers for each notification type.
- * These are the functions called by event handlers throughout the app.
+ * Convenience wrappers for push notification triggers.
  */
 export const MobilePush = {
-  // ── Order notifications ───────────────────────────────────────────────────
+  // ── Welcome Notification ──────────────────────────────────────────────────
+  welcomeUser: (userId, userName) =>
+    sendPushToUser({
+      userId,
+      title: "Welcome to Cureli",
+      body: "Your account is all set. Discover trusted pharmacies near you, order medicines, or upload prescriptions with ease.",
+      category: "system_messages",
+      data: { screen: "home" },
+    }),
 
+  // ── Order notifications ───────────────────────────────────────────────────
   orderStatusChanged: (userId, orderId, orderNumber, newStatus) => {
     const statusLabels = {
       ACCEPTED: "Order Accepted",
@@ -596,7 +520,6 @@ export const MobilePush = {
     }),
 
   // ── Prescription notifications ────────────────────────────────────────────
-
   prescriptionVerified: (userId) =>
     sendPushToUser({
       userId,
@@ -630,7 +553,6 @@ export const MobilePush = {
     }),
 
   // ── System notifications ──────────────────────────────────────────────────
-
   accountSuspended: (userId) =>
     sendPushToUser({
       userId,
@@ -641,7 +563,6 @@ export const MobilePush = {
     }),
 
   // ── Cart abandonment ──────────────────────────────────────────────────────
-
   cartAbandonment: (userId, itemCount) =>
     sendPushToUser({
       userId,
@@ -652,7 +573,6 @@ export const MobilePush = {
     }),
 
   // ── Promotions (broadcast) ────────────────────────────────────────────────
-
   promotion: (
     userId,
     title,

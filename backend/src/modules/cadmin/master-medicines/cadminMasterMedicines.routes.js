@@ -28,6 +28,8 @@ import {
   createVariantUnderMaster,
   listMappingHistory,
   unignoreMedicine,
+  listAdminActivitySummary,
+  listAdminActivityDetail,
 } from "./cadminMasterMedicines.controller.js";
 
 const router = Router();
@@ -86,6 +88,18 @@ router.get(
   "/master-medicines/history",
   requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW),
   listMappingHistory
+);
+
+// ── ADMIN ACTIVITY ROUTES (MUST BE BEFORE :id) ───────────────────────────────
+router.get(
+  "/master-medicines/admin-activity/summary",
+  requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW),
+  listAdminActivitySummary
+);
+router.get(
+  "/master-medicines/admin-activity/detail",
+  requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW),
+  listAdminActivityDetail
 );
 
 router.get(

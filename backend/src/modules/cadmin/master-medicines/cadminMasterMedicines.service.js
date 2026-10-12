@@ -2434,3 +2434,348 @@ export async function unignoreShopMedicine(medicineId, auditContext = {}) {
 
   return result;
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY — SUMMARY (Aggregated per Admin)
+// ══════════════════════════════════════════════════════════════
+
+const MEDICINE_ACTIVITY_ACTIONS = [
+  "MEDICINE_MATCHED_TO_VARIANT",
+  "MEDICINE_MATCH_ACCEPTED",
+  "MEDICINE_MATCH_REJECTED",
+  "UNMAPPED_MEDICINES_IGNORED",
+  "MEDICINE_UNLINKED",
+  "MEDICINE_UNIGNORED",
+  "MASTER_MEDICINE_CREATED",
+  "MASTER_MEDICINE_IMAGE_UPLOADED",
+  "MASTER_MEDICINE_IMAGE_DELETED",
+];
+
+/**
+ * Returns per-admin aggregated activity counts across medicine mapping actions.
+ * Groups by actor_id + action, pivots into per-admin rows.
+ *
+ * @param {Object} params
+ * @param {string} [params.dateFrom] - YYYY-MM-DD
+ * @param {string} [params.dateTo]   - YYYY-MM-DD
+ */
+export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {}) {
+  const where = {
+    action: { in: MEDICINE_ACTIVITY_ACTIONS },
+  };
+
+  if (dateFrom || dateTo) {
+    where.created_at = {};
+    if (dateFrom && String(dateFrom).trim() !== "") {
+      const parsed = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
+      if (!isNaN(parsed.getTime())) where.created_at.gte = parsed;
+    }
+    if (dateTo && String(dateTo).trim() !== "") {
+      const parsed = new Date(String(dateTo).trim() + "T23:59:59.999Z");
+      if (!isNaN(parsed.getTime())) where.created_at.lte = parsed;
+    }
+    if (Object.keys(where.created_at).length === 0) delete where.created_at;
+  }
+
+  // Group by actor + action
+  const grouped = await prisma.auditLog.groupBy({
+    by: ["actor_id", "actor_type", "action"],
+    where,
+    _count: { _all: true },
+  });
+
+  // Collect cadmin IDs for name lookup
+  const cadminIds = new Set();
+  for (const row of grouped) {
+    if (row.actor_type === "cadmin" && row.actor_id) {
+      cadminIds.add(row.actor_id);
+    }
+  }
+
+  const isValidUUID = (val) =>
+    typeof val === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      val.trim(),
+    );
+
+  const validCadminIds = Array.from(cadminIds).filter(isValidUUID);
+
+  const cadmins = validCadminIds.length
+    ? await prisma.cAdmin.findMany({
+        where: { cadmin_id: { in: validCadminIds } },
+        select: {
+          cadmin_id: true,
+          name: true,
+          username: true,
+          email: true,
+          is_super_cadmin: true,
+          is_active: true,
+        },
+      })
+    : [];
+
+  const cadminMap = new Map(cadmins.map((c) => [c.cadmin_id, c]));
+
+  // ── Build per-actor pivot ───────────────────────────────────────
+  // Key = `${actor_type}:${actor_id || 'SYSTEM'}`
+  const pivot = new Map();
+
+  const getBucket = (action) => {
+    switch (action) {
+      case "MEDICINE_MATCHED_TO_VARIANT":
+      case "MEDICINE_MATCH_ACCEPTED":
+        return "linked";
+      case "MEDICINE_MATCH_REJECTED":
+        return "rejected";
+      case "UNMAPPED_MEDICINES_IGNORED":
+        return "ignored";
+      case "MEDICINE_UNLINKED":
+        return "unlinked";
+      case "MEDICINE_UNIGNORED":
+        return "unignored";
+      case "MASTER_MEDICINE_CREATED":
+        return "created";
+      case "MASTER_MEDICINE_IMAGE_UPLOADED":
+      case "MASTER_MEDICINE_IMAGE_DELETED":
+        return "images";
+      default:
+        return "other";
+    }
+  };
+
+  for (const row of grouped) {
+    const key =
+      row.actor_type === "system"
+        ? "system:SYSTEM"
+        : `${row.actor_type}:${row.actor_id || "UNKNOWN"}`;
+
+    if (!pivot.has(key)) {
+      let actorName = "Unknown";
+      let actorEmail = null;
+      let actorRole = null;
+      let isActive = true;
+
+      if (row.actor_type === "system") {
+        actorName = "System";
+        actorRole = "SYSTEM";
+      } else if (row.actor_type === "cadmin") {
+        const c = cadminMap.get(row.actor_id);
+        if (c) {
+          actorName = c.name || c.username || c.email || "CAdmin";
+          actorEmail = c.email || null;
+          actorRole = c.is_super_cadmin ? "SUPER_CADMIN" : "CUSTOM_ROLE";
+          isActive = c.is_active;
+        } else {
+          actorName = "Deleted CAdmin";
+          actorRole = "UNKNOWN";
+          isActive = false;
+        }
+      } else if (row.actor_type === "erp_user") {
+        actorName = "Shop User";
+        actorRole = "ERP_USER";
+      }
+
+      pivot.set(key, {
+        actorId: row.actor_id || null,
+        actorType: row.actor_type,
+        actorName,
+        actorEmail,
+        actorRole,
+        isActive,
+        linked: 0,
+        rejected: 0,
+        ignored: 0,
+        unlinked: 0,
+        unignored: 0,
+        created: 0,
+        images: 0,
+        totalActions: 0,
+      });
+    }
+
+    const entry = pivot.get(key);
+    const bucket = getBucket(row.action);
+    const count = row._count?._all || 0;
+
+    if (bucket !== "other" && typeof entry[bucket] === "number") {
+      entry[bucket] += count;
+    }
+    entry.totalActions += count;
+  }
+
+  // Sort by total actions DESC
+  const summary = Array.from(pivot.values()).sort(
+    (a, b) => b.totalActions - a.totalActions,
+  );
+
+  return {
+    summary,
+    meta: {
+      totalAdmins: summary.length,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      actionsTracked: MEDICINE_ACTIVITY_ACTIONS,
+    },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY — DETAIL (Paginated action log for one admin)
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Returns a paginated, chronological list of actions performed by a single admin
+ * (or "System") within an optional date range.
+ *
+ * @param {Object} params
+ * @param {string|null} params.actorId  - CAdmin UUID. Null allowed when actorType=system.
+ * @param {string} params.actorType     - "cadmin" | "system" | "erp_user"
+ * @param {string} [params.dateFrom]
+ * @param {string} [params.dateTo]
+ * @param {number} [params.page=1]
+ * @param {number} [params.limit=20]
+ */
+export async function getAdminActivityDetail({
+  actorId = null,
+  actorType = "cadmin",
+  dateFrom = "",
+  dateTo = "",
+  page = 1,
+  limit = 20,
+} = {}) {
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const where = {
+    action: { in: MEDICINE_ACTIVITY_ACTIONS },
+    actor_type: actorType,
+  };
+
+  if (actorType === "system") {
+    // System rows have actor_id = null typically
+    where.actor_id = null;
+  } else {
+    if (!actorId) {
+      throw new Error("actorId is required for non-system actors");
+    }
+    where.actor_id = actorId;
+  }
+
+  if (dateFrom || dateTo) {
+    where.created_at = {};
+    if (dateFrom && String(dateFrom).trim() !== "") {
+      const parsed = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
+      if (!isNaN(parsed.getTime())) where.created_at.gte = parsed;
+    }
+    if (dateTo && String(dateTo).trim() !== "") {
+      const parsed = new Date(String(dateTo).trim() + "T23:59:59.999Z");
+      if (!isNaN(parsed.getTime())) where.created_at.lte = parsed;
+    }
+    if (Object.keys(where.created_at).length === 0) delete where.created_at;
+  }
+
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      select: {
+        audit_id: true,
+        action: true,
+        entity_type: true,
+        entity_id: true,
+        metadata: true,
+        shop_id: true,
+        created_at: true,
+      },
+      orderBy: { created_at: "desc" },
+      skip,
+      take: limitNum,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  // ── Collect shop IDs for name enrichment ────────────────────────
+  const shopIds = new Set();
+  for (const log of logs) {
+    if (log.shop_id) shopIds.add(log.shop_id);
+    // Metadata may also carry shop_id in some cases — defensive
+    if (log.metadata?.shop_id) shopIds.add(log.metadata.shop_id);
+  }
+
+  const shops = shopIds.size
+    ? await prisma.shop.findMany({
+        where: { shop_id: { in: Array.from(shopIds) } },
+        select: { shop_id: true, business_name: true },
+      })
+    : [];
+  const shopMap = new Map(shops.map((s) => [s.shop_id, s.business_name]));
+
+  // ── Human-readable action label ─────────────────────────────────
+  const actionLabelMap = {
+    MEDICINE_MATCHED_TO_VARIANT: "Linked (Manual Match)",
+    MEDICINE_MATCH_ACCEPTED: "Linked (Accepted Suggestion)",
+    MEDICINE_MATCH_REJECTED: "Rejected Suggestion",
+    UNMAPPED_MEDICINES_IGNORED: "Ignored",
+    MEDICINE_UNLINKED: "Unlinked",
+    MEDICINE_UNIGNORED: "Unignored",
+    MASTER_MEDICINE_CREATED: "Created Master Medicine",
+    MASTER_MEDICINE_IMAGE_UPLOADED: "Uploaded Image",
+    MASTER_MEDICINE_IMAGE_DELETED: "Deleted Image",
+  };
+
+  // ── Transform ───────────────────────────────────────────────────
+  const actions = logs.map((log) => {
+    const meta = log.metadata || {};
+
+    // Determine the "subject" of the action
+    const medicineName =
+      meta.medicine_name ||
+      meta.generic_name ||
+      (Array.isArray(meta.medicine_ids) && meta.medicine_ids.length > 1
+        ? `${meta.medicine_ids.length} medicines`
+        : null);
+
+    const variantName = meta.variant_name || null;
+    const variantSku = meta.variant_sku || meta.sku_id || null;
+    const masterName = meta.master_generic_name || meta.generic_name || null;
+    const bulkCount =
+      typeof meta.count === "number"
+        ? meta.count
+        : typeof meta.ignored_count === "number"
+          ? meta.ignored_count
+          : null;
+
+    const shopId = log.shop_id || meta.shop_id || null;
+    const shopName = shopId ? shopMap.get(shopId) || null : null;
+
+    return {
+      id: log.audit_id,
+      action: log.action,
+      actionLabel: actionLabelMap[log.action] || log.action,
+      entityType: log.entity_type,
+      entityId: log.entity_id,
+      medicineName,
+      variantName,
+      variantSku,
+      masterName,
+      bulkCount,
+      shopId,
+      shopName,
+      timestamp: log.created_at,
+      metadata: meta, // full metadata for debugging / future UI needs
+    };
+  });
+
+  return {
+    actions,
+    meta: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+      hasNext: pageNum < Math.ceil(total / limitNum),
+      hasPrev: pageNum > 1,
+    },
+  };
+}

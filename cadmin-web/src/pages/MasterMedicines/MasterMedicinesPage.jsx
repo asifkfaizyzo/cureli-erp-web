@@ -32,6 +32,7 @@ import ReviewDetailModal from "./comps/ReviewDetailModal";
 import MasterCatalogGrid from "./comps/MasterCatalogGrid";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import HistoryTable from "./comps/HistoryTable";
+import AdminActivityModal from "./comps/AdminActivityModal";
 
 // API
 import {
@@ -231,6 +232,8 @@ const MasterMedicinesPage = () => {
     item: null,
     bulk: false,
   });
+
+  const [adminActivityModal, setAdminActivityModal] = useState(false);
 
   // ═══════════════════════════════════════════════════════════
   // FETCH ACTIONS
@@ -728,10 +731,7 @@ const MasterMedicinesPage = () => {
       }
 
       // Auto-link source unmapped group to newly created variant
-      if (
-        createModal.item?.medicineIds?.length > 0 &&
-        created?.variant?.id
-      ) {
+      if (createModal.item?.medicineIds?.length > 0 && created?.variant?.id) {
         try {
           await matchToVariant(
             createModal.item.medicineIds,
@@ -747,12 +747,16 @@ const MasterMedicinesPage = () => {
       loadUnmapped();
       loadHistory();
       loadStats();
-      toast.success(
-        "Success",
-        "Medicine created and added to master catalog",
-      );
+      toast.success("Success", "Medicine created and added to master catalog");
     },
-    [createModal.item, loadCatalog, loadUnmapped, loadHistory, loadStats, toast],
+    [
+      createModal.item,
+      loadCatalog,
+      loadUnmapped,
+      loadHistory,
+      loadStats,
+      toast,
+    ],
   );
 
   const handleLinkExistingVariant = useCallback(
@@ -792,10 +796,7 @@ const MasterMedicinesPage = () => {
         const createdVariant = res.data?.data?.variant;
 
         if (createdVariant?.id && createModal.item.medicineIds?.length > 0) {
-          await matchToVariant(
-            createModal.item.medicineIds,
-            createdVariant.id,
-          );
+          await matchToVariant(createModal.item.medicineIds, createdVariant.id);
         }
 
         setCreateModal({ open: false, item: null });
@@ -815,7 +816,14 @@ const MasterMedicinesPage = () => {
         );
       }
     },
-    [createModal.item, loadCatalog, loadUnmapped, loadHistory, loadStats, toast],
+    [
+      createModal.item,
+      loadCatalog,
+      loadUnmapped,
+      loadHistory,
+      loadStats,
+      toast,
+    ],
   );
 
   // ═══════════════════════════════════════════════════════════
@@ -1046,6 +1054,7 @@ const MasterMedicinesPage = () => {
             }}
             onUnlink={handleUnlinkHistoryAction}
             onUnignore={handleUnignoreAction}
+            onOpenAdminActivity={() => setAdminActivityModal(true)}
             loading={loading.history}
           />
         );
@@ -1421,6 +1430,13 @@ const MasterMedicinesPage = () => {
         }
         confirmText="Unlink"
         type="danger"
+      />
+
+      {/* Admin Activity Modal */}
+      <AdminActivityModal
+        isOpen={adminActivityModal}
+        onClose={() => setAdminActivityModal(false)}
+        zIndex={getZ("adminActivity")}
       />
     </div>
   );

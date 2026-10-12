@@ -7,7 +7,7 @@ export const CURELI_COMPANY = {
   name: 'Cureli Orbit Pvt. Ltd.',
   address: 'Indiranagar, Bangalore North, 560038, Karnataka',
   phone: '+91 73560 20940',
-  email: 'support@curelihealth.com',
+  email: 'info@curelihealth.com',
   gstin: '32XXXXX1234X1ZX', // Update with real GSTIN
   website: 'www.curelihealth.com',
 };

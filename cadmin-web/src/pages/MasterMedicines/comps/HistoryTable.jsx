@@ -13,6 +13,7 @@ import {
   Clock,
   User,
   CheckCircle,
+  Users,
 } from "lucide-react";
 import Pagination from "../../../components/common/Pagination";
 import TableEmptyState from "../../../components/common/TableEmptyState";
@@ -32,6 +33,7 @@ const HistoryTable = ({
   onRelink,
   onUnlink,
   onUnignore,
+  onOpenAdminActivity,
   loading = false,
 }) => {
   const defaultWidths = {
@@ -71,7 +73,10 @@ const HistoryTable = ({
     if (!resizing) return;
     setColumnWidths((p) => ({
       ...p,
-      [resizing.col]: Math.max(50, resizing.startWidth + (e.clientX - resizing.startX)),
+      [resizing.col]: Math.max(
+        50,
+        resizing.startWidth + (e.clientX - resizing.startX),
+      ),
     }));
   };
 
@@ -83,7 +88,7 @@ const HistoryTable = ({
     window.addEventListener("mouseup", handleMouseUp);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup",   handleMouseUp);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [resizing]);
 
@@ -101,13 +106,22 @@ const HistoryTable = ({
     const isActive = filters.sort === sortKey;
     if (isActive) {
       return filters.order === "asc" ? (
-        <ChevronUp size={14} className={`${styles.header.sortIcon.active} flex-shrink-0`} />
+        <ChevronUp
+          size={14}
+          className={`${styles.header.sortIcon.active} flex-shrink-0`}
+        />
       ) : (
-        <ChevronDown size={14} className={`${styles.header.sortIcon.active} flex-shrink-0`} />
+        <ChevronDown
+          size={14}
+          className={`${styles.header.sortIcon.active} flex-shrink-0`}
+        />
       );
     }
     return (
-      <ChevronsUpDown size={14} className={`${styles.header.sortIcon.inactive} flex-shrink-0`} />
+      <ChevronsUpDown
+        size={14}
+        className={`${styles.header.sortIcon.inactive} flex-shrink-0`}
+      />
     );
   };
 
@@ -132,7 +146,10 @@ const HistoryTable = ({
         </span>
         <SortIcon sortKey={sortKey} />
       </div>
-      <div onMouseDown={(e) => handleMouseDown(col, e)} className={styles.header.resizeHandle} />
+      <div
+        onMouseDown={(e) => handleMouseDown(col, e)}
+        className={styles.header.resizeHandle}
+      />
     </th>
   );
 
@@ -159,7 +176,9 @@ const HistoryTable = ({
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : "bg-red-50 text-red-700 border-red-200";
     return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${cls}`}>
+      <span
+        className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${cls}`}
+      >
         {isLinked ? "Linked" : "Ignored"}
       </span>
     );
@@ -169,12 +188,20 @@ const HistoryTable = ({
     <thead className="sticky top-0 z-10">
       <tr className={styles.header.row}>
         <ResizableTh col="index">#</ResizableTh>
-        <ResizableTh col="shopMed" sortKey="rawName">Shop Medicine</ResizableTh>
-        <ResizableTh col="status" align="center" sortKey="status">Status</ResizableTh>
+        <ResizableTh col="shopMed" sortKey="rawName">
+          Shop Medicine
+        </ResizableTh>
+        <ResizableTh col="status" align="center" sortKey="status">
+          Status
+        </ResizableTh>
         <ResizableTh col="match">Linked To (Variant)</ResizableTh>
         <ResizableTh col="actionBy">Action By</ResizableTh>
-        <ResizableTh col="actionDate" sortKey="actionDate">Action Date</ResizableTh>
-        <ResizableTh col="actions" align="center">Actions</ResizableTh>
+        <ResizableTh col="actionDate" sortKey="actionDate">
+          Action Date
+        </ResizableTh>
+        <ResizableTh col="actions" align="center">
+          Actions
+        </ResizableTh>
       </tr>
     </thead>
   );
@@ -247,6 +274,18 @@ const HistoryTable = ({
           </div>
 
           <div className="flex-1" />
+
+          {onOpenAdminActivity && (
+            <button
+              onClick={onOpenAdminActivity}
+              className="h-10 px-3.5 bg-[#000060] text-white rounded-lg text-xs font-semibold
+                         hover:bg-[#000080] transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              <Users size={14} />
+              Admin Activity
+            </button>
+          )}
+
           <span className="text-xs text-gray-400">
             {meta.total || 0} history item{meta.total !== 1 ? "s" : ""}
           </span>
@@ -257,7 +296,10 @@ const HistoryTable = ({
       <div className={styles.container.wrapper}>
         <div className="flex-1 min-h-0 overflow-auto">
           {loading ? (
-            <table className="w-full border-collapse text-sm" style={{ minWidth: 900 }}>
+            <table
+              className="w-full border-collapse text-sm"
+              style={{ minWidth: 900 }}
+            >
               {tableHeader}
               <tbody>
                 <TableSkeleton rows={filters.limit || 10} columns={7} />
@@ -274,11 +316,16 @@ const HistoryTable = ({
               }
             />
           ) : (
-            <table className="w-full border-collapse text-sm" style={{ minWidth: 900 }}>
+            <table
+              className="w-full border-collapse text-sm"
+              style={{ minWidth: 900 }}
+            >
               {tableHeader}
               <tbody>
                 {data.map((item, index) => {
-                  const isLinked = ["AUTO_LINKED", "MANUAL_LINKED"].includes(item.status);
+                  const isLinked = ["AUTO_LINKED", "MANUAL_LINKED"].includes(
+                    item.status,
+                  );
                   const isSystem = item.actionBy?.toLowerCase() === "system";
 
                   return (
@@ -287,27 +334,37 @@ const HistoryTable = ({
                       className={`${getRowBgClass(index)} h-[56px]`}
                     >
                       {/* Index */}
-                      <td className={`${styles.cell.base} ${styles.cell.muted} font-medium`}>
-                        {((meta.page || 1) - 1) * (meta.limit || 10) + index + 1}
+                      <td
+                        className={`${styles.cell.base} ${styles.cell.muted} font-medium`}
+                      >
+                        {((meta.page || 1) - 1) * (meta.limit || 10) +
+                          index +
+                          1}
                       </td>
 
                       {/* Shop Medicine */}
                       <td className={styles.cell.base}>
                         <div>
-                          <p className={`${styles.cell.primary} truncate max-w-[210px]`}>
+                          <p
+                            className={`${styles.cell.primary} truncate max-w-[210px]`}
+                          >
                             {item.rawName}
                           </p>
                           {item.manufacturer && (
                             <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                               <Building2 size={10} />
-                              <span className="truncate max-w-[190px]">{item.manufacturer}</span>
+                              <span className="truncate max-w-[190px]">
+                                {item.manufacturer}
+                              </span>
                             </p>
                           )}
                         </div>
                       </td>
 
                       {/* Status */}
-                      <td className={`${styles.cell.base} ${styles.cell.center}`}>
+                      <td
+                        className={`${styles.cell.base} ${styles.cell.center}`}
+                      >
                         {getStatusBadge(item.status)}
                       </td>
 
@@ -328,18 +385,22 @@ const HistoryTable = ({
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs italic text-gray-400">—</span>
+                          <span className="text-xs italic text-gray-400">
+                            —
+                          </span>
                         )}
                       </td>
 
                       {/* Action By */}
                       <td className={styles.cell.base}>
                         <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            isSystem
-                              ? "bg-purple-100 text-purple-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              isSystem
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
                             {item.actionBy}
                           </span>
                         </div>
@@ -357,7 +418,9 @@ const HistoryTable = ({
                             </p>
                           </div>
                         ) : (
-                          <span className="text-xs italic text-gray-400">—</span>
+                          <span className="text-xs italic text-gray-400">
+                            —
+                          </span>
                         )}
                       </td>
 
@@ -388,7 +451,10 @@ const HistoryTable = ({
                                 className={`${styles.actions.button.base} ${styles.actions.button.activate}`}
                                 title="Unignore"
                               >
-                                <CheckCircle size={13} className="text-emerald-600" />
+                                <CheckCircle
+                                  size={13}
+                                  className="text-emerald-600"
+                                />
                               </button>
                               <button
                                 onClick={() => onRelink(item)} // Picks custom match immediately
