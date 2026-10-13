@@ -162,6 +162,24 @@ export async function sendPushToUser({
     },
   });
 
+  // 2. Emit SSE event for real-time bell badge (promotions & system only)
+  //    Order/prescription/delivery updates already have their own SSE events.
+  if (category === "promotions" || category === "system_messages") {
+    try {
+      const { sseService } = await import("../../../services/sse.service.js");
+      const unreadCount = await prisma.cureliMobileNotification.count({
+        where: { user_id: userId, is_read: false },
+      });
+      sseService.notifyMobile(userId, "new_notification", {
+        category,
+        unread_count: unreadCount,
+        notification_id: notification.id,
+      });
+    } catch (sseErr) {
+      console.error("[Push] SSE notify failed:", sseErr.message);
+    }
+  }
+
   if (!enabled) {
     return { notificationId: notification.id, pushed: false };
   }

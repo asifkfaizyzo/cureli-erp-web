@@ -10,7 +10,7 @@ import { runBirthdayPushJob } from "./birthdayPushWorker.js";
 import { staleRiderWorker } from "./staleRiderWorker.js";
 import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
 import { checkCommissionSuspensionExpiry } from "./commissionSuspensionWorker.js";
-import { riderAssignmentTimeoutWorker } from "./riderAssignmentTimeoutWorker.js";  
+import { riderAssignmentTimeoutWorker } from "./riderAssignmentTimeoutWorker.js";
 
 import {
   cleanupOldPendingUsers,
@@ -105,6 +105,40 @@ async function processScheduledBroadcasts() {
   } catch (err) {
     cronLogger.error("Scheduled broadcasts job failed", err);
   }
+}
+
+// ── Mobile notification cleanup (90 days) ────────────────────────────────────
+async function cleanupOldMobileNotifications() {
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+
+    const result = await prisma.cureliMobileNotification.deleteMany({
+      where: {
+        is_read: true,
+        created_at: { lt: cutoff },
+      },
+    });
+
+    if (result.count > 0) {
+      cronLogger.success(
+        `Cleaned up ${result.count} old mobile notifications (>90 days)`,
+      );
+    }
+  } catch (err) {
+    cronLogger.error("Mobile notification cleanup failed", err);
+  }
+}
+
+function initializeMobileNotificationCleanupJob() {
+  cron.schedule("15 4 * * *", () =>
+    withCronLock(
+      "mobile-notification-cleanup",
+      15,
+      cleanupOldMobileNotifications,
+    ),
+  );
+  cronLogger.info("Mobile notification cleanup scheduled (daily at 4:15 AM)");
 }
 
 function initializeScheduledBroadcastsJob() {
@@ -533,7 +567,9 @@ function initializePrescriptionQuoteExpiryJob() {
   cron.schedule("*/2 * * * *", () =>
     withCronLock("prescription-expiry", 2, runQuoteExpiryJob),
   );
-  cronLogger.info("Prescription quote & request expiry job scheduled (every 2 minutes)");
+  cronLogger.info(
+    "Prescription quote & request expiry job scheduled (every 2 minutes)",
+  );
 }
 
 async function runPrescriptionRequestCleanupJob() {
@@ -629,7 +665,12 @@ function initializeRiderAssignmentTimeoutJob() {
   // Uses setInterval (30s) instead of node-cron because cron minimum is 1 min.
   // withCronLock prevents overlapping runs across multiple server instances.
   setInterval(
-    () => withCronLock("rider-assignment-timeout", 25, riderAssignmentTimeoutWorker),
+    () =>
+      withCronLock(
+        "rider-assignment-timeout",
+        25,
+        riderAssignmentTimeoutWorker,
+      ),
     30 * 1000,
   );
   // Run once immediately on startup
@@ -644,7 +685,7 @@ function initializeCommissionSuspensionJob() {
     withCronLock("commission-suspension", 5, checkCommissionSuspensionExpiry),
   );
   cronLogger.info(
-    "Commission suspension auto-resume job scheduled (every 15 minutes)"
+    "Commission suspension auto-resume job scheduled (every 15 minutes)",
   );
 }
 
@@ -682,24 +723,36 @@ export function initializeCronJobs() {
   initializeCommissionSuspensionJob();
 
   cron.schedule("5 7 * * 1", () =>
-    withCronLock("rider-payout-finalization", 30, runRiderPayoutFinalization)
+    withCronLock("rider-payout-finalization", 30, runRiderPayoutFinalization),
   );
   cronLogger.info("Rider payout finalization scheduled (Monday 7:05 AM IST)");
 
   cron.schedule("30 6 * * *", () =>
-    withCronLock("pharmacy-payout-calculation", 30, runPharmacyPayoutCalculation)
+    withCronLock(
+      "pharmacy-payout-calculation",
+      30,
+      runPharmacyPayoutCalculation,
+    ),
   );
-  cronLogger.info("Pharmacy payout calculation scheduled (Daily at 6:30 AM IST)");
+  cronLogger.info(
+    "Pharmacy payout calculation scheduled (Daily at 6:30 AM IST)",
+  );
 
   cron.schedule("5 6 * * 1", () =>
-    withCronLock("pharmacy-payout-finalization", 30, runPharmacyPayoutFinalization)
+    withCronLock(
+      "pharmacy-payout-finalization",
+      30,
+      runPharmacyPayoutFinalization,
+    ),
   );
-  cronLogger.info("Pharmacy payout finalization scheduled (Monday 6:05 AM IST)");
+  cronLogger.info(
+    "Pharmacy payout finalization scheduled (Monday 6:05 AM IST)",
+  );
 
   initializeBirthdayPushJob();
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
-  initializeRiderAssignmentTimeoutJob();  
+  initializeRiderAssignmentTimeoutJob();
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -740,7 +793,7 @@ export function initializeCronJobs() {
       }
     }),
   );
-
+  initializeMobileNotificationCleanupJob();
   cron.schedule("45 3 * * *", () =>
     withCronLock("cleanup-otp-limits", 10, async () => {
       cronLogger.info("Cleaning up old OTP daily limits...");
@@ -782,6 +835,11 @@ export function initializeCronJobs() {
   cronLogger.info("  - Birthday push notifications: Daily at 11:00 AM IST");
   cronLogger.info("  - Stale rider cleanup: Every 2 minutes");
   cronLogger.info("  - Stale assignment alerts: Every 2 minutes");
-  cronLogger.info("  - Rider assignment auto-decline: Every 30 seconds (90s timeout)"); 
+  cronLogger.info(
+    "  - Rider assignment auto-decline: Every 30 seconds (90s timeout)",
+  );
   cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
+  cronLogger.info(
+    "  - Mobile notification cleanup: Daily at 4:15 AM (90-day retention)",
+  );
 }

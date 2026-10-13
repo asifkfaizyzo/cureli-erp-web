@@ -9,6 +9,7 @@ import {
   getPreferences,
   updatePreferences,
   getNotificationInbox,
+  getUnreadCount,
   markNotificationsRead,
 } from './mobile.push.controller.js';
 
@@ -26,7 +27,8 @@ router.get('/preferences',   getPreferences);
 router.patch('/preferences', updatePreferences);
 
 // ── Notification inbox ────────────────────────────────────────────────────────
-router.get('/inbox',       getNotificationInbox);
-router.post('/inbox/read', markNotificationsRead);
+router.get('/inbox/unread-count', getUnreadCount);
+router.get('/inbox',              getNotificationInbox);
+router.post('/inbox/read',        markNotificationsRead);
 
 export default router;

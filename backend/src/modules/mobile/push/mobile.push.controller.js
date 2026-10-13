@@ -207,8 +207,11 @@ export async function getNotificationInbox(req, res) {
     const skip    = (page - 1) * limit;
     const unreadOnly = req.query.unread_only === 'true';
 
+    const category = req.query.category;
+
     const where = { user_id: userId };
     if (unreadOnly) where.is_read = false;
+    if (category)   where.category = category;
 
     const [notifications, total, unreadCount] = await Promise.all([
       prisma.cureliMobileNotification.findMany({
@@ -301,6 +304,33 @@ export async function markNotificationsRead(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Failed to mark as read',
+    });
+  }
+}
+
+
+// ── Get unread notification count ────────────────────────────────────────────
+// Lightweight endpoint for the bell badge on the home screen.
+// Returns only the count — no notification payloads.
+
+export async function getUnreadCount(req, res) {
+  try {
+    const userId = req.mobileUser.id;
+
+    const count = await prisma.cureliMobileNotification.count({
+      where: { user_id: userId, is_read: false },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Unread count',
+      data:    { count },
+    });
+  } catch (err) {
+    console.error('[Push] Unread count error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get unread count',
     });
   }
 }
