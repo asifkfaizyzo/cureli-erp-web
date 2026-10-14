@@ -3,6 +3,8 @@
 
 import prisma from "../../config/prisma.js";
 import { checkSingleMedicine } from "./linking.service.js";
+import { propagateLinkToOtherShops } from "./linkPropagation.service.js"; 
+
 
 class ApiError extends Error {
   constructor(message, statusCode = 400, code = "MEDICINE_ERROR") {
@@ -172,7 +174,7 @@ class MedicineService {
       },
     });
 
-    // If no linking data provided, try auto-link (fallback for non-import creation)
+        // If no linking data provided, try auto-link (fallback for non-import creation)
     if (!linkingData && !masterMedicineId) {
       try {
         const linkResult = await checkSingleMedicine({
@@ -195,6 +197,26 @@ class MedicineService {
               suggestion_reason: linkResult.reason,
             },
           });
+
+          // ── 👇 ADD THIS PROPAGATION BLOCK 👇 ──
+          setImmediate(() => {
+            propagateLinkToOtherShops({
+              sourceMedicineId: medicine.medicine_id,
+              name: medicine.name,
+              manufacturer: medicine.manufacturer,
+              masterMedicineId: linkResult.master_medicine_id,
+              variantId: linkResult.matched_variant?.variant_id,
+              variantSku: linkResult.matched_variant?.sku_id,
+              actorId: null,
+              actorType: "system",
+              variantName: linkResult.matched_variant?.name,
+              masterName: null,
+            }).catch((err) =>
+              console.error("[Propagation] createMedicine failed:", err.message),
+            );
+          });
+          // ── 👆 END PROPAGATION BLOCK 👆 ──
+
         } else if (linkResult.status === "PENDING") {
           await prisma.medicine.update({
             where: { medicine_id: medicine.medicine_id },
