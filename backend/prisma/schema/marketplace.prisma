@@ -194,6 +194,8 @@ model CheckoutSession {
   delivery_charge_anchor     Decimal?  @db.Decimal(10, 2)
   platform_savings           Decimal?  @db.Decimal(10, 2)
 
+  fulfillment_type           String    @default("INSTANT_DELIVERY") @db.VarChar(30)
+  packing_charge             Decimal   @default(0) @db.Decimal(10, 2)
   distance_km                Decimal   @db.Decimal(10, 2)
 
   prescription_files         Json      @default("[]")
@@ -229,15 +231,24 @@ model CheckoutSession {
 }
 
 model DeliveryPricingConfig {
-  config_id   String   @id @default(uuid()) @db.Uuid
-  version     Int      @default(1)
+  config_id        String          @id @default(uuid()) @db.Uuid
+  version          Int             @default(1)
+  fulfillment_type FulfillmentType @default(INSTANT_DELIVERY) @unique
 
+  // ── Charge Toggles ──────────────────────────────────────
+  service_charge_enabled  Boolean  @default(true)
+  delivery_fee_enabled    Boolean  @default(true)
+  km_surcharge_enabled    Boolean  @default(true)
+  packing_enabled         Boolean  @default(false)
+
+  // ── Service Charge Tiers ────────────────────────────────
   service_tier_1_max    Decimal  @default(999.99)  @db.Decimal(10, 2)
   service_tier_1_charge Decimal  @default(20)      @db.Decimal(10, 2)
   service_tier_2_max    Decimal  @default(1999.99) @db.Decimal(10, 2)
   service_tier_2_charge Decimal  @default(15)      @db.Decimal(10, 2)
   service_tier_3_charge Decimal  @default(0)       @db.Decimal(10, 2)
 
+  // ── Delivery Fee Tiers ──────────────────────────────────
   delivery_tier_1_max    Decimal @default(299.99)  @db.Decimal(10, 2)
   delivery_tier_1_charge Decimal @default(60)      @db.Decimal(10, 2)
   delivery_tier_2_max    Decimal @default(999.99)  @db.Decimal(10, 2)
@@ -246,11 +257,20 @@ model DeliveryPricingConfig {
   delivery_tier_3_charge Decimal @default(40)      @db.Decimal(10, 2)
   delivery_tier_4_charge Decimal @default(30)      @db.Decimal(10, 2)
 
+  // ── Packing Charge Tiers (same structure as service) ────
+  packing_tier_1_max    Decimal  @default(999.99)  @db.Decimal(10, 2)
+  packing_tier_1_charge Decimal  @default(10)      @db.Decimal(10, 2)
+  packing_tier_2_max    Decimal  @default(1999.99) @db.Decimal(10, 2)
+  packing_tier_2_charge Decimal  @default(8)       @db.Decimal(10, 2)
+  packing_tier_3_charge Decimal  @default(5)       @db.Decimal(10, 2)
+
+  // ── Distance Surcharge ──────────────────────────────────
   free_km_radius      Decimal  @default(3.0)    @db.Decimal(10, 2)
   per_km_tier_1_max   Decimal  @default(999.99) @db.Decimal(10, 2)
   per_km_tier_1_rate  Decimal  @default(15)     @db.Decimal(10, 2)
   per_km_tier_2_rate  Decimal  @default(10)     @db.Decimal(10, 2)
 
+  // ── Limits ──────────────────────────────────────────────
   max_delivery_km     Decimal? @db.Decimal(10, 2)
   tip_enabled         Boolean  @default(true)
 

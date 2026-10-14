@@ -20,26 +20,55 @@ const NUMERIC_FIELDS = [
   "per_km_tier_1_max",
   "per_km_tier_1_rate",
   "per_km_tier_2_rate",
+  "packing_tier_1_max",
+  "packing_tier_1_charge",
+  "packing_tier_2_max",
+  "packing_tier_2_charge",
+  "packing_tier_3_charge",
+];
+
+const TOGGLE_FIELDS = [
+  "service_charge_enabled",
+  "delivery_fee_enabled",
+  "km_surcharge_enabled",
+  "packing_enabled",
+  "tip_enabled",
 ];
 
 // ── Whitelist of editable slash fields ──
 const SLASH_MODES = ["NONE", "NEW", "OLD"];
 
-export async function getPricingConfig() {
-  let config = await prisma.deliveryPricingConfig.findFirst();
+export async function getAllPricingConfigs() {
+  return await prisma.deliveryPricingConfig.findMany({
+    orderBy: { fulfillment_type: "asc" },
+  });
+}
+
+export async function getPricingConfig(fulfillment_type = "INSTANT_DELIVERY") {
+  let config = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type },
+  });
 
   if (!config) {
-    config = await prisma.deliveryPricingConfig.create({ data: {} });
+    config = await prisma.deliveryPricingConfig.create({
+      data: { fulfillment_type },
+    });
   }
 
   return config;
 }
 
-export async function updatePricingConfig(data, cadmin_id) {
-  let existing = await prisma.deliveryPricingConfig.findFirst();
+export async function updatePricingConfig(data, cadmin_id, fulfillment_type = "INSTANT_DELIVERY") {
+  const targetType = data.fulfillment_type || fulfillment_type;
+
+  let existing = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type: targetType },
+  });
 
   if (!existing) {
-    existing = await prisma.deliveryPricingConfig.create({ data: {} });
+    existing = await prisma.deliveryPricingConfig.create({
+      data: { fulfillment_type: targetType },
+    });
   }
 
   // ── Build clean update payload from whitelist only ──
@@ -52,6 +81,13 @@ export async function updatePricingConfig(data, cadmin_id) {
     }
   }
 
+  // Toggle booleans
+  for (const key of TOGGLE_FIELDS) {
+    if (key in data) {
+      updateData[key] = Boolean(data[key]);
+    }
+  }
+
   // max_delivery_km: nullable — empty string / 0 / null → null
   if ("max_delivery_km" in data) {
     const raw = data.max_delivery_km;
@@ -60,11 +96,6 @@ export async function updatePricingConfig(data, cadmin_id) {
     } else {
       updateData.max_delivery_km = Number(raw);
     }
-  }
-
-  // tip_enabled: boolean
-  if ("tip_enabled" in data) {
-    updateData.tip_enabled = Boolean(data.tip_enabled);
   }
 
   // Version bump + audit

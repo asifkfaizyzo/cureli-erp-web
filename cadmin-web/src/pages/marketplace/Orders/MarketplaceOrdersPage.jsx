@@ -29,6 +29,7 @@ const MarketplaceOrdersPage = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [fulfillmentFilter, setFulfillmentFilter] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [page, setPage] = useState(1);
@@ -51,6 +52,7 @@ const MarketplaceOrdersPage = () => {
     setOrders([]);
     setPage(1);
     setStatusFilter("");
+    setFulfillmentFilter("");
     setSearch("");
     setDebouncedSearch("");
     setSelectedOrderId(null);
@@ -69,7 +71,7 @@ const MarketplaceOrdersPage = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter]);
+  }, [statusFilter, fulfillmentFilter]);
 
   // ── Core fetch ──
   const fetchData = useCallback(
@@ -84,6 +86,7 @@ const MarketplaceOrdersPage = () => {
             limit: rowsPerPage,
             search: debouncedSearch,
             status: statusFilter,
+            fulfillment_type: fulfillmentFilter || undefined,
           });
           const d = res.data?.data;
           setOrders(d?.orders || []);
@@ -112,7 +115,7 @@ const MarketplaceOrdersPage = () => {
         setRefreshing(false);
       }
     },
-    [page, rowsPerPage, debouncedSearch, statusFilter, toast, viewMode],
+    [page, rowsPerPage, debouncedSearch, statusFilter, fulfillmentFilter, toast, viewMode],
   );
 
   useEffect(() => {
@@ -158,6 +161,9 @@ const MarketplaceOrdersPage = () => {
             }),
             ...(payload.branch_name && {
               branch: { ...order.branch, branch_name: payload.branch_name },
+            }),
+            ...(payload.fulfillment_type != null && {
+              fulfillment_type: payload.fulfillment_type,
             }),
             ...(payload.has_rider != null && { has_rider: payload.has_rider }),
             ...(payload.delivery_status != null && {
@@ -237,6 +243,8 @@ const MarketplaceOrdersPage = () => {
         setSearch={setSearch}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
+        fulfillmentFilter={fulfillmentFilter}
+        setFulfillmentFilter={setFulfillmentFilter}
       />
 
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden">

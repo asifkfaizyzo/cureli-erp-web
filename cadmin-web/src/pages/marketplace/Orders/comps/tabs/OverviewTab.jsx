@@ -80,10 +80,19 @@ const Card = ({ children }) => (
   </div>
 );
 
+const FULFILLMENT_LABELS = {
+  INSTANT_DELIVERY: "Instant Delivery",
+  PICKUP: "Pickup",
+  SAME_DAY: "Same Day Delivery",
+  NEXT_DAY: "Next Day Delivery",
+};
+
 const OverviewTab = ({ order }) => {
+  const isPickup = order.fulfillment_type === "PICKUP";
+
   return (
     <div className="space-y-4">
-      {/* Row 1: Shop, Customer, Delivery Address */}
+      {/* Row 1: Shop, Customer, Delivery/Pickup Address */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card>
           <SectionTitle
@@ -120,14 +129,28 @@ const OverviewTab = ({ order }) => {
         <Card>
           <SectionTitle
             icon={MapPin}
-            title="Delivery Address"
+            title={isPickup ? "Pickup Location" : "Delivery Address"}
             action={
-              <CopyLocationButton
-                latitude={order.delivery_address?.latitude}
-                longitude={order.delivery_address?.longitude}
-              />
+              !isPickup ? (
+                <CopyLocationButton
+                  latitude={order.delivery_address?.latitude}
+                  longitude={order.delivery_address?.longitude}
+                />
+              ) : null
             }
           />
+          {isPickup && (
+            <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-orange-50 border border-orange-200">
+              <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+                Customer Pickup — No delivery address
+              </p>
+              {order.customer_pickup_code && (
+                <p className="text-xs font-extrabold text-orange-800 font-mono mt-1 tracking-widest">
+                  Pickup Code: {order.customer_pickup_code}
+                </p>
+              )}
+            </div>
+          )}
           <div className="text-xs text-gray-700 leading-relaxed space-y-1 mt-1">
             {order.delivery_address?.recipient_name && (
               <p className="font-bold">
@@ -164,16 +187,26 @@ const OverviewTab = ({ order }) => {
         <Card>
           <SectionTitle icon={Receipt} title="Billing Breakdown" />
           <div className="space-y-0">
+            <DetailRow
+              label="Fulfillment"
+              value={FULFILLMENT_LABELS[order.fulfillment_type] || order.fulfillment_type}
+            />
             <DetailRow label="Subtotal" value={fmtAmount(order.subtotal)} />
             <DetailRow
               label="Service Charge"
               value={fmtAmount(order.service_charge)}
             />
             <DetailRow
-              label="Delivery Fee"
-              value={fmtAmount(order.delivery_fee)}
+              label={isPickup ? "Delivery Fee (Pickup)" : "Delivery Fee"}
+              value={isPickup ? "FREE" : fmtAmount(order.delivery_fee)}
             />
-            {order.distance_km > 0 && (
+            {Number(order.packing_charge) > 0 && (
+              <DetailRow
+                label="Packing Charge"
+                value={fmtAmount(order.packing_charge)}
+              />
+            )}
+            {!isPickup && order.distance_km > 0 && (
               <DetailRow label="Distance" value={`${order.distance_km} km`} />
             )}
             <DetailRow label="Tip" value={fmtAmount(order.tip)} />

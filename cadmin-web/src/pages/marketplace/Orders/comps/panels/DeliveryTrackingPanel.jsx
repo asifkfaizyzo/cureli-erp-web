@@ -630,6 +630,7 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
 
   // ── 1. Fetch ONCE on mount or when filter/search/reassign changes ──
   const fetchRiders = useCallback(async () => {
+    if (order.fulfillment_type === "PICKUP") return;
     setLoading(true);
     try {
       const res = await getAvailableRidersForOrder(order.order_id, {
@@ -644,9 +645,10 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     } finally {
       setLoading(false);
     }
-  }, [order.order_id, searchQuery, typeFilter, toast]);
+  }, [order.order_id, order.fulfillment_type, searchQuery, typeFilter, toast]);
 
   useEffect(() => {
+    if (order.fulfillment_type === "PICKUP") return;
     if (
       (!order.delivery?.rider_id &&
         ["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status)) ||
@@ -654,7 +656,7 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
     ) {
       fetchRiders();
     }
-  }, [order.delivery?.rider_id, order.status, forceReassign, fetchRiders]);
+  }, [order.fulfillment_type, order.delivery?.rider_id, order.status, forceReassign, fetchRiders]);
 
   // ── 2. Real-time SSE updates (No polling!) ──
   const handleRiderAvailability = useCallback((payload) => {
@@ -731,6 +733,42 @@ const DeliveryTrackingPanel = ({ order, onUpdated }) => {
       setAssigningId(null);
     }
   };
+
+  // ── Guard 0: Pickup orders — no rider assignment needed ──
+  if (order.fulfillment_type === "PICKUP") {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <Store size={36} className="text-orange-400 mb-3" />
+        <h3 className="text-sm font-bold text-gray-700">
+          Pickup Order — No Delivery Partner
+        </h3>
+        <p className="text-xs text-gray-400 mt-1 max-w-sm px-6">
+          This is a customer pickup order. No rider assignment is needed.
+          The customer will collect their order directly from the pharmacy.
+        </p>
+        {order.customer_pickup_code && (
+          <div className="mt-4 px-6 py-3 rounded-xl bg-orange-50 border border-orange-200">
+            <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">
+              Customer Pickup Code
+            </p>
+            <p className="text-2xl font-extrabold text-orange-800 font-mono tracking-[0.3em] mt-1">
+              {order.customer_pickup_code}
+            </p>
+          </div>
+        )}
+        {order.delivery_otp && (
+          <div className="mt-3 px-6 py-3 rounded-xl bg-amber-50 border border-amber-200">
+            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+              Delivery OTP (for CAdmin override)
+            </p>
+            <p className="text-2xl font-extrabold text-amber-800 font-mono tracking-[0.3em] mt-1">
+              {order.delivery_otp}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // ── Guard 1: PLACED status ──
   if (order.status === "PLACED") {

@@ -26,20 +26,22 @@ const SESSION_TTL_MINS = 15;
 // LOAD CONFIG (cached in memory, invalidated by version change)
 // ─────────────────────────────────────────────────────────────────────────────
 
-let _configCache = null;
-let _configVersion = null;
+const _configCaches = {};
 
-async function getConfig() {
-  const row = await prisma.deliveryPricingConfig.findFirst();
-  if (!row) throw new Error("Pricing config not initialised");
+async function getConfig(fulfillmentType = "INSTANT_DELIVERY") {
+  const row = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type: fulfillmentType },
+  });
+  if (!row)
+    throw new Error(`Pricing config not initialised for ${fulfillmentType}`);
 
+  const cacheKey = fulfillmentType;
   const version = row.version;
-  if (_configVersion !== version || !_configCache) {
-    _configCache = normaliseConfig(row);
-    _configVersion = version;
+  if (!_configCaches[cacheKey] || _configCaches[cacheKey].version !== version) {
+    _configCaches[cacheKey] = { version, config: normaliseConfig(row) };
   }
 
-  return _configCache;
+  return _configCaches[cacheKey].config;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,11 +109,18 @@ export async function getQuote({
   coupon_code = null,
   loyalty_points_to_redeem = 0,
   customer_id = null,
+  fulfillment_type = "INSTANT_DELIVERY",
 }) {
   const subtotal = await resolveSubtotal(items, branch_id);
-  const config = await getConfig();
+  const config = await getConfig(fulfillment_type);
 
-  const basePricing = computePricing({ subtotal, distance_km, tip, config });
+  const basePricing = computePricing({
+    subtotal,
+    distance_km,
+    tip,
+    config,
+    fulfillment_type,
+  });
 
   if (!basePricing.delivery_available) {
     return {
@@ -199,6 +208,7 @@ export async function getQuote({
     delivery_fee: slashed.delivery_charge,
     delivery_charge_anchor: slashed.delivery_charge_anchor,
     km_surcharge: 0,
+    packing_charge: basePricing.packing_charge ?? 0,
     tip: slashed.tip ?? tip,
     platform_savings: slashed.platform_savings,
     delivery_available: slashed.delivery_available,
@@ -230,8 +240,10 @@ export async function createCheckoutSession({
   prescription_recipient_id = null,
   coupon_code = null,
   loyalty_points_to_redeem = 0,
+  fulfillment_type = "INSTANT_DELIVERY",
 }) {
-  const config = await getConfig();
+  const isPickup = fulfillment_type === "PICKUP";
+  const config = await getConfig(fulfillment_type);
 
   // ── 1. Validate customer ─────────────────────────────────
   const customer = await prisma.cureliMobileUser.findUnique({
@@ -247,11 +259,18 @@ export async function createCheckoutSession({
   if (!customer || customer.status !== "active")
     throw new Error("Customer account is not active");
 
-  // ── 2. Validate address ──────────────────────────────────
-  const address = await prisma.cureliMobileAddress.findFirst({
-    where: { id: delivery_address_id, user_id: customer_id, deleted_at: null },
-  });
-  if (!address) throw new Error("Delivery address not found");
+  // ── 2. Validate address (skip for pickup) ────────────────
+  let address = null;
+  if (!isPickup) {
+    address = await prisma.cureliMobileAddress.findFirst({
+      where: {
+        id: delivery_address_id,
+        user_id: customer_id,
+        deleted_at: null,
+      },
+    });
+    if (!address) throw new Error("Delivery address not found");
+  }
 
   // ── 3. Validate branch ───────────────────────────────────
   const branchSettings = await prisma.branchMarketplaceSettings.findUnique({
@@ -270,33 +289,35 @@ export async function createCheckoutSession({
 
   const shop_id = branchSettings.branch.shop_id;
 
-  // ── 3b. Server-side distance validation ─────────────────
-  const branchLat = branchSettings.latitude
-    ? Number(branchSettings.latitude)
-    : null;
-  const branchLng = branchSettings.longitude
-    ? Number(branchSettings.longitude)
-    : null;
-  const addrLat = address.latitude ? Number(address.latitude) : null;
-  const addrLng = address.longitude ? Number(address.longitude) : null;
+  // ── 3b. Server-side distance validation (skip for pickup) ─
+  let validatedDistanceKm = isPickup ? 0 : distance_km;
 
-  let validatedDistanceKm = distance_km;
+  if (!isPickup) {
+    const branchLat = branchSettings.latitude
+      ? Number(branchSettings.latitude)
+      : null;
+    const branchLng = branchSettings.longitude
+      ? Number(branchSettings.longitude)
+      : null;
+    const addrLat = address?.latitude ? Number(address.latitude) : null;
+    const addrLng = address?.longitude ? Number(address.longitude) : null;
 
-  if (branchLat && branchLng && addrLat && addrLng) {
-    const serverDist = await getDrivingDistance(
-      branchLat,
-      branchLng,
-      addrLat,
-      addrLng,
-    );
-    const clientDist = Number(distance_km) || 0;
-    const tolerance = serverDist.distanceKm * 0.2;
-
-    if (Math.abs(clientDist - serverDist.distanceKm) > tolerance) {
-      console.warn(
-        `[Checkout] Distance mismatch: client=${clientDist}km, server=${serverDist.distanceKm}km. Using server value.`,
+    if (branchLat && branchLng && addrLat && addrLng) {
+      const serverDist = await getDrivingDistance(
+        branchLat,
+        branchLng,
+        addrLat,
+        addrLng,
       );
-      validatedDistanceKm = serverDist.distanceKm;
+      const clientDist = Number(distance_km) || 0;
+      const tolerance = serverDist.distanceKm * 0.2;
+
+      if (Math.abs(clientDist - serverDist.distanceKm) > tolerance) {
+        console.warn(
+          `[Checkout] Distance mismatch: client=${clientDist}km, server=${serverDist.distanceKm}km. Using server value.`,
+        );
+        validatedDistanceKm = serverDist.distanceKm;
+      }
     }
   }
 
@@ -317,6 +338,7 @@ export async function createCheckoutSession({
     distance_km: validatedDistanceKm,
     tip,
     config,
+    fulfillment_type,
   });
 
   if (!pricing.delivery_available) {
@@ -384,20 +406,49 @@ export async function createCheckoutSession({
     Math.max(1, slashed.grand_total - totalDiscount).toFixed(2),
   );
 
-  // ── 9. Snapshot address ──────────────────────────────────
-  const address_snapshot = {
-    label: address.label,
-    address_line_1: address.address_line_1,
-    address_line_2: address.address_line_2 ?? null,
-    landmark: address.landmark ?? null,
-    city: address.city,
-    state: address.state,
-    pincode: address.pincode,
-    latitude: address.latitude ? Number(address.latitude) : null,
-    longitude: address.longitude ? Number(address.longitude) : null,
-    recipient_name: address.recipient_name ?? null,
-    recipient_phone: address.recipient_phone ?? null,
-  };
+  // ── 9. Snapshot address (branch address for pickup) ──────
+  let address_snapshot;
+  if (isPickup) {
+    const branch = await prisma.branch.findUnique({
+      where: { branch_id },
+      select: {
+        address_line_1: true,
+        city: true,
+        state: true,
+        pincode: true,
+        marketplaceSettings: {
+          select: { latitude: true, longitude: true, formatted_address: true },
+        },
+      },
+    });
+    address_snapshot = {
+      label: "Pickup Location",
+      address_line_1: branch?.marketplaceSettings?.formatted_address || branch?.address_line_1 || "",
+      address_line_2: null,
+      landmark: null,
+      city: branch?.city || "",
+      state: branch?.state || "",
+      pincode: branch?.pincode || "",
+      latitude: branch?.marketplaceSettings?.latitude ? Number(branch.marketplaceSettings.latitude) : null,
+      longitude: branch?.marketplaceSettings?.longitude ? Number(branch.marketplaceSettings.longitude) : null,
+      recipient_name: null,
+      recipient_phone: null,
+    };
+  } else {
+    address_snapshot = {
+      label: address.label,
+      address_line_1: address.address_line_1,
+      address_line_2: address.address_line_2 ?? null,
+      landmark: address.landmark ?? null,
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+      latitude: address.latitude ? Number(address.latitude) : null,
+      longitude: address.longitude ? Number(address.longitude) : null,
+      recipient_name: address.recipient_name ?? null,
+      recipient_phone: address.recipient_phone ?? null,
+    };
+  }
 
   // ── 10. Create Razorpay order ────────────────────────────
   const amount_paise = Math.round(grand_total * 100);
@@ -438,6 +489,8 @@ export async function createCheckoutSession({
       loyalty_points_redeemed: points_to_redeem,
       loyalty_discount_amount,
       grand_total,
+      fulfillment_type,
+      packing_charge: pricing.packing_charge ?? 0,
       distance_km: validatedDistanceKm,
       prescription_files,
       patient_is_self: patient.is_self,
@@ -708,6 +761,8 @@ async function _createOrderFromSession({
         customer_name_snapshot: customer.full_name ?? customer.phone,
         customer_phone_snapshot: customer.phone,
         status: "PLACED",
+        fulfillment_type: session.fulfillment_type || "INSTANT_DELIVERY",
+        packing_charge: session.packing_charge ?? 0,
         payment_method:
           resolved_payment_method ??
           (await resolveRazorpayMethod(razorpay_payment_id)),

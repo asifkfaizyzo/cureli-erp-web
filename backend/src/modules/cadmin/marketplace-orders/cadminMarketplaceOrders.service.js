@@ -36,6 +36,7 @@ export const listAllOrders = async ({
   limit = 20,
   search = "",
   status = "",
+  fulfillment_type = "",
 }) => {
   const skip = (page - 1) * limit;
 
@@ -50,6 +51,18 @@ export const listAllOrders = async ({
       where.status = statuses[0];
     } else if (statuses.length > 1) {
       where.status = { in: statuses };
+    }
+  }
+
+  if (fulfillment_type) {
+    const types = fulfillment_type
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (types.length === 1) {
+      where.fulfillment_type = types[0];
+    } else if (types.length > 1) {
+      where.fulfillment_type = { in: types };
     }
   }
 
@@ -71,6 +84,7 @@ export const listAllOrders = async ({
         order_id: true,
         order_number: true,
         status: true,
+        fulfillment_type: true,
         customer_name_snapshot: true,
         customer_phone_snapshot: true,
         total_amount: true,
@@ -505,6 +519,7 @@ function formatOrderSummary(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     total_amount: Number(order.total_amount),
@@ -548,6 +563,7 @@ function formatOrderDetail(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     delivery_address: order.delivery_address_snapshot,
@@ -564,7 +580,7 @@ function formatOrderDetail(order) {
     pickup_otp: order.pickup_otp ?? null,
     delivery_otp: order.delivery_otp ?? null,
 
-    // ── NEW: Full billing breakdown ──
+    // ── Full billing breakdown ──
     service_charge: Number(order.service_charge ?? 0),
     delivery_fee: parseFloat(
       (
@@ -572,6 +588,7 @@ function formatOrderDetail(order) {
       ).toFixed(2),
     ),
     km_surcharge: 0,
+    packing_charge: Number(order.packing_charge ?? 0),
     tip: Number(order.tip ?? 0),
     distance_km: Number(order.distance_km ?? 0),
 

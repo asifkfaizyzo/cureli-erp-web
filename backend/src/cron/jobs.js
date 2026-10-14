@@ -11,6 +11,7 @@ import { staleRiderWorker } from "./staleRiderWorker.js";
 import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
 import { checkCommissionSuspensionExpiry } from "./commissionSuspensionWorker.js";
 import { riderAssignmentTimeoutWorker } from "./riderAssignmentTimeoutWorker.js";
+import { processStalePickupOrders } from "./stalePickupWorker.js";
 
 import {
   cleanupOldPendingUsers,
@@ -680,6 +681,13 @@ function initializeRiderAssignmentTimeoutJob() {
   );
 }
 
+function initializeStalePickupJob() {
+  cron.schedule("*/30 * * * *", () =>
+    withCronLock("stale-pickup-sweep", 15, processStalePickupOrders),
+  );
+  cronLogger.info("Stale pickup sweep scheduled (every 30 minutes)");
+}
+
 function initializeCommissionSuspensionJob() {
   cron.schedule("*/15 * * * *", () =>
     withCronLock("commission-suspension", 5, checkCommissionSuspensionExpiry),
@@ -753,6 +761,7 @@ export function initializeCronJobs() {
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
   initializeRiderAssignmentTimeoutJob();
+  initializeStalePickupJob();
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -838,6 +847,7 @@ export function initializeCronJobs() {
   cronLogger.info(
     "  - Rider assignment auto-decline: Every 30 seconds (90s timeout)",
   );
+  cronLogger.info("  - Stale pickup sweep: Every 30 minutes");
   cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
   cronLogger.info(
     "  - Mobile notification cleanup: Daily at 4:15 AM (90-day retention)",

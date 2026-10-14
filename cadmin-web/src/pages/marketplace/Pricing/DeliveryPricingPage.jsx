@@ -17,6 +17,7 @@ import {
 
 import {
   getPricingConfig,
+  getAllPricingConfigs,
   updatePricingConfig,
   getSlashConfig,
   updateSlashConfig,
@@ -34,6 +35,13 @@ import {
 } from "./comps/delivery/FormInputs";
 import SlashConfigSection from "./comps/delivery/SlashConfigSection";
 import LivePreview from "./comps/delivery/LivePreview";
+
+const FULFILLMENT_TYPES = [
+  { value: "INSTANT_DELIVERY", label: "Delivery", icon: Truck },
+  { value: "PICKUP", label: "Pickup", icon: Settings2 },
+  { value: "SAME_DAY", label: "Same Day", icon: Truck },
+  { value: "NEXT_DAY", label: "Next Day", icon: Truck },
+];
 
 const DEFAULT_PRICING = {
   service_tier_1_max: 999.99,
@@ -54,6 +62,17 @@ const DEFAULT_PRICING = {
   per_km_tier_2_rate: 10,
   max_delivery_km: null,
   tip_enabled: true,
+  // ── New: Toggle fields ──
+  service_charge_enabled: true,
+  delivery_fee_enabled: true,
+  km_surcharge_enabled: true,
+  packing_enabled: false,
+  // ── New: Packing charge tiers ──
+  packing_tier_1_max: 999.99,
+  packing_tier_1_charge: 10,
+  packing_tier_2_max: 1999.99,
+  packing_tier_2_charge: 15,
+  packing_tier_3_charge: 20,
 };
 
 const DEFAULT_SLASH = {
@@ -72,6 +91,9 @@ export default function MarketplaceDeliveryPricingPage() {
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
 
+  // ── Fulfillment type tab state ──
+  const [activeFulfillment, setActiveFulfillment] = useState("INSTANT_DELIVERY");
+
   // States for base pricing
   const [form, setForm] = useState(DEFAULT_PRICING);
   const [original, setOriginal] = useState(null);
@@ -88,7 +110,7 @@ export default function MarketplaceDeliveryPricingPage() {
         original && slashOriginal ? setLoading(false) : setLoading(true);
 
         const [pricingRes, slashRes] = await Promise.all([
-          getPricingConfig(),
+          getPricingConfig(activeFulfillment),
           getSlashConfig(),
         ]);
 
@@ -132,12 +154,12 @@ export default function MarketplaceDeliveryPricingPage() {
         setLoading(false);
       }
     },
-    [original, slashOriginal, toast]
+    [activeFulfillment, original, slashOriginal, toast]
   );
 
   useEffect(() => {
     fetchConfigs(false);
-  }, []); // eslint-disable-line
+  }, [activeFulfillment]); // eslint-disable-line
 
   // ── Handlers ──────────────────────────────────────────────
   const handlePricingChange = useCallback((key, value) => {
@@ -176,7 +198,7 @@ export default function MarketplaceDeliveryPricingPage() {
 
       // Perform updates concurrently
       await Promise.all([
-        updatePricingConfig(pricingPayload),
+        updatePricingConfig(pricingPayload, activeFulfillment),
         updateSlashConfig(slashPayload),
       ]);
 
@@ -197,6 +219,14 @@ export default function MarketplaceDeliveryPricingPage() {
   const handleDiscard = () => {
     if (original) setForm(original);
     if (slashOriginal) setSlashForm(slashOriginal);
+    setSaved(false);
+  };
+
+  const handleFulfillmentTabChange = (type) => {
+    if (isPricingDirty) {
+      if (!window.confirm("You have unsaved changes. Switch anyway?")) return;
+    }
+    setActiveFulfillment(type);
     setSaved(false);
   };
 
@@ -329,6 +359,45 @@ export default function MarketplaceDeliveryPricingPage() {
         </div>
       </div>
 
+      {/* ── Fulfillment Type Tab Bar ── */}
+      <div className="max-w-6xl mx-auto mb-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 p-1.5 shadow-sm">
+          {FULFILLMENT_TYPES.map((ft) => {
+            const isActive = activeFulfillment === ft.value;
+            const Icon = ft.icon;
+            return (
+              <button
+                key={ft.value}
+                type="button"
+                onClick={() => handleFulfillmentTabChange(ft.value)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  isActive
+                    ? "bg-[#05015A] text-white shadow-sm"
+                    : "text-gray-600 hover:text-[#05015A] hover:bg-gray-100"
+                }`}
+              >
+                <Icon size={14} />
+                {ft.label}
+              </button>
+            );
+          })}
+        </div>
+        {activeFulfillment === "PICKUP" && (
+          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
+            <p className="text-[11px] text-[#05015A] font-medium">
+              Configuring charges for <strong className="font-bold">Pickup</strong> orders. Toggle individual charges on or off using the switch in each section header.
+            </p>
+          </div>
+        )}
+        {(activeFulfillment === "SAME_DAY" || activeFulfillment === "NEXT_DAY") && (
+          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
+            <p className="text-[11px] text-[#05015A] font-medium">
+              Configuring charges for <strong className="font-bold">{activeFulfillment === "SAME_DAY" ? "Same Day" : "Next Day"}</strong> orders. Scheduling logic is not yet active — these currently behave like instant delivery.
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Main Grid: items-start allows sticky elements to stop stretching and slide */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
         
@@ -339,6 +408,10 @@ export default function MarketplaceDeliveryPricingPage() {
             title="Base Service Charge"
             icon={Settings2}
             description="Platform service charges on order baskets"
+            toggleField="service_charge_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.service_charge_enabled}
           >
             <InfoBanner>Applied on every basket. Goes directly to platform revenue.</InfoBanner>
             <div className="space-y-3">
@@ -378,6 +451,10 @@ export default function MarketplaceDeliveryPricingPage() {
             title="Base Delivery Fee"
             icon={Truck}
             description="Fulfillment base delivery fee tiers"
+            toggleField="delivery_fee_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.delivery_fee_enabled}
           >
             <InfoBanner>
               Flat baseline delivery cost before any distance surcharges are applied.
@@ -424,6 +501,10 @@ export default function MarketplaceDeliveryPricingPage() {
             title="Distance Surcharge Rate"
             icon={MapPin}
             description="Per-km mileage rates beyond the free zone threshold"
+            toggleField="km_surcharge_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.km_surcharge_enabled}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field
@@ -461,11 +542,57 @@ export default function MarketplaceDeliveryPricingPage() {
             </div>
           </Section>
 
+          {/* Packing Charge */}
+          <Section
+            title="Packing Charge"
+            icon={Settings2}
+            description="Packing and handling fee tiers based on order subtotal"
+            toggleField="packing_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.packing_enabled}
+          >
+            <InfoBanner>
+              Uses the same subtotal-based tier structure as service charge.
+            </InfoBanner>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
+                <span>Tier</span>
+                <span>Subtotal up to</span>
+                <span>Charge</span>
+              </div>
+              <TierRow
+                label="Tier 1"
+                thresholdLabel="Up to (₹)"
+                thresholdKey="packing_tier_1_max"
+                chargeKey="packing_tier_1_charge"
+                form={form}
+                onChange={handlePricingChange}
+              />
+              <TierRow
+                label="Tier 2"
+                thresholdLabel="Up to (₹)"
+                thresholdKey="packing_tier_2_max"
+                chargeKey="packing_tier_2_charge"
+                form={form}
+                onChange={handlePricingChange}
+              />
+              <TierRow
+                label="Tier 3 (≥ Tier 2 max)"
+                chargeKey="packing_tier_3_charge"
+                form={form}
+                onChange={handlePricingChange}
+                hideThreshold
+              />
+            </div>
+          </Section>
+
           {/* Limits */}
           <Section
-            title="Delivery Limits"
+            title="Delivery Limits & Tips"
             icon={Heart}
             description="Delivery radius cap and customer tipping settings"
+            defaultOpen={false}
           >
             <Field
               label="Maximum delivery distance limit"
@@ -500,6 +627,7 @@ export default function MarketplaceDeliveryPricingPage() {
           <LivePreview
             pricingConfig={form}
             slashConfig={slashForm}
+            fulfillmentType={activeFulfillment}
           />
 
           <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl flex-shrink-0">

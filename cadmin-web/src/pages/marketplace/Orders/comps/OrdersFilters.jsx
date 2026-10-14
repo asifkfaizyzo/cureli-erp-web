@@ -1,6 +1,5 @@
 // cadmin-web/src/pages/marketplace/Orders/comps/OrdersFilters.jsx (do not remove this comment)
-import { Search, X, Filter } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Search, X } from "lucide-react";
 import StyledSelect from "../../../../components/common/StyledSelect";
 
 const ORDER_STATUS_OPTIONS = [
@@ -24,28 +23,38 @@ const RX_STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
+const FULFILLMENT_OPTIONS = [
+  { value: "", label: "All Types" },
+  { value: "INSTANT_DELIVERY", label: "Instant Delivery" },
+  { value: "PICKUP", label: "In-Person Pickup" },
+  { value: "SAME_DAY", label: "Same Day" },
+  // { value: "NEXT_DAY", label: "Next Day" },
+];
+
 const OrdersFilters = ({
   viewMode,
   search,
   setSearch,
   statusFilter,
   setStatusFilter,
+  fulfillmentFilter = "",
+  setFulfillmentFilter = () => {},
 }) => {
-  const [showFilters, setShowFilters] = useState(false);
   const isOrders = viewMode === "orders";
-
-  const activeFiltersCount = useMemo(() => {
-    return [statusFilter].filter(Boolean).length;
-  }, [statusFilter]);
+  const hasActiveFilters = Boolean(
+    statusFilter || (isOrders && fulfillmentFilter) || search
+  );
 
   const handleClearFilters = () => {
     setStatusFilter("");
+    setFulfillmentFilter("");
     setSearch("");
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 space-y-3 flex-shrink-0 shadow-sm">
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+    <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm flex-shrink-0">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+        {/* Search Bar */}
         <div className="relative flex-1 min-w-[200px]">
           <Search
             size={18}
@@ -76,56 +85,43 @@ const OrdersFilters = ({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`px-3 sm:px-4 h-10 sm:h-11 rounded-lg text-sm font-medium flex items-center gap-2
-                     transition-all shadow-sm relative flex-shrink-0
-                     ${
-                       showFilters || activeFiltersCount > 0
-                         ? "bg-indigo-50 text-indigo-700 border-2 border-indigo-200"
-                         : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                     }`}
-        >
-          <Filter size={18} />
-          <span className="hidden sm:inline">Filters</span>
-          {activeFiltersCount > 0 && (
-            <span
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white 
-                             text-xs font-bold rounded-full flex items-center justify-center"
-            >
-              {activeFiltersCount}
-            </span>
-          )}
-        </button>
-      </div>
+        {/* Status Filter */}
+        <div className="w-full sm:w-48 lg:w-52 flex-shrink-0">
+          <StyledSelect
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value)}
+            options={isOrders ? ORDER_STATUS_OPTIONS : RX_STATUS_OPTIONS}
+            placeholder="All Statuses"
+          />
+        </div>
 
-      {showFilters && (
-        <div className="pt-3 border-t border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Fulfillment Filter (Orders Only) */}
+        {isOrders && (
+          <div className="w-full sm:w-44 lg:w-48 flex-shrink-0">
             <StyledSelect
-              label={isOrders ? "Order Status" : "Request Status"}
-              value={statusFilter}
-              onChange={(value) => setStatusFilter(value)}
-              options={isOrders ? ORDER_STATUS_OPTIONS : RX_STATUS_OPTIONS}
-              placeholder="All Statuses"
+              value={fulfillmentFilter}
+              onChange={(value) => setFulfillmentFilter(value)}
+              options={FULFILLMENT_OPTIONS}
+              placeholder="All Types"
             />
           </div>
+        )}
 
-          {(statusFilter || search) && (
-            <div className="mt-3 flex items-center justify-end">
-              <button
-                onClick={handleClearFilters}
-                className="px-4 py-2 text-sm text-red-600 hover:text-red-700 
-                           hover:bg-red-50 rounded-lg transition-all flex items-center gap-2 font-medium"
-              >
-                <X size={16} />
-                Clear all filters
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+        {/* Clear Filters Button */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="px-3 h-10 sm:h-11 text-sm text-red-600 hover:text-red-700 
+                       hover:bg-red-50 border border-red-200 rounded-lg transition-all 
+                       flex items-center justify-center gap-1.5 font-medium flex-shrink-0"
+            title="Clear all filters"
+          >
+            <X size={16} />
+            <span className="hidden sm:inline">Clear</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 };

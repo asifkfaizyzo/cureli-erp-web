@@ -10,6 +10,7 @@ import {
   listOrdersHandler,
   getOrderDetailHandler,
   cancelOrderHandler,
+  confirmPickupHandler,
   getPrescriptionUrlHandler,
   getReorderItemsHandler,
   getInvoiceDownloadHandler,
@@ -24,6 +25,7 @@ router.post('/',                                                 placeOrderHandl
 router.get('/',                                                  listOrdersHandler);
 router.get('/:orderId',                                          getOrderDetailHandler);
 router.post('/:orderId/cancel',                                  cancelOrderHandler);
+router.post('/:orderId/confirm-pickup',                          confirmPickupHandler);
 router.get('/:orderId/reorder-items',                            getReorderItemsHandler);
 router.get('/:orderId/prescriptions/:prescriptionId/url',        getPrescriptionUrlHandler);
 router.get('/:orderId/invoice',                                  getInvoiceDownloadHandler);

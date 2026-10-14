@@ -1,6 +1,6 @@
 // cadmin-web/src/pages/marketplace/Orders/comps/OrdersTable.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
-import { ShoppingBag, FileText, Eye } from "lucide-react";
+import { ShoppingBag, FileText, Eye, Store, Truck, Bike } from "lucide-react";
 import Pagination from "../../../../components/common/Pagination";
 import TableSkeleton from "../../../../components/common/TableSkeleton";
 import TableEmptyState from "../../../../components/common/TableEmptyState";
@@ -210,7 +210,16 @@ const fmtDate = (d) => {
 };
 
 const needsRider = (order) =>
-  !order.has_rider && ["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status);
+  order.fulfillment_type !== "PICKUP" &&
+  !order.has_rider &&
+  ["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status);
+
+const FULFILLMENT_BADGE = {
+  INSTANT_DELIVERY: { label: "Delivery", cls: "bg-blue-50 text-blue-700 border-blue-200", Icon: Bike },
+  PICKUP: { label: "Pickup", cls: "bg-orange-50 text-orange-700 border-orange-200", Icon: Store },
+  SAME_DAY: { label: "Same Day", cls: "bg-cyan-50 text-cyan-700 border-cyan-200", Icon: Truck },
+  NEXT_DAY: { label: "Next Day", cls: "bg-cyan-50 text-cyan-700 border-cyan-200", Icon: Truck },
+};
 
 const OrdersTable = ({
   viewMode = "orders",
@@ -362,19 +371,32 @@ const OrdersTable = ({
         </td>
         <td className={`${styles.cell.base} ${styles.cell.center}`}>
           <div className="flex flex-col items-center gap-0.5">
-            <span
-              className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusCfg.cls}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
-              {statusCfg.label}
-            </span>
+            <div className="flex items-center gap-1">
+              <span
+                className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusCfg.cls}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                {statusCfg.label}
+              </span>
+              {(() => {
+                const fType = order.fulfillment_type || "INSTANT_DELIVERY";
+                const fBadge = FULFILLMENT_BADGE[fType] || FULFILLMENT_BADGE.INSTANT_DELIVERY;
+                const FIcon = fBadge.Icon;
+                return (
+                  <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border ${fBadge.cls}`}>
+                    <FIcon size={8} />
+                    {fBadge.label}
+                  </span>
+                );
+              })()}
+            </div>
             {isNeedsRider && (
               <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                 Needs Rider
               </span>
             )}
-            {order.delivery_status && !isNeedsRider && order.has_rider && (
+            {order.delivery_status && !isNeedsRider && order.has_rider && order.fulfillment_type !== "PICKUP" && (
               <span className="text-[9px] text-gray-400 font-medium">
                 {order.delivery_status.replace(/_/g, " ")}
               </span>

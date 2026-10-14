@@ -25,8 +25,9 @@ export async function getAvailableRidersForOrder({
       order_id: true,
       order_number: true,
       status: true,
-      tip: true, // ── NEW: needed for earning preview
-      delivery_address_snapshot: true, // ── NEW: needed for Leg 2 distance
+      fulfillment_type: true,
+      tip: true,
+      delivery_address_snapshot: true,
       shop: { select: { business_name: true } },
       branch: {
         select: {
@@ -47,6 +48,13 @@ export async function getAvailableRidersForOrder({
   });
 
   if (!order) throw new Error("Order not found");
+
+  // ── Guard: rider assignment only applies to instant delivery ────────
+  if (order.fulfillment_type && order.fulfillment_type !== "INSTANT_DELIVERY") {
+    throw new Error(
+      `Rider assignment is not applicable for ${order.fulfillment_type} orders`,
+    );
+  }
 
   const pharmacyLat = order.branch?.marketplaceSettings?.latitude
     ? Number(order.branch.marketplaceSettings.latitude)
@@ -283,6 +291,13 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
   });
 
   if (!order) throw new Error("Order not found");
+
+  // ── Guard: rider assignment only applies to instant delivery ────────
+  if (order.fulfillment_type && order.fulfillment_type !== "INSTANT_DELIVERY") {
+    throw new Error(
+      `Rider assignment is not applicable for ${order.fulfillment_type} orders`,
+    );
+  }
 
   if (!["ACCEPTED", "READY_FOR_PICKUP"].includes(order.status)) {
     throw new Error(
@@ -537,12 +552,23 @@ export async function assignRiderToOrder({ order_id, rider_id, assigned_by }) {
 export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
   const order = await prisma.marketplaceOrder.findUnique({
     where: { order_id },
-    include: {
+    select: {
+      order_id: true,
+      order_number: true,
+      fulfillment_type: true,
+      customer_id: true,
       delivery: true,
     },
   });
 
   if (!order) throw new Error("Order not found");
+
+  // ── Guard: rider operations only apply to instant delivery ──────────
+  if (order.fulfillment_type && order.fulfillment_type !== "INSTANT_DELIVERY") {
+    throw new Error(
+      `Rider unassignment is not applicable for ${order.fulfillment_type} orders`,
+    );
+  }
 
   const delivery = order.delivery;
 

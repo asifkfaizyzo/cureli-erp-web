@@ -62,34 +62,52 @@ function findMatchingSlashTier(tiers, subtotal, distanceKm) {
 
 function computePreview(pricingConfig, slashConfig, subtotal, distanceKm) {
   const f = (v) => Number(v) || 0;
+  const isEnabled = (key) => pricingConfig[key] !== false;
 
   // ── 1. Calculate Base Service Charge ──
   let service = 0;
-  if (subtotal <= f(pricingConfig.service_tier_1_max))
-    service = f(pricingConfig.service_tier_1_charge);
-  else if (subtotal <= f(pricingConfig.service_tier_2_max))
-    service = f(pricingConfig.service_tier_2_charge);
-  else service = f(pricingConfig.service_tier_3_charge);
+  if (isEnabled("service_charge_enabled")) {
+    if (subtotal <= f(pricingConfig.service_tier_1_max))
+      service = f(pricingConfig.service_tier_1_charge);
+    else if (subtotal <= f(pricingConfig.service_tier_2_max))
+      service = f(pricingConfig.service_tier_2_charge);
+    else service = f(pricingConfig.service_tier_3_charge);
+  }
 
   // ── 2. Calculate Base Delivery Fee ──
   let delivery = 0;
-  if (subtotal < f(pricingConfig.delivery_tier_1_max))
-    delivery = f(pricingConfig.delivery_tier_1_charge);
-  else if (subtotal < f(pricingConfig.delivery_tier_2_max))
-    delivery = f(pricingConfig.delivery_tier_2_charge);
-  else if (subtotal < f(pricingConfig.delivery_tier_3_max))
-    delivery = f(pricingConfig.delivery_tier_3_charge);
-  else delivery = f(pricingConfig.delivery_tier_4_charge);
+  if (isEnabled("delivery_fee_enabled")) {
+    if (subtotal < f(pricingConfig.delivery_tier_1_max))
+      delivery = f(pricingConfig.delivery_tier_1_charge);
+    else if (subtotal < f(pricingConfig.delivery_tier_2_max))
+      delivery = f(pricingConfig.delivery_tier_2_charge);
+    else if (subtotal < f(pricingConfig.delivery_tier_3_max))
+      delivery = f(pricingConfig.delivery_tier_3_charge);
+    else delivery = f(pricingConfig.delivery_tier_4_charge);
+  }
 
   // ── 3. Calculate Base Distance Surcharge ──
-  const extraKm = Math.max(0, distanceKm - f(pricingConfig.free_km_radius));
-  const kmRate =
-    subtotal < f(pricingConfig.per_km_tier_1_max)
-      ? f(pricingConfig.per_km_tier_1_rate)
-      : f(pricingConfig.per_km_tier_2_rate);
-  const kmSurcharge = parseFloat((extraKm * kmRate).toFixed(2));
+  let kmSurcharge = 0;
+  if (isEnabled("km_surcharge_enabled")) {
+    const extraKm = Math.max(0, distanceKm - f(pricingConfig.free_km_radius));
+    const kmRate =
+      subtotal < f(pricingConfig.per_km_tier_1_max)
+        ? f(pricingConfig.per_km_tier_1_rate)
+        : f(pricingConfig.per_km_tier_2_rate);
+    kmSurcharge = parseFloat((extraKm * kmRate).toFixed(2));
+  }
 
   const rawDeliveryCharge = parseFloat((delivery + kmSurcharge).toFixed(2));
+
+  // ── 3b. Calculate Packing Charge ──
+  let packing = 0;
+  if (isEnabled("packing_enabled")) {
+    if (subtotal <= f(pricingConfig.packing_tier_1_max))
+      packing = f(pricingConfig.packing_tier_1_charge);
+    else if (subtotal <= f(pricingConfig.packing_tier_2_max))
+      packing = f(pricingConfig.packing_tier_2_charge);
+    else packing = f(pricingConfig.packing_tier_3_charge);
+  }
 
   // ── 4. Apply Slash Displays (if enabled) ──
   let serviceActual = service;
@@ -137,8 +155,9 @@ function computePreview(pricingConfig, slashConfig, subtotal, distanceKm) {
     serviceAnchor,
     delivery: deliveryActual,
     deliveryAnchor,
+    packing,
     platformSavings,
-    grandTotal: subtotal + serviceActual + deliveryActual,
+    grandTotal: subtotal + serviceActual + deliveryActual + packing,
   };
 }
 
@@ -149,7 +168,8 @@ const PREVIEW_EXAMPLES = [
   { label: "₹2500 · 1 km", subtotal: 2500, distanceKm: 1 },
 ];
 
-export default function LivePreview({ pricingConfig, slashConfig }) {
+export default function LivePreview({ pricingConfig, slashConfig, fulfillmentType = "INSTANT_DELIVERY" }) {
+  const isPickup = fulfillmentType === "PICKUP";
   const [selected, setSelected] = useState(0);
   const ex = PREVIEW_EXAMPLES[selected];
 
@@ -203,10 +223,17 @@ export default function LivePreview({ pricingConfig, slashConfig }) {
             anchorValue={p.serviceAnchor ? p.serviceAnchor.toFixed(2) : null}
           />
           <PreviewPill
-            label={`Delivery fee (${ex.distanceKm} km)`}
-            value={p.delivery.toFixed(2)}
-            anchorValue={p.deliveryAnchor ? p.deliveryAnchor.toFixed(2) : null}
+            label={isPickup ? "Delivery fee (Pickup)" : `Delivery fee (${ex.distanceKm} km)`}
+            value={isPickup ? "0.00" : p.delivery.toFixed(2)}
+            anchorValue={!isPickup && p.deliveryAnchor ? p.deliveryAnchor.toFixed(2) : null}
           />
+
+          {p.packing > 0 && (
+            <PreviewPill
+              label="Packing charge"
+              value={p.packing.toFixed(2)}
+            />
+          )}
 
           {p.platformSavings > 0 && (
             <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100/50 text-emerald-800">

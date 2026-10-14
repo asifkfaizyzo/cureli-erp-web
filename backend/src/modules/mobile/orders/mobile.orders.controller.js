@@ -8,6 +8,7 @@ import {
   cancelOrder,
   getPrescriptionSignedUrl,
   getReorderItems,
+  completePickupOrder,
 } from '../../marketplace-orders/marketplace.orders.service.js';
 import { getInvoiceDownloadUrl } from '../invoice/invoice.service.js';
 import { placeOrderSchema, listMobileOrdersSchema } from './mobile.orders.schema.js';
@@ -125,5 +126,22 @@ export async function getInvoiceDownloadHandler(req, res) {
     if (err.message.includes('not found'))  return fail(res, err.message, 404);
     if (err.message.includes('not yet'))    return fail(res, err.message, 404);
     return fail(res, 'Failed to get invoice URL', 400);
+  }
+}
+
+export async function confirmPickupHandler(req, res) {
+  try {
+    const result = await completePickupOrder({
+      order_id: req.params.orderId,
+      actor_type: 'customer',
+      actor_id: req.mobileUser.id,
+    });
+    return success(res, result, 'Pickup confirmed');
+  } catch (err) {
+    console.error('[Mobile Orders] confirmPickup error:', err.message);
+    if (err.message === 'Order not found') return fail(res, 'Order not found', 404);
+    if (err.message.includes('only for pickup')) return fail(res, err.message, 400);
+    if (err.message.startsWith('Cannot')) return fail(res, err.message, 409);
+    return fail(res, 'Failed to confirm pickup', 500);
   }
 }

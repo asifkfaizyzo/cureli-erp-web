@@ -9,6 +9,7 @@ import {
   getPrescriptionSignedUrl,
   getMarketplaceBillingData,
   regenerateInvoicePdf,
+  completePickupOrder,
 } from './marketplace.orders.service.js';
 import {
   rejectOrderSchema,
@@ -162,5 +163,27 @@ export async function regenerateInvoice(req, res) {
     if (err.message.includes('not found')) return fail(res, err.message, 404);
     if (err.message.includes('not been billed')) return fail(res, err.message, 400);
     return fail(res, 'Failed to regenerate invoice', 500);
+  }
+}
+
+export async function completePickup(req, res) {
+  try {
+    const { otp } = req.body || {};
+    const result = await completePickupOrder({
+      order_id: req.params.orderId,
+      actor_type: 'pharmacy',
+      actor_id: req.user.user_id,
+      shop_id: req.user.shop_id,
+      otp,
+    });
+    return success(res, result, 'Pickup completed');
+  } catch (err) {
+    console.error('[ERP Orders] completePickup error:', err.message);
+    if (err.message === 'Order not found') return fail(res, 'Order not found', 404);
+    if (err.message.includes('only for pickup')) return fail(res, err.message, 400);
+    if (err.message.includes('Pickup code')) return fail(res, err.message, 400);
+    if (err.message.includes('Invalid pickup code')) return fail(res, err.message, 400);
+    if (err.message.startsWith('Cannot')) return fail(res, err.message, 409);
+    return fail(res, 'Failed to complete pickup', 500);
   }
 }

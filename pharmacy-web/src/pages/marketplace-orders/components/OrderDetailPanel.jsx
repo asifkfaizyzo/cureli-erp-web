@@ -84,6 +84,25 @@ const EXPECTED_DELIVERY = {
 
 const SEX_LABEL = { MALE: "Male", FEMALE: "Female", OTHER: "Other" };
 
+const FULFILLMENT_LABELS = {
+  INSTANT_DELIVERY: {
+    label: "Delivery",
+    color: "bg-blue-500/20 text-blue-200 border-blue-400/30",
+  },
+  PICKUP: {
+    label: "Pickup",
+    color: "bg-orange-500/20 text-orange-200 border-orange-400/30",
+  },
+  SAME_DAY: {
+    label: "Same Day",
+    color: "bg-cyan-500/20 text-cyan-200 border-cyan-400/30",
+  },
+  NEXT_DAY: {
+    label: "Next Day",
+    color: "bg-cyan-500/20 text-cyan-200 border-cyan-400/30",
+  },
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function formatPrice(v) {
@@ -387,7 +406,7 @@ function DeliveryProgressTracker({ delivery }) {
   );
 }
 
-// ── Pickup PIN ───────────────────────────────────────────────────────
+// ── Rider Pickup PIN (delivery orders only) ──────────────────────────
 
 function PickupPinCard({ pin, isReady, delivery }) {
   if (!pin) return null;
@@ -461,6 +480,7 @@ const OrderDetailPanel = ({
   onOpenReject,
   onMarkReady,
   onComplete,
+  onCompletePickup,
   onGetPrescriptionUrl,
   onGetInvoiceUrl,
   onRegenerateInvoice,
@@ -471,8 +491,20 @@ const OrderDetailPanel = ({
   const [regenerating, setRegenerating] = useState(false);
   const scrollRef = useRef(null);
 
+  // ── Pickup OTP verification state ──
+  const [pickupOtp, setPickupOtp] = useState("");
+  const [pickupOtpError, setPickupOtpError] = useState(null);
+  const [pickupVerifying, setPickupVerifying] = useState(false);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [orderId]);
+
+  // Reset OTP state when order changes
+  useEffect(() => {
+    setPickupOtp("");
+    setPickupOtpError(null);
+    setPickupVerifying(false);
   }, [orderId]);
 
   const handleOpenRx = useCallback(
@@ -517,6 +549,23 @@ const OrderDetailPanel = ({
     }
   }, [orderId, onRegenerateInvoice, onGetInvoiceUrl]);
 
+  // ── Pickup OTP verify handler ──
+  const handleVerifyPickup = useCallback(async () => {
+    if (!pickupOtp.trim() || !onCompletePickup) return;
+    setPickupVerifying(true);
+    setPickupOtpError(null);
+    try {
+      await onCompletePickup(orderId, pickupOtp.trim());
+      // Success — order will refresh via parent
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message || err?.message || "Invalid pickup code";
+      setPickupOtpError(msg);
+    } finally {
+      setPickupVerifying(false);
+    }
+  }, [orderId, pickupOtp, onCompletePickup]);
+
   // ── Empty / Loading / Error States ──
   if (!orderId)
     return (
@@ -550,6 +599,7 @@ const OrderDetailPanel = ({
   const {
     order_number,
     status,
+    fulfillment_type,
     customer_name,
     customer_phone,
     delivery_address,
@@ -563,6 +613,7 @@ const OrderDetailPanel = ({
     service_charge,
     delivery_fee,
     km_surcharge,
+    packing_charge,
     tip,
     requires_prescription,
     notes,
@@ -584,17 +635,29 @@ const OrderDetailPanel = ({
 
   const statusCfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.PLACED;
   const isTerminal = ["COMPLETED", "REJECTED", "CANCELLED"].includes(status);
+  const isPickup = fulfillment_type === "PICKUP";
   const deliveryMode = delivery?.delivery_mode || "CURELI";
   const canBillAndAccept = status === "PLACED";
   const canMarkReady = status === "ACCEPTED";
-  const canComplete = status === "READY_FOR_PICKUP" && deliveryMode === "SELF";
+
+  // Complete button: only for non-pickup SELF delivery orders at READY_FOR_PICKUP
+  const canComplete =
+    status === "READY_FOR_PICKUP" && deliveryMode === "SELF" && !isPickup;
+
+  // Pickup verify flow: pickup orders at READY_FOR_PICKUP
+  const showPickupVerify =
+    isPickup && status === "READY_FOR_PICKUP" && !isTerminal;
+
   const hasInvoice = ["READY_FOR_PICKUP", "COMPLETED"].includes(status);
   const showPickupPin =
     !!pickup_otp &&
     (status === "ACCEPTED" || status === "READY_FOR_PICKUP") &&
-    !isTerminal;
-  const outOfSync = isOutOfSync(status, delivery?.status);
+    !isTerminal &&
+    !isPickup;
+  const outOfSync = !isPickup && isOutOfSync(status, delivery?.status);
   const cadminOverride = hasCAdminOverride(status_history);
+  const fLabel =
+    FULFILLMENT_LABELS[fulfillment_type] || FULFILLMENT_LABELS.INSTANT_DELIVERY;
 
   // ── Commission / Earning flags ──
   const hasCommissionSnapshot =
@@ -605,7 +668,8 @@ const OrderDetailPanel = ({
 
   const hasActions =
     hasInvoice ||
-    (!isTerminal && (canBillAndAccept || canMarkReady || canComplete));
+    (!isTerminal &&
+      (canBillAndAccept || canMarkReady || canComplete || showPickupVerify));
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -621,7 +685,13 @@ const OrderDetailPanel = ({
               <span className={`w-1 h-1 rounded-full ${statusCfg.dot}`} />
               {statusCfg.label}
             </span>
-            {delivery?.status && (
+            <span
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${fLabel.color}`}
+            >
+              {isPickup ? <Store size={8} /> : <Bike size={8} />}
+              {fLabel.label}
+            </span>
+            {!isPickup && delivery?.status && (
               <span
                 className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
                   outOfSync
@@ -757,8 +827,8 @@ const OrderDetailPanel = ({
           </div>
         )}
 
-        {/* Admin Override Banner */}
-        {cadminOverride && (
+        {/* Admin Override Banner (delivery orders only) */}
+        {cadminOverride && !isPickup && (
           <div
             className={`flex items-start gap-2 px-3 py-2 rounded-lg border text-[10px] font-semibold leading-relaxed ${
               outOfSync
@@ -777,7 +847,7 @@ const OrderDetailPanel = ({
           </div>
         )}
 
-        {/* Pickup PIN */}
+        {/* Rider Pickup PIN (delivery orders only — NOT for pickup) */}
         {showPickupPin && (
           <PickupPinCard
             pin={pickup_otp}
@@ -786,8 +856,70 @@ const OrderDetailPanel = ({
           />
         )}
 
-        {/* Delivery Progress */}
-        {delivery && <DeliveryProgressTracker delivery={delivery} />}
+        {/* ── Pickup OTP Verification (pickup orders only) ── */}
+        {showPickupVerify && (
+          <div className="rounded-lg p-3.5 border bg-orange-500/[0.08] border-orange-400/25 space-y-3">
+            <div className="flex items-center gap-2">
+              <KeyRound size={14} className="text-orange-300" />
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-orange-200">
+                  Verify Customer Pickup Code
+                </span>
+                <p className="text-[9px] text-orange-300/60 mt-0.5 font-medium">
+                  Ask the customer for their pickup code and enter it below
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={pickupOtp}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setPickupOtp(val);
+                  if (pickupOtpError) setPickupOtpError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pickupOtp.length === 4) {
+                    handleVerifyPickup();
+                  }
+                }}
+                placeholder="••••"
+                disabled={pickupVerifying}
+                className="flex-1 h-10 px-3 rounded-lg bg-white/[0.06] border border-white/[0.12] text-white text-center text-lg font-mono font-bold tracking-[0.3em] placeholder:text-white/20 focus:outline-none focus:border-orange-400/50 focus:ring-1 focus:ring-orange-400/30 disabled:opacity-50 transition-all"
+              />
+              <button
+                onClick={handleVerifyPickup}
+                disabled={pickupOtp.length !== 4 || pickupVerifying}
+                className="h-10 px-4 rounded-lg text-[11px] font-bold bg-orange-500/25 hover:bg-orange-500/35 border border-orange-400/30 text-orange-100 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {pickupVerifying ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <CheckCircle size={12} />
+                )}
+                {pickupVerifying ? "Verifying..." : "Verify & Complete"}
+              </button>
+            </div>
+
+            {pickupOtpError && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-500/10 border border-red-400/20">
+                <XCircle size={11} className="text-red-300 flex-shrink-0" />
+                <span className="text-[10px] text-red-200 font-medium">
+                  {pickupOtpError}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delivery Progress (hidden for pickup — no rider) */}
+        {!isPickup && delivery && (
+          <DeliveryProgressTracker delivery={delivery} />
+        )}
 
         {/* Prescriptions */}
         {requires_prescription && prescriptions?.length > 0 && (
@@ -863,7 +995,11 @@ const OrderDetailPanel = ({
               )}
 
             {delivery_address && (
-              <SectionCard title="Delivery Address" icon={MapPin} compact>
+              <SectionCard
+                title={isPickup ? "Pickup Location" : "Delivery Address"}
+                icon={isPickup ? Store : MapPin}
+                compact
+              >
                 <p className="text-[11px] text-white/85 leading-relaxed font-medium">
                   {[
                     delivery_address.address_line_1,
@@ -928,6 +1064,12 @@ const OrderDetailPanel = ({
                     label="Medicine Subtotal"
                     value={`₹${formatPrice(subtotal)}`}
                   />
+                  {Number(packing_charge) > 0 && (
+                    <InfoRow
+                      label="Packing Charge"
+                      value={`₹${formatPrice(packing_charge)}`}
+                    />
+                  )}
 
                   {hasCommissionSnapshot ? (
                     <>
