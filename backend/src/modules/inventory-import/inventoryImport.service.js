@@ -15,6 +15,7 @@ import { storeConflictDecisions } from "./inventoryImport.resolver.js";
 import { writeAll }               from "./inventoryImport.writer.js";
 import { checkSingleMedicine }    from "../medicines/linking.service.js";
 import * as audit                 from "../audit/audit.service.js";
+import { findCrossShopLink, propagateLinkToOtherShops } from "../medicines/linkPropagation.service.js";
 
 class ImportError extends Error {
   constructor(message, statusCode = 400, code = "IMPORT_ERROR") {
@@ -241,15 +242,46 @@ async function _processImportJob(importJobId, parseResult, shopId, branchId) {
 
     for (const [key, uniqueMed] of uniqueMedicinesMap) {
       let result;
+
+      // ── 👇 NEW: Cross-shop link pre-check 👇 ──
       try {
-        result = await checkSingleMedicine({
-          name:         uniqueMed.name,
-          manufacturer: uniqueMed.company,
-          generic_name: "",
-          pack_size:    uniqueMed.packSize || "",
-        });
+        const crossShopLink = await findCrossShopLink(
+          uniqueMed.name,
+          uniqueMed.company,
+          shopId,
+        );
+        if (crossShopLink) {
+          result = {
+            status: "AUTO_LINKED",
+            confidence: crossShopLink.confidence,
+            reason: `Cross-shop link from shop ${crossShopLink.shopId}`,
+            master_medicine_id: crossShopLink.masterMedicineId,
+            master_key: null,
+            matched_variant: {
+              variant_id: crossShopLink.variantId,
+              sku_id: crossShopLink.variantSku,
+              name: null,
+              brand: null,
+            },
+            suggestions: [],
+          };
+        }
       } catch {
-        result = { status: "NO_MATCH", confidence: 0, reason: "Catalog check error" };
+        /* fall through to catalog check */
+      }
+      // ── 👆 END CROSS-SHOP PRE-CHECK 👆 ──
+
+      if (!result) {
+        try {
+          result = await checkSingleMedicine({
+            name:         uniqueMed.name,
+            manufacturer: uniqueMed.company,
+            generic_name: "",
+            pack_size:    uniqueMed.packSize || "",
+          });
+        } catch {
+          result = { status: "NO_MATCH", confidence: 0, reason: "Catalog check error" };
+        }
       }
 
       catalogResults[key] = result;
@@ -315,7 +347,6 @@ async function _processImportJob(importJobId, parseResult, shopId, branchId) {
     }).catch(() => {});
   }
 }
-
 // ── Background write job ──────────────────────────────────────────────────────
 
 const _activeWriteResults = new Map();
@@ -365,6 +396,49 @@ async function _executeWrite(importJobId, job, userId) {
   setTimeout(() => {
     _activeWriteResults.delete(importJobId);
   }, 10 * 60 * 1000);
+
+  // ── 👇 NEW: Propagate links for newly created medicines 👇 ──
+  if (writeResult.catalogLinked > 0 || writeResult.catalogSuggested > 0) {
+    setImmediate(async () => {
+      try {
+        const newlyLinked = await prisma.medicine.findMany({
+          where: {
+            shop_id: job.shop_id,
+            branch_id: job.branch_id,
+            link_status: "AUTO_LINKED",
+            linked_by_type: "SYSTEM",
+            linked_at: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+          },
+          select: {
+            medicine_id: true,
+            name: true,
+            manufacturer: true,
+            master_medicine_id: true,
+            linked_variant_id: true,
+            linked_variant_sku: true,
+          },
+        });
+
+        for (const med of newlyLinked) {
+          propagateLinkToOtherShops({
+            sourceMedicineId: med.medicine_id,
+            name: med.name,
+            manufacturer: med.manufacturer,
+            masterMedicineId: med.master_medicine_id,
+            variantId: med.linked_variant_id,
+            variantSku: med.linked_variant_sku,
+            actorId: userId,
+            actorType: "system",
+            variantName: null,
+            masterName: null,
+          }).catch(() => {});
+        }
+      } catch {
+        /* non-critical */
+      }
+    });
+  }
+  // ── 👆 END PROPAGATION BLOCK 👆 ──
 
   try {
     await audit.log({

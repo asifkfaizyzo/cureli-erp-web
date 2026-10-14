@@ -12,6 +12,7 @@ import {
   resolveAssetUrls,
 } from "../../../services/assetUrl.service.js";
 import { checkSingleMedicine } from "../../medicines/linking.service.js";
+import { propagateLinkToOtherShops } from "../../medicines/linkPropagation.service.js"; 
 
 // ══════════════════════════════════════════════════════════════
 // HELPER: Compute Image Status
@@ -1324,6 +1325,25 @@ export async function acceptReviewMatch(
     },
   });
 
+  // ── 👇 PROPAGATE TO OTHER SHOPS 👇 ──
+  setImmediate(() => {
+    propagateLinkToOtherShops({
+      sourceMedicineId: medicineId,
+      name: medicine.name,
+      manufacturer: medicine.manufacturer,
+      masterMedicineId: medicine.suggested_master_id,
+      variantId: targetVariant.variant_id,
+      variantSku: targetVariant.sku_id,
+      actorId: cadminId,
+      actorType: "cadmin",
+      variantName: targetVariant.name,
+      masterName: master.generic_name,
+    }).catch((err) =>
+      console.error("[Propagation] acceptReviewMatch failed:", err.message),
+    );
+  });
+  // ── 👆 END PROPAGATION 👆 ──
+
   const shopMedicine = await prisma.medicine.findUnique({
     where: { medicine_id: medicineId },
     select: { name: true, shop_id: true },
@@ -1448,8 +1468,30 @@ export async function matchUnmappedToVariant(
 
   const affectedMedicines = await prisma.medicine.findMany({
     where: { medicine_id: { in: medicineIds } },
-    select: { medicine_id: true, name: true, shop_id: true },
+    select: { medicine_id: true, name: true, manufacturer: true, shop_id: true },
   });
+
+  // ── 👇 PROPAGATE FROM FIRST AFFECTED MEDICINE TO OTHER SHOPS 👇 ──
+  if (affectedMedicines.length > 0) {
+    const source = affectedMedicines[0];
+    setImmediate(() => {
+      propagateLinkToOtherShops({
+        sourceMedicineId: source.medicine_id,
+        name: source.name,
+        manufacturer: source.manufacturer,
+        masterMedicineId: variant.master_medicine_id,
+        variantId: variant.variant_id,
+        variantSku: variant.sku_id,
+        actorId: cadminId,
+        actorType: "cadmin",
+        variantName: variant.name,
+        masterName: variant.master.generic_name,
+      }).catch((err) =>
+        console.error("[Propagation] matchUnmappedToVariant failed:", err.message),
+      );
+    });
+  }
+  // ── 👆 END PROPAGATION 👆 ──
 
   const shopGroups = new Map();
   for (const med of affectedMedicines) {
@@ -2432,9 +2474,27 @@ export async function unignoreShopMedicine(medicineId, auditContext = {}) {
     return updated;
   });
 
+  // ── 👇 PROPAGATE AFTER TRANSACTION COMMITS (only if AUTO_LINKED) 👇 ──
+  if (result.link_status === "AUTO_LINKED") {
+    setImmediate(() => {
+      propagateLinkToOtherShops({
+        sourceMedicineId: medicineId,
+        name: medicine.name,
+        manufacturer: medicine.manufacturer,
+        masterMedicineId: result.master_medicine_id,
+        variantId: result.linked_variant_id,
+        variantSku: result.linked_variant_sku,
+        actorId: auditContext?.actor_id || null,
+        actorType: "cadmin",
+        variantName: null,
+        masterName: null,
+      }).catch(() => {});
+    });
+  }
+  // ── 👆 END PROPAGATION 👆 ──
+
   return result;
 }
-
 
 // ══════════════════════════════════════════════════════════════
 // ADMIN ACTIVITY — SUMMARY (Aggregated per Admin)
