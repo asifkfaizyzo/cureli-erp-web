@@ -44,6 +44,9 @@ export const AuditReasonCode = Object.freeze({
   /**  NEW: Super admin override */
   SUPER_ADMIN_OVERRIDE: "SUPER_ADMIN_OVERRIDE",
 
+  /** System-driven background propagation */
+  SYSTEM_PROPAGATION: "SYSTEM_PROPAGATION", 
+
   /** Reason not specified or not applicable */
   UNKNOWN: "UNKNOWN",
 });

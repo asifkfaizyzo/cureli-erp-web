@@ -21,6 +21,7 @@ const CONFIG = {
     password: "Qwerty@11",
   },
 
+  // ── SHOP 1 ──────────────────────────────────────────────
   pharmacyOwner: {
     first_name: "Asif",
     last_name: "Faizal",
@@ -98,16 +99,6 @@ const CONFIG = {
     },
   ],
 
-  plan: {
-    name: "Free Plan",
-    plan_code: "FREE-001",
-    description: "Free plan for development and staging use",
-    max_branches: 5,
-    max_users: 10,
-    price: 0,
-    is_featured: false,
-  },
-
   shopFiles: [
     {
       file_type: "drug_license",
@@ -178,6 +169,119 @@ const CONFIG = {
     },
   ],
 
+  // ── SHOP 2 ──────────────────────────────────────────────
+  shop2Owner: {
+    first_name: "Kiran",
+    last_name: "Kumar",
+    username: "kiran",
+    email: "kiran@test.com",
+    phone: "8086415357",
+    password: "ACHUgopi@123",
+  },
+
+  shop2: {
+    business_name: "MediPlus Pharmacy",
+    legal_name: "MediPlus Pharmacy Pvt Ltd",
+    business_type: "Proprietorship",
+    gst_number: "32MPLUS9876G1Z2",
+    address_line_1: "Edappally Road",
+    address_line_2: "Near Lulu Mall",
+    city: "Kochi",
+    state: "Kerala",
+    pincode: "682024",
+    verification_notes: "All documents verified successfully",
+  },
+
+  shop2Branches: [
+    {
+      name: "Edappally Branch",
+      type: "main",
+      address_line_1: "Edappally Road",
+      address_line_2: "Opposite Lulu Mall",
+      city: "Kochi",
+      state: "Kerala",
+      pincode: "682024",
+      contact_number: "8086415357",
+      admin: {
+        first_name: "Suresh",
+        last_name: "Menon",
+        username: "suresh.menon",
+        email: "suresh.menon@test.com",
+        phone: "8086415358",
+        password: "Test@1234",
+      },
+      staff: {
+        first_name: "Latha",
+        last_name: "R",
+        username: "latha.r",
+        email: "latha.r@test.com",
+        phone: "8086415359",
+        password: "Test@1234",
+      },
+    },
+  ],
+
+  shop2Files: [
+    {
+      file_type: "drug_license",
+      storage_key: "demo/mediplus_drug_license.pdf",
+      original_name: "drug_license.pdf",
+      mime_type: "application/pdf",
+      file_size: 102000,
+    },
+    {
+      file_type: "pharmacy_registration",
+      storage_key: "demo/mediplus_pharmacy_reg.pdf",
+      original_name: "pharmacy_registration.pdf",
+      mime_type: "application/pdf",
+      file_size: 115000,
+    },
+    {
+      file_type: "pan_card",
+      storage_key: "demo/mediplus_pan.pdf",
+      original_name: "pan_card.pdf",
+      mime_type: "application/pdf",
+      file_size: 78000,
+    },
+  ],
+
+  shop2Suppliers: [
+    {
+      name: "Kerala Pharma Hub",
+      supplier_code: "SUP-003",
+      contact_person: "Vinod Nair",
+      office_phone: "8086415360",
+      email: "keralapharma@test.com",
+      city: "Kochi",
+      state: "Kerala",
+      pincode: "682024",
+      gst_number: "32KPHUB1234E1Z7",
+      credit_days: 21,
+    },
+  ],
+
+  shop2Customers: [
+    {
+      name: "Anita Sharma",
+      phone: "9000000020",
+      email: "anita.sharma@test.com",
+      city: "Kochi",
+      state: "Kerala",
+      pincode: "682024",
+    },
+  ],
+  // ────────────────────────────────────────────────────────
+
+  plan: {
+    name: "Free Plan",
+    plan_code: "FREE-001",
+    description: "Free plan for development and staging use",
+    max_branches: 5,
+    max_users: 10,
+    price: 0,
+    is_featured: false,
+  },
+
   mobileUser: {
     phone: "9961045596",
     email: "asifkfaiz@gmail.com",
@@ -240,8 +344,7 @@ const CONFIG = {
     emergency_contact_phone: "9876543210",
   },
 
-  // ── ALL REQUIRED RIDER DOCUMENTS ──────────────────────────
-    riderDocuments: [
+  riderDocuments: [
     {
       type: "PROFILE_PHOTO",
       storage_key: "rider_documents/asif_profile_photo.jpg",
@@ -281,7 +384,6 @@ const oneYearLater = new Date(new Date().setFullYear(now.getFullYear() + 1));
 async function cleanup() {
   console.log("🧹 Clearing existing data...");
 
-  // Logs first
   await prisma.cAdminActivityLog.deleteMany();
   await prisma.activityLog.deleteMany();
   await prisma.auditLog.deleteMany();
@@ -289,15 +391,12 @@ async function cleanup() {
   await prisma.fileVerificationLog.deleteMany();
   await prisma.deletionLog.deleteMany();
 
-  // Notifications
   await prisma.notification.deleteMany();
 
-  // Tickets
   await prisma.ticketActivity.deleteMany();
   await prisma.ticketAttachment.deleteMany();
   await prisma.ticket.deleteMany();
 
-  // Sales
   await prisma.customerCreditApplication.deleteMany();
   await prisma.customerCredit.deleteMany();
   await prisma.customerLedger.deleteMany();
@@ -305,33 +404,26 @@ async function cleanup() {
   await prisma.salesPayment.deleteMany();
   await prisma.salesInvoice.deleteMany();
 
-  // Purchase
   await prisma.creditApplication.deleteMany();
   await prisma.supplierCredit.deleteMany();
   await prisma.purchaseInvoiceItem.deleteMany();
   await prisma.purchasePayment.deleteMany();
   await prisma.purchaseInvoice.deleteMany();
 
-  // Stock
   await prisma.stockAdjustment.deleteMany();
   await prisma.stockLedger.deleteMany();
 
-  // Inventory
   await prisma.inventory.deleteMany();
   await prisma.inventoryImportJob.deleteMany();
 
-  // Medicines
   await prisma.medicine.deleteMany();
 
-  // Customers & Suppliers
   await prisma.customer.deleteMany();
   await prisma.supplierBranch.deleteMany();
   await prisma.supplier.deleteMany();
 
-  // Checkout sessions
   await prisma.checkoutSession.deleteMany();
 
-  // Marketplace
   await prisma.marketplaceOrderStatusHistory.deleteMany();
   await prisma.marketplaceOrderPrescription.deleteMany();
   await prisma.marketplaceOrderItem.deleteMany();
@@ -342,17 +434,13 @@ async function cleanup() {
   await prisma.branchMarketplaceSettings.deleteMany();
   await prisma.marketplaceProfile.deleteMany();
 
-  // Shop files
   await prisma.shopFile.deleteMany();
 
-  // Payments
   await prisma.paymentTransaction.deleteMany();
 
-  // Unlink current_subscription_id
   await prisma.shop.updateMany({ data: { current_subscription_id: null } });
   await prisma.shopSubscription.deleteMany();
 
-  // Broadcast
   await prisma.broadcastAttachment.deleteMany();
   await prisma.broadcastCampaign.deleteMany();
   await prisma.broadcastSegment.deleteMany();
@@ -362,11 +450,9 @@ async function cleanup() {
   await prisma.emailBroadcastCampaign.deleteMany();
   await prisma.cureliMobileBroadcastCampaign.deleteMany();
 
-  // Sessions
   await prisma.userSession.deleteMany();
   await prisma.pendingUser.deleteMany();
 
-  // Mobile
   await prisma.cureliMobileNotification.deleteMany();
   await prisma.cureliMobilePushPreference.deleteMany();
   await prisma.cureliMobileFamilyMember.deleteMany();
@@ -374,7 +460,6 @@ async function cleanup() {
   await prisma.cureliMobileAddress.deleteMany();
   await prisma.cureliMobileUser.deleteMany();
 
-  // ── RIDER / FLEET CLEANUP ──────────────────────────────────
   await prisma.riderEarningLedger.deleteMany();
   await prisma.riderPayout.deleteMany();
   await prisma.riderRating.deleteMany();
@@ -400,25 +485,19 @@ async function cleanup() {
   await prisma.riderOnlineSession.deleteMany();
   await prisma.rider.deleteMany();
   await prisma.deliveryZone.deleteMany();
-  // ────────────────────────────────────────────────────────────
 
-  // Marketplace checkout pricing
   await prisma.deliveryPricingConfig.deleteMany();
 
-  // ── CRITICAL ORDER ──────────────────────────────────────────
   await prisma.branch.deleteMany();
   await prisma.shop.deleteMany();
   await prisma.user.deleteMany();
 
-  // Plans
   await prisma.plan.deleteMany();
 
-  // CAdmin
   await prisma.cAdminRoleAssignment.deleteMany();
   await prisma.cAdminCustomRole.deleteMany();
   await prisma.cAdmin.deleteMany();
 
-  // Misc
   await prisma.enquiryReply.deleteMany();
   await prisma.enquiry.deleteMany();
   await prisma.otpDailyLimit.deleteMany();
@@ -505,12 +584,13 @@ async function main() {
 
   console.log(`   ✅ ${plan.name} (${plan.plan_code})\n`);
 
-  /* ─────────────────────────────────────────
-     3. PHARMACY OWNER
-  ───────────────────────────────────────── */
-  console.log("👤 Creating Pharmacy Owner...");
+  /* ══════════════════════════════════════════
+     3–9. SHOP 1 — Cureli Pharmacy
+  ══════════════════════════════════════════ */
 
-  const owner = await prisma.user.create({
+  console.log("👤 Creating Shop 1 Owner (Asif)...");
+
+  const owner1 = await prisma.user.create({
     data: {
       user_id: uuid(),
       first_name: CONFIG.pharmacyOwner.first_name,
@@ -530,17 +610,14 @@ async function main() {
     },
   });
 
-  console.log(`   ✅ ${owner.full_name} (${owner.email})\n`);
+  console.log(`   ✅ ${owner1.full_name} (${owner1.email})\n`);
 
-  /* ─────────────────────────────────────────
-     4. SHOP
-  ───────────────────────────────────────── */
-  console.log("🏪 Creating Shop...");
+  console.log("🏪 Creating Shop 1...");
 
-  const shop = await prisma.shop.create({
+  const shop1 = await prisma.shop.create({
     data: {
       shop_id: uuid(),
-      owner_user_id: owner.user_id,
+      owner_user_id: owner1.user_id,
       business_name: CONFIG.shop.business_name,
       legal_name: CONFIG.shop.legal_name,
       business_type: CONFIG.shop.business_type,
@@ -557,29 +634,26 @@ async function main() {
   });
 
   await prisma.user.update({
-    where: { user_id: owner.user_id },
-    data: { shop_id: shop.shop_id },
+    where: { user_id: owner1.user_id },
+    data: { shop_id: shop1.shop_id },
   });
 
-  console.log(`   ✅ ${shop.business_name}\n`);
+  console.log(`   ✅ ${shop1.business_name}\n`);
 
-  /* ─────────────────────────────────────────
-     5. SHOP FILES (All verified)
-  ───────────────────────────────────────── */
-  console.log("📄 Creating Shop Files...");
-
+  // Shop 1 Files
+  console.log("📄 Creating Shop 1 Files...");
   for (const fileConfig of CONFIG.shopFiles) {
     await prisma.shopFile.create({
       data: {
         file_id: uuid(),
-        shop_id: shop.shop_id,
+        shop_id: shop1.shop_id,
         file_type: fileConfig.file_type,
         storage_key: fileConfig.storage_key,
         original_name: fileConfig.original_name,
         mime_type: fileConfig.mime_type,
         file_size: fileConfig.file_size,
         status: "verified",
-        uploaded_by: owner.user_id,
+        uploaded_by: owner1.user_id,
         uploaded_at: now,
         verified_at: now,
         resubmission_count: 0,
@@ -587,18 +661,15 @@ async function main() {
     });
     console.log(`   ✅ ${fileConfig.file_type}`);
   }
-
   console.log();
 
-  /* ─────────────────────────────────────────
-     6. SUBSCRIPTION
-  ───────────────────────────────────────── */
-  console.log("💳 Creating Subscription...");
+  // Shop 1 Subscription
+  console.log("💳 Creating Shop 1 Subscription...");
 
-  const subscription = await prisma.shopSubscription.create({
+  const sub1 = await prisma.shopSubscription.create({
     data: {
       subscription_id: uuid(),
-      shop_id: shop.shop_id,
+      shop_id: shop1.shop_id,
       plan_id: plan.plan_id,
       billing_cycle: "yearly",
       start_date: now,
@@ -613,30 +684,25 @@ async function main() {
   });
 
   await prisma.shop.update({
-    where: { shop_id: shop.shop_id },
-    data: { current_subscription_id: subscription.subscription_id },
+    where: { shop_id: shop1.shop_id },
+    data: { current_subscription_id: sub1.subscription_id },
   });
 
-  console.log(
-    `   ✅ Subscription active until ${oneYearLater.toDateString()}\n`
-  );
+  console.log(`   ✅ Subscription active until ${oneYearLater.toDateString()}\n`);
 
-  /* ─────────────────────────────────────────
-     7. MARKETPLACE PROFILE (with banking details)
-  ───────────────────────────────────────── */
-  console.log("🛒 Creating Marketplace Profile...");
+  // Shop 1 Marketplace Profile
+  console.log("🛒 Creating Shop 1 Marketplace Profile...");
 
-  const marketplaceProfile = await prisma.marketplaceProfile.create({
+  const mp1 = await prisma.marketplaceProfile.create({
     data: {
       marketplace_profile_id: uuid(),
-      shop_id: shop.shop_id,
+      shop_id: shop1.shop_id,
       marketplace_status: "DRAFT",
       onboarding_completed: false,
       is_live: false,
       storefront_name: "Cureli Pharmacy",
       support_phone: "9961045596",
       logo_url: "demo/marketplace/logo.png",
-      // Banking details (all filled for go-live readiness)
       bank_account_holder: "Cureli Pharmacy Pvt Ltd",
       bank_name: "State Bank of India",
       bank_branch_name: "MG Road Branch",
@@ -647,70 +713,55 @@ async function main() {
 
   console.log(`   ✅ Marketplace profile created with banking details\n`);
 
-  /* ─────────────────────────────────────────
-     8. DELIVERY PRICING CONFIG
-  ───────────────────────────────────────── */
-  console.log("💰 Creating Delivery Pricing Config...");
-
-  const pricingConfig = await prisma.deliveryPricingConfig.create({
-    data: {},
-  });
-
-  console.log(`   ✅ Delivery pricing config created (schema defaults)\n`);
-
-  /* ─────────────────────────────────────────
-     9. BRANCHES + USERS + SUPPLIERS + CUSTOMERS
-  ───────────────────────────────────────── */
-  console.log("🏬 Creating Branches...\n");
+  // Shop 1 Branches + Users + Suppliers + Customers
+  console.log("🏬 Creating Shop 1 Branches...\n");
 
   for (let i = 0; i < CONFIG.branches.length; i++) {
-    const branchConfig = CONFIG.branches[i];
-    const supplierConfig = CONFIG.suppliers[i];
-    const customerConfig = CONFIG.customers[i];
+    const bc = CONFIG.branches[i];
+    const sc = CONFIG.suppliers[i];
+    const cc = CONFIG.customers[i];
 
     const branch = await prisma.branch.create({
       data: {
         branch_id: uuid(),
-        shop_id: shop.shop_id,
-        branch_name: branchConfig.name,
-        branch_type: branchConfig.type,
-        address_line_1: branchConfig.address_line_1,
-        address_line_2: branchConfig.address_line_2,
-        city: branchConfig.city,
-        state: branchConfig.state,
-        pincode: branchConfig.pincode,
-        contact_number: branchConfig.contact_number,
+        shop_id: shop1.shop_id,
+        branch_name: bc.name,
+        branch_type: bc.type,
+        address_line_1: bc.address_line_1,
+        address_line_2: bc.address_line_2,
+        city: bc.city,
+        state: bc.state,
+        pincode: bc.pincode,
+        contact_number: bc.contact_number,
         is_active: true,
       },
     });
 
     console.log(`   📍 Branch: ${branch.branch_name} (${branch.branch_type})`);
 
-    // Branch Marketplace Settings
     await prisma.branchMarketplaceSettings.create({
       data: {
         branch_marketplace_id: uuid(),
         branch_id: branch.branch_id,
-        marketplace_profile_id: marketplaceProfile.marketplace_profile_id,
+        marketplace_profile_id: mp1.marketplace_profile_id,
         marketplace_enabled: false,
         pickup_enabled: false,
         delivery_enabled: false,
       },
     });
 
-    // Branch Admin
     const admin = await prisma.user.create({
       data: {
         user_id: uuid(),
-        shop_id: shop.shop_id,
+        shop_id: shop1.shop_id,
         branch_id: branch.branch_id,
-        first_name: branchConfig.admin.first_name,
-        last_name: branchConfig.admin.last_name,
-        full_name: `${branchConfig.admin.first_name} ${branchConfig.admin.last_name}`,
-        username: branchConfig.admin.username,
-        email: branchConfig.admin.email,
-        phone_number: branchConfig.admin.phone,
-        password_hash: await bcrypt.hash(branchConfig.admin.password, 10),
+        first_name: bc.admin.first_name,
+        last_name: bc.admin.last_name,
+        full_name: `${bc.admin.first_name} ${bc.admin.last_name}`,
+        username: bc.admin.username,
+        email: bc.admin.email,
+        phone_number: bc.admin.phone,
+        password_hash: await bcrypt.hash(bc.admin.password, 10),
         login_provider: "password",
         role: "branch_admin",
         status: "verified",
@@ -723,19 +774,18 @@ async function main() {
 
     console.log(`   ✅ Admin: ${admin.full_name} (${admin.role})`);
 
-    // Staff
     const staff = await prisma.user.create({
       data: {
         user_id: uuid(),
-        shop_id: shop.shop_id,
+        shop_id: shop1.shop_id,
         branch_id: branch.branch_id,
-        first_name: branchConfig.staff.first_name,
-        last_name: branchConfig.staff.last_name,
-        full_name: `${branchConfig.staff.first_name} ${branchConfig.staff.last_name}`,
-        username: branchConfig.staff.username,
-        email: branchConfig.staff.email,
-        phone_number: branchConfig.staff.phone,
-        password_hash: await bcrypt.hash(branchConfig.staff.password, 10),
+        first_name: bc.staff.first_name,
+        last_name: bc.staff.last_name,
+        full_name: `${bc.staff.first_name} ${bc.staff.last_name}`,
+        username: bc.staff.username,
+        email: bc.staff.email,
+        phone_number: bc.staff.phone,
+        password_hash: await bcrypt.hash(bc.staff.password, 10),
         login_provider: "password",
         role: "staff",
         status: "verified",
@@ -748,21 +798,20 @@ async function main() {
 
     console.log(`   ✅ Staff: ${staff.full_name} (${staff.role})`);
 
-    // Supplier
     const supplier = await prisma.supplier.create({
       data: {
         supplier_id: uuid(),
-        shop_id: shop.shop_id,
-        name: supplierConfig.name,
-        supplier_code: supplierConfig.supplier_code,
-        contact_person: supplierConfig.contact_person,
-        office_phone: supplierConfig.office_phone,
-        email: supplierConfig.email,
-        city: supplierConfig.city,
-        state: supplierConfig.state,
-        pincode: supplierConfig.pincode,
-        gst_number: supplierConfig.gst_number,
-        credit_days: supplierConfig.credit_days,
+        shop_id: shop1.shop_id,
+        name: sc.name,
+        supplier_code: sc.supplier_code,
+        contact_person: sc.contact_person,
+        office_phone: sc.office_phone,
+        email: sc.email,
+        city: sc.city,
+        state: sc.state,
+        pincode: sc.pincode,
+        gst_number: sc.gst_number,
+        credit_days: sc.credit_days,
         is_active: true,
         created_by: admin.user_id,
       },
@@ -780,18 +829,17 @@ async function main() {
 
     console.log(`   ✅ Supplier: ${supplier.name}`);
 
-    // Customer
     await prisma.customer.create({
       data: {
         customer_id: uuid(),
-        shop_id: shop.shop_id,
+        shop_id: shop1.shop_id,
         branch_id: branch.branch_id,
-        name: customerConfig.name,
-        phone: customerConfig.phone,
-        email: customerConfig.email,
-        city: customerConfig.city,
-        state: customerConfig.state,
-        pincode: customerConfig.pincode,
+        name: cc.name,
+        phone: cc.phone,
+        email: cc.email,
+        city: cc.city,
+        state: cc.state,
+        pincode: cc.pincode,
         credit_limit: 0,
         outstanding_balance: 0,
         discount_percent: 0,
@@ -800,9 +848,8 @@ async function main() {
       },
     });
 
-    console.log(`   ✅ Customer: ${customerConfig.name}\n`);
+    console.log(`   ✅ Customer: ${cc.name}\n`);
 
-    // Welcome Notification
     await prisma.notification.create({
       data: {
         notification_id: uuid(),
@@ -810,7 +857,7 @@ async function main() {
         event_type: "WELCOME",
         title: "Welcome to Cureli ERP",
         message: `Welcome ${admin.full_name}! Your ${branch.branch_name} account is ready.`,
-        shop_id: shop.shop_id,
+        shop_id: shop1.shop_id,
         branch_id: branch.branch_id,
         priority: "normal",
         is_read: false,
@@ -818,22 +865,326 @@ async function main() {
     });
   }
 
-  // Owner Welcome Notification
   await prisma.notification.create({
     data: {
       notification_id: uuid(),
-      user_id: owner.user_id,
+      user_id: owner1.user_id,
       event_type: "WELCOME",
       title: "Welcome to Cureli ERP",
-      message: `Welcome ${owner.full_name}! Your pharmacy is verified and ready.`,
-      shop_id: shop.shop_id,
+      message: `Welcome ${owner1.full_name}! Your pharmacy is verified and ready.`,
+      shop_id: shop1.shop_id,
+      priority: "normal",
+      is_read: false,
+    },
+  });
+
+  /* ══════════════════════════════════════════
+     10–14. SHOP 2 — MediPlus Pharmacy (Kiran)
+  ══════════════════════════════════════════ */
+
+  console.log("👤 Creating Shop 2 Owner (Kiran)...");
+
+  const owner2 = await prisma.user.create({
+    data: {
+      user_id: uuid(),
+      first_name: CONFIG.shop2Owner.first_name,
+      last_name: CONFIG.shop2Owner.last_name,
+      full_name: `${CONFIG.shop2Owner.first_name} ${CONFIG.shop2Owner.last_name}`,
+      username: CONFIG.shop2Owner.username,
+      email: CONFIG.shop2Owner.email,
+      phone_number: CONFIG.shop2Owner.phone,
+      password_hash: await bcrypt.hash(CONFIG.shop2Owner.password, 10),
+      login_provider: "password",
+      role: "super_admin",
+      status: "active",
+      is_active: true,
+      onboarding_step: 12,
+      first_login_after_verification: false,
+      first_verified_at: now,
+    },
+  });
+
+  console.log(`   ✅ ${owner2.full_name} (${owner2.email})\n`);
+
+  console.log("🏪 Creating Shop 2...");
+
+  const shop2 = await prisma.shop.create({
+    data: {
+      shop_id: uuid(),
+      owner_user_id: owner2.user_id,
+      business_name: CONFIG.shop2.business_name,
+      legal_name: CONFIG.shop2.legal_name,
+      business_type: CONFIG.shop2.business_type,
+      gst_number: CONFIG.shop2.gst_number,
+      address_line_1: CONFIG.shop2.address_line_1,
+      address_line_2: CONFIG.shop2.address_line_2,
+      city: CONFIG.shop2.city,
+      state: CONFIG.shop2.state,
+      pincode: CONFIG.shop2.pincode,
+      verification_status: "verified",
+      verification_notes: CONFIG.shop2.verification_notes,
+      is_active: true,
+    },
+  });
+
+  await prisma.user.update({
+    where: { user_id: owner2.user_id },
+    data: { shop_id: shop2.shop_id },
+  });
+
+  console.log(`   ✅ ${shop2.business_name}\n`);
+
+  // Shop 2 Files
+  console.log("📄 Creating Shop 2 Files...");
+  for (const fileConfig of CONFIG.shop2Files) {
+    await prisma.shopFile.create({
+      data: {
+        file_id: uuid(),
+        shop_id: shop2.shop_id,
+        file_type: fileConfig.file_type,
+        storage_key: fileConfig.storage_key,
+        original_name: fileConfig.original_name,
+        mime_type: fileConfig.mime_type,
+        file_size: fileConfig.file_size,
+        status: "verified",
+        uploaded_by: owner2.user_id,
+        uploaded_at: now,
+        verified_at: now,
+        resubmission_count: 0,
+      },
+    });
+    console.log(`   ✅ ${fileConfig.file_type}`);
+  }
+  console.log();
+
+  // Shop 2 Subscription
+  console.log("💳 Creating Shop 2 Subscription...");
+
+  const sub2 = await prisma.shopSubscription.create({
+    data: {
+      subscription_id: uuid(),
+      shop_id: shop2.shop_id,
+      plan_id: plan.plan_id,
+      billing_cycle: "yearly",
+      start_date: now,
+      end_date: oneYearLater,
+      renewal_date: oneYearLater,
+      branch_limit_snapshot: CONFIG.plan.max_branches,
+      user_limit_snapshot: CONFIG.plan.max_users,
+      status: "ACTIVE",
+      payment_status: "PAID",
+      is_active: true,
+    },
+  });
+
+  await prisma.shop.update({
+    where: { shop_id: shop2.shop_id },
+    data: { current_subscription_id: sub2.subscription_id },
+  });
+
+  console.log(`   ✅ Subscription active until ${oneYearLater.toDateString()}\n`);
+
+  // Shop 2 Marketplace Profile
+  console.log("🛒 Creating Shop 2 Marketplace Profile...");
+
+  const mp2 = await prisma.marketplaceProfile.create({
+    data: {
+      marketplace_profile_id: uuid(),
+      shop_id: shop2.shop_id,
+      marketplace_status: "DRAFT",
+      onboarding_completed: false,
+      is_live: false,
+      storefront_name: "MediPlus Pharmacy",
+      support_phone: "8086415357",
+      logo_url: "demo/marketplace/mediplus_logo.png",
+      bank_account_holder: "MediPlus Pharmacy Pvt Ltd",
+      bank_name: "Federal Bank",
+      bank_branch_name: "Edappally Branch",
+      bank_ifsc: "FDRL0001234",
+      bank_account_number: "9876543210123",
+    },
+  });
+
+  console.log(`   ✅ Marketplace profile created with banking details\n`);
+
+  // Shop 2 Branches + Users + Suppliers + Customers
+  console.log("🏬 Creating Shop 2 Branches...\n");
+
+  for (let i = 0; i < CONFIG.shop2Branches.length; i++) {
+    const bc = CONFIG.shop2Branches[i];
+    const sc = CONFIG.shop2Suppliers[i] || CONFIG.shop2Suppliers[0];
+    const cc = CONFIG.shop2Customers[i] || CONFIG.shop2Customers[0];
+
+    const branch = await prisma.branch.create({
+      data: {
+        branch_id: uuid(),
+        shop_id: shop2.shop_id,
+        branch_name: bc.name,
+        branch_type: bc.type,
+        address_line_1: bc.address_line_1,
+        address_line_2: bc.address_line_2,
+        city: bc.city,
+        state: bc.state,
+        pincode: bc.pincode,
+        contact_number: bc.contact_number,
+        is_active: true,
+      },
+    });
+
+    console.log(`   📍 Branch: ${branch.branch_name} (${branch.branch_type})`);
+
+    await prisma.branchMarketplaceSettings.create({
+      data: {
+        branch_marketplace_id: uuid(),
+        branch_id: branch.branch_id,
+        marketplace_profile_id: mp2.marketplace_profile_id,
+        marketplace_enabled: false,
+        pickup_enabled: false,
+        delivery_enabled: false,
+      },
+    });
+
+    const admin = await prisma.user.create({
+      data: {
+        user_id: uuid(),
+        shop_id: shop2.shop_id,
+        branch_id: branch.branch_id,
+        first_name: bc.admin.first_name,
+        last_name: bc.admin.last_name,
+        full_name: `${bc.admin.first_name} ${bc.admin.last_name}`,
+        username: bc.admin.username,
+        email: bc.admin.email,
+        phone_number: bc.admin.phone,
+        password_hash: await bcrypt.hash(bc.admin.password, 10),
+        login_provider: "password",
+        role: "branch_admin",
+        status: "verified",
+        is_active: true,
+        onboarding_step: 12,
+        first_login_after_verification: false,
+        first_verified_at: now,
+      },
+    });
+
+    console.log(`   ✅ Admin: ${admin.full_name} (${admin.role})`);
+
+    const staff = await prisma.user.create({
+      data: {
+        user_id: uuid(),
+        shop_id: shop2.shop_id,
+        branch_id: branch.branch_id,
+        first_name: bc.staff.first_name,
+        last_name: bc.staff.last_name,
+        full_name: `${bc.staff.first_name} ${bc.staff.last_name}`,
+        username: bc.staff.username,
+        email: bc.staff.email,
+        phone_number: bc.staff.phone,
+        password_hash: await bcrypt.hash(bc.staff.password, 10),
+        login_provider: "password",
+        role: "staff",
+        status: "verified",
+        is_active: true,
+        onboarding_step: 12,
+        first_login_after_verification: false,
+        first_verified_at: now,
+      },
+    });
+
+    console.log(`   ✅ Staff: ${staff.full_name} (${staff.role})`);
+
+    const supplier = await prisma.supplier.create({
+      data: {
+        supplier_id: uuid(),
+        shop_id: shop2.shop_id,
+        name: sc.name,
+        supplier_code: sc.supplier_code,
+        contact_person: sc.contact_person,
+        office_phone: sc.office_phone,
+        email: sc.email,
+        city: sc.city,
+        state: sc.state,
+        pincode: sc.pincode,
+        gst_number: sc.gst_number,
+        credit_days: sc.credit_days,
+        is_active: true,
+        created_by: admin.user_id,
+      },
+    });
+
+    await prisma.supplierBranch.create({
+      data: {
+        id: uuid(),
+        supplier_id: supplier.supplier_id,
+        branch_id: branch.branch_id,
+        is_active: true,
+        created_by: admin.user_id,
+      },
+    });
+
+    console.log(`   ✅ Supplier: ${supplier.name}`);
+
+    await prisma.customer.create({
+      data: {
+        customer_id: uuid(),
+        shop_id: shop2.shop_id,
+        branch_id: branch.branch_id,
+        name: cc.name,
+        phone: cc.phone,
+        email: cc.email,
+        city: cc.city,
+        state: cc.state,
+        pincode: cc.pincode,
+        credit_limit: 0,
+        outstanding_balance: 0,
+        discount_percent: 0,
+        is_active: true,
+        created_by: staff.user_id,
+      },
+    });
+
+    console.log(`   ✅ Customer: ${cc.name}\n`);
+
+    await prisma.notification.create({
+      data: {
+        notification_id: uuid(),
+        user_id: admin.user_id,
+        event_type: "WELCOME",
+        title: "Welcome to Cureli ERP",
+        message: `Welcome ${admin.full_name}! Your ${branch.branch_name} account is ready.`,
+        shop_id: shop2.shop_id,
+        branch_id: branch.branch_id,
+        priority: "normal",
+        is_read: false,
+      },
+    });
+  }
+
+  await prisma.notification.create({
+    data: {
+      notification_id: uuid(),
+      user_id: owner2.user_id,
+      event_type: "WELCOME",
+      title: "Welcome to Cureli ERP",
+      message: `Welcome ${owner2.full_name}! MediPlus Pharmacy is verified and ready.`,
+      shop_id: shop2.shop_id,
       priority: "normal",
       is_read: false,
     },
   });
 
   /* ─────────────────────────────────────────
-     10. CURELI MOBILE USER (Asif)
+     15. DELIVERY PRICING CONFIG
+  ───────────────────────────────────────── */
+  console.log("💰 Creating Delivery Pricing Config...");
+
+  await prisma.deliveryPricingConfig.create({
+    data: {},
+  });
+
+  console.log(`   ✅ Delivery pricing config created (schema defaults)\n`);
+
+  /* ─────────────────────────────────────────
+     16. CURELI MOBILE USER (Asif)
   ───────────────────────────────────────── */
   console.log("📱 Creating Cureli Mobile User (Asif)...\n");
 
@@ -883,7 +1234,7 @@ async function main() {
   console.log();
 
   /* ─────────────────────────────────────────
-     11. RIDER (Asif — ALL DOCUMENTS APPROVED)
+     17. RIDER (Asif — ALL DOCUMENTS APPROVED)
   ───────────────────────────────────────── */
   console.log("🏍️  Creating Rider (Asif — Independent, ACTIVE with ALL DOCS APPROVED)...\n");
 
@@ -893,57 +1244,36 @@ async function main() {
       phone: CONFIG.rider.phone,
       password_hash: await bcrypt.hash(CONFIG.rider.password, 10),
       rider_type: "INDEPENDENT",
-
-      // Personal
       full_name: CONFIG.rider.full_name,
       email: CONFIG.rider.email,
       date_of_birth: new Date(CONFIG.rider.date_of_birth),
       sex: CONFIG.rider.sex,
       profile_photo_key: "rider_documents/asif_profile_photo.jpg",
-
-      // Location
       current_city: CONFIG.rider.current_city,
       residential_address: CONFIG.rider.residential_address,
       preferred_lat: CONFIG.rider.preferred_lat,
       preferred_lng: CONFIG.rider.preferred_lng,
       preferred_address: CONFIG.rider.preferred_address,
-
-      // Vehicle
       vehicle_type: CONFIG.rider.vehicle_type,
       vehicle_number: CONFIG.rider.vehicle_number,
       vehicle_make_model: CONFIG.rider.vehicle_make_model,
-
-      // Status — ACTIVE & COMPLETED
       status: "ACTIVE",
       onboarding_step: "COMPLETED",
       submitted_for_review: true,
       first_submitted_at: now,
-
-      // Telemetry
       is_online: false,
-
-      // Bank (verified)
       bank_account_number: CONFIG.rider.bank_account_number,
       bank_ifsc: CONFIG.rider.bank_ifsc,
       bank_holder_name: CONFIG.rider.bank_holder_name,
       bank_name: CONFIG.rider.bank_name,
       bank_verified: true,
-
-      // Compliance
       terms_accepted_at: now,
-
-      // Emergency
       emergency_contact_name: CONFIG.rider.emergency_contact_name,
       emergency_contact_phone: CONFIG.rider.emergency_contact_phone,
-
-      // Referral
       referral_code: "RIDERASIF26",
-
-      // Ratings
       rating: 4.5,
       total_ratings: 12,
       total_deliveries: 47,
-
       last_seen_at: now,
     },
   });
@@ -954,7 +1284,6 @@ async function main() {
   console.log(`      City: ${rider.current_city} | Rating: ${rider.rating}⭐ (${rider.total_deliveries} deliveries)`);
   console.log(`      Bank: ${rider.bank_name} — ${rider.bank_account_number}\n`);
 
-  /* ── Rider Documents (ALL APPROVED) ── */
   console.log("📄 Creating Rider Documents (ALL APPROVED)...\n");
 
   for (const docConfig of CONFIG.riderDocuments) {
@@ -987,59 +1316,71 @@ async function main() {
   console.log("═".repeat(60));
   console.log("\n🔐 LOGIN CREDENTIALS:\n");
   console.log(
-    `   CAdmin  │ ${CONFIG.superAdmin.username.padEnd(20)} │ ${CONFIG.superAdmin.password}`
+    `   CAdmin      │ ${CONFIG.superAdmin.username.padEnd(20)} │ ${CONFIG.superAdmin.password}`
   );
   console.log(
-    `   Owner   │ ${CONFIG.pharmacyOwner.email.padEnd(20)} │ ${CONFIG.pharmacyOwner.password}`
+    `   Shop1 Owner │ ${CONFIG.pharmacyOwner.email.padEnd(20)} │ ${CONFIG.pharmacyOwner.password}`
   );
   for (const b of CONFIG.branches) {
     console.log(
-      `   Admin   │ ${b.admin.email.padEnd(20)} │ ${b.admin.password}`
+      `   Shop1 Admin │ ${b.admin.email.padEnd(20)} │ ${b.admin.password}`
     );
     console.log(
-      `   Staff   │ ${b.staff.email.padEnd(20)} │ ${b.staff.password}`
+      `   Shop1 Staff │ ${b.staff.email.padEnd(20)} │ ${b.staff.password}`
     );
   }
   console.log(
-    `   Mobile  │ ${CONFIG.mobileUser.phone.padEnd(20)} │ ${CONFIG.mobileUser.password}`
+    `   Shop2 Owner │ ${CONFIG.shop2Owner.email.padEnd(20)} │ ${CONFIG.shop2Owner.password}`
+  );
+  for (const b of CONFIG.shop2Branches) {
+    console.log(
+      `   Shop2 Admin │ ${b.admin.email.padEnd(20)} │ ${b.admin.password}`
+    );
+    console.log(
+      `   Shop2 Staff │ ${b.staff.email.padEnd(20)} │ ${b.staff.password}`
+    );
+  }
+  console.log(
+    `   Mobile      │ ${CONFIG.mobileUser.phone.padEnd(20)} │ ${CONFIG.mobileUser.password}`
   );
   console.log(
-    `   Rider   │ ${CONFIG.rider.phone.padEnd(20)} │ ${CONFIG.rider.password}`
+    `   Rider       │ ${CONFIG.rider.phone.padEnd(20)} │ ${CONFIG.rider.password}`
   );
+
+  const totalBranches = CONFIG.branches.length + CONFIG.shop2Branches.length;
+  const totalBranchUsers = totalBranches * 2;
+  const totalSuppliers = CONFIG.suppliers.length + CONFIG.shop2Suppliers.length;
+  const totalCustomers = CONFIG.customers.length + CONFIG.shop2Customers.length;
+  const totalNotifications = totalBranches + 2;
 
   console.log("\n📦 SEEDED:");
   console.log(`   1  Super CAdmin`);
-  console.log(`   1  Owner (role: super_admin)`);
-  console.log(`   1  Shop (verified)`);
-  console.log(`   ${CONFIG.shopFiles.length}  Shop Files (verified)`);
-  console.log(`   1  Plan + Subscription (ACTIVE / PAID)`);
-  console.log(`   1  Marketplace Profile (DRAFT, with banking)`);
-  console.log(`   1  Delivery Pricing Config (schema defaults)`);
-  console.log(`   ${CONFIG.branches.length}  Branches`);
-  console.log(
-    `   ${CONFIG.branches.length * 2}  Branch Users (${CONFIG.branches.length} branch_admin + ${CONFIG.branches.length} staff)`
-  );
-  console.log(
-    `   ${CONFIG.suppliers.length}  Suppliers + SupplierBranch links`
-  );
-  console.log(`   ${CONFIG.customers.length}  Customers`);
-  console.log(`   ${CONFIG.branches.length + 1}  Welcome Notifications`);
-  console.log(`   1  Cureli Mobile User (${CONFIG.mobileUser.full_name}) + ${CONFIG.mobileUser.addresses.length} addresses`);
-  console.log(`   1  Rider (${CONFIG.rider.full_name}, ${rider.rider_type}, ${rider.status})`);
-  console.log(`   ${CONFIG.riderDocuments.length}  Rider Documents (ALL APPROVED by CAdmin)`);
-  
+  console.log(`   2  Shop Owners (Asif + Kiran)`);
+  console.log(`   2  Shops (Cureli Pharmacy + MediPlus Pharmacy)`);
+  console.log(`   ${CONFIG.shopFiles.length + CONFIG.shop2Files.length}  Shop Files (verified)`);
+  console.log(`   1  Plan + 2 Subscriptions (ACTIVE / PAID)`);
+  console.log(`   2  Marketplace Profiles (DRAFT, with banking)`);
+  console.log(`   1  Delivery Pricing Config`);
+  console.log(`   ${totalBranches}  Branches (${CONFIG.branches.length} Shop1 + ${CONFIG.shop2Branches.length} Shop2)`);
+  console.log(`   ${totalBranchUsers}  Branch Users`);
+  console.log(`   ${totalSuppliers}  Suppliers`);
+  console.log(`   ${totalCustomers}  Customers`);
+  console.log(`   ${totalNotifications}  Welcome Notifications`);
+  console.log(`   1  Cureli Mobile User + ${CONFIG.mobileUser.addresses.length} addresses`);
+  console.log(`   1  Rider (${rider.rider_type}, ${rider.status})`);
+  console.log(`   ${CONFIG.riderDocuments.length}  Rider Documents (ALL APPROVED)`);
+
   console.log("\n✅ READY TO USE:");
-  console.log(`   • Rider can log in immediately (all docs approved)`);
-  console.log(`   • Rider can go online and accept deliveries`);
+  console.log(`   • Both shops verified with active subscriptions`);
+  console.log(`   • Cross-shop link propagation can be tested between Shop1 ↔ Shop2`);
+  console.log(`   • Rider can log in and accept deliveries`);
   console.log(`   • Mobile user can place orders`);
-  console.log(`   • Shop has all files verified`);
-  console.log(`   • Marketplace has banking details (ready for go-live)`);
-  
+
   console.log("\n⚠️  NOT SEEDED:");
   console.log(`   • Master Medicine Catalog (run separate seed script)`);
   console.log(`   • Marketplace Listings (requires master catalog + inventory)`);
   console.log(`   • Actual S3 files (storage_key paths are dummy references)`);
-  
+
   console.log("\n" + "═".repeat(60));
 }
 
