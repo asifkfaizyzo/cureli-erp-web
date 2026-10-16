@@ -10,7 +10,11 @@ import {
 import { registerActiveDelivery } from "../../rider/presence/rider.presence.service.js";
 // ── NEW: Pricing engine for per-rider earning simulation ─────────────────
 import { calculateDeliveryEarnings } from "../fleet-pricing/pricingEngine.service.js";
-import { RiderPush, dismissRiderNotification } from "../../rider/push/rider.push.service.js";
+import {
+  RiderPush,
+  dismissRiderNotification,
+} from "../../rider/push/rider.push.service.js";
+import crypto from "crypto";
 
 const MAX_REAL_DISTANCE_RIDERS = 25;
 
@@ -577,7 +581,14 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
   }
 
   // Prevent unassigning if order is already terminal or already picked up / en route
-  const NON_UNASSIGNABLE = ["PICKED_UP", "EN_ROUTE", "ARRIVED_AT_CUSTOMER", "DELIVERED", "FAILED", "CANCELLED"];
+  const NON_UNASSIGNABLE = [
+    "PICKED_UP",
+    "EN_ROUTE",
+    "ARRIVED_AT_CUSTOMER",
+    "DELIVERED",
+    "FAILED",
+    "CANCELLED",
+  ];
   if (NON_UNASSIGNABLE.includes(delivery.status)) {
     throw new Error(
       `Cannot unassign — delivery is in '${delivery.status}' state.`,
@@ -618,7 +629,7 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     await import("../../rider/presence/rider.presence.service.js");
   unregisterActiveDelivery(oldRiderId);
 
-    // 3. Notify the old rider that they were unassigned
+  // 3. Notify the old rider that they were unassigned
   sseService.notifyRider(oldRiderId, "delivery_cancelled", {
     delivery_id: delivery.delivery_id,
     order_id,
@@ -659,5 +670,884 @@ export async function unassignRiderFromOrder({ order_id, unassigned_by }) {
     order_id,
     previous_rider_id: oldRiderId,
     status: "PENDING_ASSIGNMENT",
+  };
+}
+
+// ── Same Day Batch Assignment ──────────────────────────────
+
+/**
+ * Assign multiple SAME_DAY orders to one team rider as a single batch.
+ *
+ * Validation:
+ *  - All orders must be SAME_DAY, ACCEPTED, with no existing Delivery
+ *  - Rider must be TEAM, ACTIVE, and not already on an active batch
+ *
+ * Creates one Delivery per order (null earnings — team salary).
+ * Fires sticky push + SSE to the rider.
+ */
+export async function batchAssignOrders({ order_ids, rider_id, assigned_by }) {
+  if (!order_ids || order_ids.length === 0) {
+    throw new Error("At least one order_id is required");
+  }
+
+  // ── 1. Validate rider ────────────────────────────────────
+  const rider = await prisma.rider.findUnique({
+    where: { rider_id },
+  });
+
+  if (!rider) throw new Error("Rider not found");
+  if (rider.rider_type !== "TEAM") {
+    throw new Error("Only TEAM riders can be assigned Same Day batches");
+  }
+  if (rider.status !== "ACTIVE") {
+    throw new Error("Rider is not active");
+  }
+
+  const activeBatch = await prisma.delivery.findFirst({
+    where: {
+      rider_id,
+      batch_group_id: { not: null },
+      status: { notIn: ["DELIVERED", "CANCELLED", "FAILED"] },
+    },
+  });
+  if (activeBatch) {
+    throw new Error("Rider already has an active Same Day batch");
+  }
+
+  // ── 2. Validate all orders ───────────────────────────────
+  const orders = await prisma.marketplaceOrder.findMany({
+    where: { order_id: { in: order_ids } },
+    include: {
+      delivery: true,
+      branch: {
+        include: {
+          marketplaceSettings: {
+            select: { latitude: true, longitude: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (orders.length !== order_ids.length) {
+    throw new Error("One or more orders not found");
+  }
+
+  const STALE_STATUSES = ["CANCELLED", "FAILED", "PENDING_ASSIGNMENT"];
+
+  for (const order of orders) {
+    if (order.fulfillment_type !== "SAME_DAY") {
+      throw new Error(`Order ${order.order_id} is not SAME_DAY`);
+    }
+    if (order.status !== "ACCEPTED") {
+      throw new Error(
+        `Order ${order.order_id} must be ACCEPTED (current: ${order.status})`,
+      );
+    }
+    // A delivery is stale if it's terminal OR if it's an orphaned PENDING_ASSIGNMENT
+    // with no rider (left behind by a failed/declined batch attempt)
+    if (
+      order.delivery &&
+      !STALE_STATUSES.includes(order.delivery.status) &&
+      order.delivery.rider_id
+    ) {
+      throw new Error(`Order ${order.order_id} already has an active Delivery record`);
+    }
+  }
+
+  // Clean up any stale (cancelled/failed) delivery records before re-batching
+  const staleDeliveryIds = orders
+    .filter((o) => o.delivery && STALE_STATUSES.includes(o.delivery.status))
+    .map((o) => o.delivery.delivery_id);
+
+  if (staleDeliveryIds.length > 0) {
+    await prisma.delivery.deleteMany({
+      where: { delivery_id: { in: staleDeliveryIds } },
+    });
+  }
+
+  // ── 3. Create deliveries in a transaction ────────────────
+  const batchGroupId = crypto.randomBytes(15).toString("hex"); // 30 chars
+
+  const now = new Date();
+
+  const deliveries = await prisma.$transaction(
+    orders.map((order) => {
+      const pharmacyLat = order.branch?.marketplaceSettings?.latitude ?? null;
+      const pharmacyLng = order.branch?.marketplaceSettings?.longitude ?? null;
+      const dropSnapshot = order.delivery_address_snapshot || {};
+      const dropLat = dropSnapshot.latitude ?? null;
+      const dropLng = dropSnapshot.longitude ?? null;
+
+      return prisma.delivery.create({
+        data: {
+          order_id: order.order_id,
+          rider_id,
+          batch_group_id: batchGroupId,
+          status: "RIDER_NOTIFIED",
+          assigned_at: now,
+          assignment_attempts: 1,
+          pickup_lat: pharmacyLat,
+          pickup_lng: pharmacyLng,
+          drop_lat: dropLat,
+          drop_lng: dropLng,
+          // Team riders: fixed salary — all earnings null
+          pickup_fee: null,
+          drop_fee: null,
+          surge_fee: null,
+          floor_topup_fee: null,
+          total_rider_earning: null,
+          tip_amount: null,
+        },
+      });
+    }),
+  );
+
+  // ── 4. Push notification (sticky incoming alert) ─────────
+  RiderPush.sameDayBatchAssigned(rider_id, {
+    batch_group_id: batchGroupId,
+    order_count: orders.length,
+    pharmacy_name: orders[0].branch?.branch_name || "Pharmacy",
+  }).catch((err) => {
+    console.error("[batchAssign] Push failed:", err.message);
+  });
+
+  // ── 5. SSE to rider ──────────────────────────────────────
+  sseService.notifyRider(rider_id, "batch_assigned", {
+    batch_group_id: batchGroupId,
+    order_count: orders.length,
+    deliveries: deliveries.map((d) => ({
+      delivery_id: d.delivery_id,
+      order_id: d.order_id,
+    })),
+  });
+
+  // ── 6. SSE to CAdmins (so SameDayTab auto-updates) ───────
+  for (const d of deliveries) {
+    sseService.notifyAllCAdmins("delivery_status_changed", {
+      order_id: d.order_id,
+      delivery_id: d.delivery_id,
+      rider_id,
+      rider_name: rider.full_name,
+      status: "RIDER_NOTIFIED",
+      batch_group_id: batchGroupId,
+      timestamp: now.toISOString(),
+    });
+  }
+
+  return {
+    batch_group_id: batchGroupId,
+    rider_id,
+    order_count: orders.length,
+    delivery_ids: deliveries.map((d) => d.delivery_id),
+  };
+}
+
+/**
+ * Get TEAM riders eligible for Same Day batch assignment.
+ * Excludes riders who are offline or already on an active batch.
+ */
+export async function getAvailableTeamRidersForBatch() {
+  const teamRiders = await prisma.rider.findMany({
+    where: {
+      rider_type: "TEAM",
+      status: "ACTIVE",
+      is_online: true,
+    },
+  });
+
+  const busyRows = await prisma.delivery.findMany({
+    where: {
+      batch_group_id: { not: null },
+      status: { notIn: ["DELIVERED", "CANCELLED", "FAILED"] },
+      rider_id: { in: teamRiders.map((r) => r.rider_id) },
+    },
+    select: { rider_id: true },
+  });
+
+  const busyIds = new Set(busyRows.map((r) => r.rider_id));
+
+  return teamRiders
+    .filter((r) => !busyIds.has(r.rider_id))
+    .map((r) => ({
+      rider_id: r.rider_id,
+      rider_name: r.full_name,
+      phone: r.phone,
+      is_online: r.is_online,
+    }));
+}
+
+/**
+ * Add a single SAME_DAY order to a rider's existing active batch.
+ * Sends a simple notification (NOT a sticky incoming alert).
+ */
+export async function addOrderToBatch({ order_id, rider_id, assigned_by }) {
+  // ── 1. Find rider's active batch ─────────────────────────
+  const activeDelivery = await prisma.delivery.findFirst({
+    where: {
+      rider_id,
+      batch_group_id: { not: null },
+      status: { notIn: ["DELIVERED", "CANCELLED", "FAILED"] },
+    },
+  });
+
+  if (!activeDelivery) {
+    throw new Error("Rider does not have an active Same Day batch");
+  }
+
+  // ── 2. Validate order ────────────────────────────────────
+  const order = await prisma.marketplaceOrder.findUnique({
+    where: { order_id },
+    include: { delivery: true },
+  });
+
+  if (!order) throw new Error("Order not found");
+  if (order.fulfillment_type !== "SAME_DAY") {
+    throw new Error("Only SAME_DAY orders can be added to a batch");
+  }
+  if (order.status !== "ACCEPTED") {
+    throw new Error(`Order must be ACCEPTED (current: ${order.status})`);
+  }
+  const STALE = ["CANCELLED", "FAILED", "PENDING_ASSIGNMENT"];
+  const isStale =
+    order.delivery &&
+    (STALE.includes(order.delivery.status) || !order.delivery.rider_id);
+  if (order.delivery && !isStale) {
+    throw new Error("Order already has an active Delivery record");
+  }
+  // Clean up stale delivery before re-adding
+  if (order.delivery && isStale) {
+    await prisma.delivery.delete({
+      where: { delivery_id: order.delivery.delivery_id },
+    });
+  }
+
+  // ── 2b. Resolve coordinates from order ────────────────────
+  const orderWithCoords = await prisma.marketplaceOrder.findUnique({
+    where: { order_id },
+    include: {
+      branch: {
+        include: {
+          marketplaceSettings: {
+            select: { latitude: true, longitude: true },
+          },
+        },
+      },
+    },
+  });
+
+  const pharmacyLat =
+    orderWithCoords?.branch?.marketplaceSettings?.latitude ?? null;
+  const pharmacyLng =
+    orderWithCoords?.branch?.marketplaceSettings?.longitude ?? null;
+  const dropSnapshot = orderWithCoords?.delivery_address_snapshot || {};
+  const dropLat = dropSnapshot.latitude ?? null;
+  const dropLng = dropSnapshot.longitude ?? null;
+
+  // ── 3. Create delivery in same batch ─────────────────────
+  // Status is ACCEPTED (not RIDER_NOTIFIED) because the rider
+  // already accepted this batch. Skip the notification phase.
+  const delivery = await prisma.delivery.create({
+    data: {
+      order_id,
+      rider_id,
+      batch_group_id: activeDelivery.batch_group_id,
+      status: "ACCEPTED",
+      accepted_at: new Date(),
+      pickup_lat: pharmacyLat,
+      pickup_lng: pharmacyLng,
+      drop_lat: dropLat,
+      drop_lng: dropLng,
+      // Team riders: fixed salary — all earnings null
+      pickup_fee: null,
+      drop_fee: null,
+      surge_fee: null,
+      floor_topup_fee: null,
+      total_rider_earning: null,
+      tip_amount: null,
+    },
+  });
+
+  // ── 4. Simple notification (no sticky alert) ─────────────
+  RiderPush.orderAddedToBatch(rider_id, {
+    batch_group_id: activeDelivery.batch_group_id,
+    order_id,
+  }).catch((err) => {
+    console.error("[addOrderToBatch] Push failed:", err.message);
+  });
+
+  // ── 5. SSE to rider ──────────────────────────────────────
+  sseService.notifyRider(rider_id, "order_added_to_batch", {
+    batch_group_id: activeDelivery.batch_group_id,
+    delivery_id: delivery.delivery_id,
+    order_id,
+  });
+
+  // ── 6. SSE to CAdmins ────────────────────────────────────
+  sseService.notifyAllCAdmins("delivery_status_changed", {
+    order_id,
+    delivery_id: delivery.delivery_id,
+    rider_id,
+    status: "ACCEPTED",
+    batch_group_id: activeDelivery.batch_group_id,
+    timestamp: new Date().toISOString(),
+  });
+
+  return {
+    delivery_id: delivery.delivery_id,
+    batch_group_id: activeDelivery.batch_group_id,
+  };
+}
+
+/**
+ * Move a single order from one rider's batch to another rider.
+ * Blocked once the order reaches PICKED_UP or beyond.
+ */
+export async function reassignBatchOrder({
+  delivery_id,
+  new_rider_id,
+  reassigned_by,
+}) {
+  const REASSIGNABLE = [
+    "PENDING_ASSIGNMENT",
+    "RIDER_NOTIFIED",
+    "ACCEPTED",
+    "ARRIVED_AT_PHARMACY",
+  ];
+
+  // ── 1. Validate current delivery ─────────────────────────
+  const delivery = await prisma.delivery.findUnique({
+    where: { delivery_id },
+    include: {
+      order: {
+        include: {
+          branch: { select: { branch_name: true } },
+        },
+      },
+    },
+  });
+
+  if (!delivery) throw new Error("Delivery not found");
+  if (!delivery.batch_group_id) {
+    throw new Error("Delivery is not part of a Same Day batch");
+  }
+  if (!REASSIGNABLE.includes(delivery.status)) {
+    throw new Error(
+      `Cannot reassign — status is ${delivery.status}. ` +
+        "Reassignment only allowed before pickup.",
+    );
+  }
+
+  // ── 2. Validate new rider ────────────────────────────────
+  const newRider = await prisma.rider.findUnique({
+    where: { rider_id: new_rider_id },
+  });
+
+  if (!newRider) throw new Error("New rider not found");
+  if (newRider.rider_type !== "TEAM") {
+    throw new Error("Only TEAM riders can receive Same Day orders");
+  }
+  if (newRider.status !== "ACTIVE") {
+    throw new Error("New rider is not active");
+  }
+  if (!newRider.is_online) {
+    throw new Error("New rider is currently offline");
+  }
+
+  const oldRiderId = delivery.rider_id;
+
+  // ── 3. Determine target batch ────────────────────────────
+  const newRiderBatch = await prisma.delivery.findFirst({
+    where: {
+      rider_id: new_rider_id,
+      batch_group_id: { not: null },
+      status: { notIn: ["DELIVERED", "CANCELLED", "FAILED"] },
+    },
+  });
+
+  const targetBatchId = newRiderBatch
+    ? newRiderBatch.batch_group_id
+    : crypto.randomBytes(15).toString("hex");
+
+  // ── 4. Determine path: new batch vs. existing batch ──────
+  const isNewBatch = !newRiderBatch;
+  const deliveryStatus = isNewBatch ? "RIDER_NOTIFIED" : "ACCEPTED";
+
+  // Resolve coordinates from the order's branch + address snapshot
+  const orderCoords = await prisma.marketplaceOrder.findUnique({
+    where: { order_id: delivery.order_id },
+    include: {
+      branch: {
+        include: {
+          marketplaceSettings: {
+            select: { latitude: true, longitude: true },
+          },
+        },
+      },
+    },
+  });
+
+  const pharmLat =
+    orderCoords?.branch?.marketplaceSettings?.latitude ?? null;
+  const pharmLng =
+    orderCoords?.branch?.marketplaceSettings?.longitude ?? null;
+  const dropSnap = orderCoords?.delivery_address_snapshot || {};
+
+  await prisma.delivery.update({
+    where: { delivery_id },
+    data: {
+      rider_id: new_rider_id,
+      batch_group_id: targetBatchId,
+      status: deliveryStatus,
+      pickup_lat: pharmLat,
+      pickup_lng: pharmLng,
+      drop_lat: dropSnap.latitude ?? null,
+      drop_lng: dropSnap.longitude ?? null,
+      ...(isNewBatch ? {} : { accepted_at: new Date() }),
+    },
+  });
+
+  // ── 5. Notify old rider (always the same) ────────────────
+  sseService.notifyRider(oldRiderId, "order_removed_from_batch", {
+    delivery_id,
+    order_id: delivery.order_id,
+  });
+
+  // ── 6. Notify new rider + push ───────────────────────────
+  if (isNewBatch) {
+    // Path B: Brand-new batch → full incoming alert (overlay + alarm)
+    const pharmacyName =
+      delivery.order?.branch?.branch_name || "Pharmacy";
+
+    sseService.notifyRider(new_rider_id, "batch_assigned", {
+      batch_group_id: targetBatchId,
+      order_count: 1,
+      pharmacy_name: pharmacyName,
+      deliveries: [{ delivery_id, order_id: delivery.order_id }],
+      timestamp: new Date().toISOString(),
+    });
+
+    RiderPush.sameDayBatchAssigned(new_rider_id, {
+      batch_group_id: targetBatchId,
+      order_count: 1,
+      pharmacy_name: pharmacyName,
+    }).catch((err) => {
+      console.error("[reassignBatchOrder] Push failed:", err.message);
+    });
+  } else {
+    // Path A: Adding to existing batch → quiet notification only
+    sseService.notifyRider(new_rider_id, "order_added_to_batch", {
+      batch_group_id: targetBatchId,
+      delivery_id,
+      order_id: delivery.order_id,
+    });
+
+    RiderPush.orderAddedToBatch(new_rider_id, {
+      batch_group_id: targetBatchId,
+      order_id: delivery.order_id,
+    }).catch((err) => {
+      console.error("[reassignBatchOrder] Push failed:", err.message);
+    });
+  }
+
+  // ── 7. SSE to CAdmins ────────────────────────────────────
+  sseService.notifyAllCAdmins("delivery_status_changed", {
+    order_id: delivery.order_id,
+    delivery_id,
+    rider_id: new_rider_id,
+    rider_name: newRider.full_name,
+    status: deliveryStatus,
+    batch_group_id: targetBatchId,
+    timestamp: new Date().toISOString(),
+  });
+
+  return {
+    delivery_id,
+    old_rider_id: oldRiderId,
+    new_rider_id,
+    batch_group_id: targetBatchId,
+  };
+}
+
+/**
+ * Get all active Same Day batches with rider info and order progress.
+ * A batch is "active" if at least one delivery is non-terminal.
+ * Returns full order lists (including delivered) for each active batch.
+ */
+export async function getActiveBatches() {
+  // Step 1: Find batch_group_ids with at least one active delivery
+  const activeBatchIds = await prisma.delivery.findMany({
+    where: {
+      batch_group_id: { not: null },
+      status: { notIn: ["DELIVERED", "CANCELLED", "FAILED"] },
+    },
+    select: { batch_group_id: true },
+    distinct: ["batch_group_id"],
+  });
+
+  const bgIds = activeBatchIds.map((d) => d.batch_group_id);
+  if (bgIds.length === 0) return [];
+
+  // Step 2: Fetch ALL deliveries for those batches (including completed)
+  const deliveries = await prisma.delivery.findMany({
+    where: { batch_group_id: { in: bgIds } },
+    include: {
+      order: {
+        select: {
+          order_id: true,
+          order_number: true,
+          status: true,
+          customer_name_snapshot: true,
+          customer_phone_snapshot: true,
+          branch: { select: { branch_name: true } },
+        },
+      },
+      rider: {
+        select: {
+          rider_id: true,
+          full_name: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: { created_at: "asc" },
+  });
+
+  // Step 3: Group by batch_group_id
+  const batchMap = new Map();
+  for (const d of deliveries) {
+    const bgId = d.batch_group_id;
+    if (!batchMap.has(bgId)) {
+      batchMap.set(bgId, {
+        batch_group_id: bgId,
+        rider_id: d.rider_id,
+        rider_name: d.rider?.full_name || null,
+        rider_phone: d.rider?.phone || null,
+        orders: [],
+        created_at: d.created_at,
+      });
+    }
+    batchMap.get(bgId).orders.push({
+      delivery_id: d.delivery_id,
+      order_id: d.order_id,
+      order_number: d.order.order_number,
+      order_status: d.order.status,
+      delivery_status: d.status,
+      customer_name: d.order.customer_name_snapshot,
+      customer_phone: d.order.customer_phone_snapshot,
+      branch_name: d.order.branch?.branch_name || null,
+    });
+  }
+
+  // Step 4: Compute progress stats
+  const batches = Array.from(batchMap.values()).map((b) => {
+    const total = b.orders.length;
+    const delivered = b.orders.filter((o) => o.delivery_status === "DELIVERED").length;
+    const inTransit = b.orders.filter((o) =>
+      ["PICKED_UP", "EN_ROUTE", "ARRIVED_AT_CUSTOMER"].includes(o.delivery_status)
+    ).length;
+    return {
+      ...b,
+      order_count: total,
+      delivered_count: delivered,
+      in_transit_count: inTransit,
+      pending_count: total - delivered - inTransit,
+    };
+  });
+
+  batches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  return batches;
+}
+
+/**
+ * Remove a single order from its Same Day batch (deletes the Delivery record).
+ * Order reverts to ACCEPTED with no rider — reappears in unassigned pool.
+ * Blocked once delivery reaches PICKED_UP or beyond.
+ */
+export async function removeOrderFromBatch({ delivery_id }) {
+  const delivery = await prisma.delivery.findUnique({
+    where: { delivery_id },
+  });
+
+  if (!delivery) throw new Error("Delivery not found");
+  if (!delivery.batch_group_id) throw new Error("Not a batch delivery");
+
+  const REMOVABLE = ["PENDING_ASSIGNMENT", "RIDER_NOTIFIED", "ACCEPTED", "ARRIVED_AT_PHARMACY"];
+  if (!REMOVABLE.includes(delivery.status)) {
+    throw new Error(
+      `Cannot remove — status is ${delivery.status}. Only allowed before pickup.`
+    );
+  }
+
+  const oldRiderId = delivery.rider_id;
+  const batchGroupId = delivery.batch_group_id;
+
+  await prisma.delivery.delete({
+    where: { delivery_id },
+  });
+
+  // Notify rider
+  sseService.notifyRider(oldRiderId, "order_removed_from_batch", {
+    delivery_id,
+    order_id: delivery.order_id,
+  });
+
+  // Notify CAdmins
+  sseService.notifyAllCAdmins("delivery_status_changed", {
+    order_id: delivery.order_id,
+    delivery_id,
+    rider_id: null,
+    status: "PENDING_ASSIGNMENT",
+    batch_group_id: batchGroupId,
+    timestamp: new Date().toISOString(),
+  });
+
+  return {
+    order_id: delivery.order_id,
+    batch_group_id: batchGroupId,
+  };
+}
+
+// ── IST Day-Boundary Helpers (Batch History) ────────────────
+function getISTDateString(d = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
+}
+
+function getISTDayRangeUTC(dateStr) {
+  const dayStartUTC = new Date(`${dateStr}T00:00:00+05:30`);
+  const dayEndUTC = new Date(dayStartUTC.getTime() + 24 * 60 * 60 * 1000);
+  return { dayStartUTC, dayEndUTC };
+}
+
+/**
+ * Get paginated Same Day batch HISTORY for a given IST calendar date.
+ * A batch counts as "history" only when every delivery in it is terminal
+ * (DELIVERED / FAILED / CANCELLED). Mixed outcomes are flagged "Completed".
+ *
+ * Uses raw SQL for the group-level aggregate + pagination (bool_and / MAX
+ * over a COALESCE'd completion timestamp cannot be expressed via
+ * Prisma's groupBy), then a normal Prisma fetch for full order/rider detail
+ * on just that page's batch_group_ids.
+ */
+export async function getBatchHistory({ date, page = 1, limit = 20 }) {
+  const targetDate = date || getISTDateString();
+  const { dayStartUTC, dayEndUTC } = getISTDayRangeUTC(targetDate);
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+  const offset = (pageNum - 1) * limitNum;
+
+  // Step 1: Count total matching batches for this day
+  const countRows = await prisma.$queryRaw`
+    SELECT COUNT(*)::int AS total
+    FROM (
+      SELECT batch_group_id
+      FROM deliveries
+      WHERE batch_group_id IS NOT NULL
+      GROUP BY batch_group_id
+      HAVING bool_and(status IN ('DELIVERED', 'FAILED', 'CANCELLED'))
+         AND MAX(COALESCE(delivered_at, failed_at, updated_at)) >= ${dayStartUTC}
+         AND MAX(COALESCE(delivered_at, failed_at, updated_at)) <  ${dayEndUTC}
+    ) sub
+  `;
+  const totalItems = Number(countRows[0]?.total || 0);
+
+  if (totalItems === 0) {
+    return {
+      date: targetDate,
+      batches: [],
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total_items: 0,
+        total_pages: 1,
+      },
+    };
+  }
+
+  // Step 2: Fetch the paginated window of candidate batch_group_ids
+  const candidates = await prisma.$queryRaw`
+    SELECT
+      batch_group_id,
+      MAX(COALESCE(delivered_at, failed_at, updated_at)) AS completion_time,
+      MIN(assigned_at) AS first_assigned_at,
+      COUNT(*)::int AS total_orders,
+      COUNT(*) FILTER (WHERE status = 'DELIVERED')::int AS delivered_count,
+      COUNT(*) FILTER (WHERE status = 'FAILED')::int AS failed_count,
+      COUNT(*) FILTER (WHERE status = 'CANCELLED')::int AS cancelled_count
+    FROM deliveries
+    WHERE batch_group_id IS NOT NULL
+    GROUP BY batch_group_id
+    HAVING bool_and(status IN ('DELIVERED', 'FAILED', 'CANCELLED'))
+       AND MAX(COALESCE(delivered_at, failed_at, updated_at)) >= ${dayStartUTC}
+       AND MAX(COALESCE(delivered_at, failed_at, updated_at)) <  ${dayEndUTC}
+    ORDER BY completion_time DESC
+    LIMIT ${limitNum} OFFSET ${offset}
+  `;
+
+  const bgIds = candidates.map((c) => c.batch_group_id);
+
+  // Step 3: Fetch full order/rider details for this page's batches
+  const deliveries = await prisma.delivery.findMany({
+    where: { batch_group_id: { in: bgIds } },
+    include: {
+      order: {
+        select: {
+          order_id: true,
+          order_number: true,
+          status: true,
+          customer_name_snapshot: true,
+          customer_phone_snapshot: true,
+          pickup_otp: true,
+          delivery_otp: true,
+          branch: { select: { branch_name: true } },
+        },
+      },
+      rider: {
+        select: {
+          rider_id: true,
+          full_name: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: { created_at: "asc" },
+  });
+
+  // Step 4: Group deliveries by batch_group_id
+  const deliveryMap = new Map();
+  for (const d of deliveries) {
+    if (!deliveryMap.has(d.batch_group_id)) {
+      deliveryMap.set(d.batch_group_id, []);
+    }
+    deliveryMap.get(d.batch_group_id).push(d);
+  }
+
+  // Step 5: Build final batch objects, preserving candidate (completion_time DESC) order
+  const batches = candidates.map((c) => {
+    const batchDeliveries = deliveryMap.get(c.batch_group_id) || [];
+    const first = batchDeliveries[0];
+
+    const totalOrders = Number(c.total_orders);
+    const deliveredCount = Number(c.delivered_count);
+    const failedCount = Number(c.failed_count);
+    const cancelledCount = Number(c.cancelled_count);
+
+    let badge;
+    if (deliveredCount === totalOrders) {
+      badge = "Delivered";
+    } else if (deliveredCount === 0) {
+      badge = "Cancelled";
+    } else {
+      badge = "Completed";
+    }
+
+    const completionTime = c.completion_time;
+    const firstAssignedAt = c.first_assigned_at;
+    const durationMinutes =
+      firstAssignedAt && completionTime
+        ? Math.round(
+            (new Date(completionTime).getTime() -
+              new Date(firstAssignedAt).getTime()) /
+              60000,
+          )
+        : null;
+
+    return {
+      batch_group_id: c.batch_group_id,
+      rider_id: first?.rider_id || null,
+      rider_name: first?.rider?.full_name || null,
+      rider_phone: first?.rider?.phone || null,
+      order_count: totalOrders,
+      delivered_count: deliveredCount,
+      failed_count: failedCount,
+      cancelled_count: cancelledCount,
+      badge,
+      completed_at: completionTime,
+      duration_minutes: durationMinutes,
+      orders: batchDeliveries.map((d) => ({
+        delivery_id: d.delivery_id,
+        order_id: d.order_id,
+        order_number: d.order.order_number,
+        order_status: d.order.status,
+        delivery_status: d.status,
+        customer_name: d.order.customer_name_snapshot,
+        customer_phone: d.order.customer_phone_snapshot,
+        branch_name: d.order.branch?.branch_name || null,
+        pickup_otp: d.order.pickup_otp,
+        delivery_otp: d.order.delivery_otp,
+        delivered_at: d.delivered_at,
+        failed_at: d.failed_at,
+        pickup_fee: d.pickup_fee,
+        drop_fee: d.drop_fee,
+        surge_fee: d.surge_fee,
+        floor_topup_fee: d.floor_topup_fee,
+        total_rider_earning: d.total_rider_earning,
+        tip_amount: d.tip_amount,
+      })),
+    };
+  });
+
+  return {
+    date: targetDate,
+    batches,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total_items: totalItems,
+      total_pages: Math.max(1, Math.ceil(totalItems / limitNum)),
+    },
+  };
+}
+
+/**
+ * Get all orders in a Same Day batch by batch_group_id.
+ * Used by CAdmin to view and manage batch contents.
+ */
+export async function getBatchOrders(batch_group_id) {
+  const deliveries = await prisma.delivery.findMany({
+    where: { batch_group_id },
+    include: {
+      order: {
+        select: {
+          order_id: true,
+          order_number: true,
+          status: true,
+          customer_name_snapshot: true,
+          customer_phone_snapshot: true,
+          branch: { select: { branch_name: true } },
+        },
+      },
+      rider: {
+        select: {
+          rider_id: true,
+          full_name: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: { created_at: "asc" },
+  });
+
+  if (deliveries.length === 0) {
+    throw new Error("Batch not found");
+  }
+
+  return {
+    batch_group_id,
+    rider_id: deliveries[0].rider_id,
+    rider_name: deliveries[0].rider?.full_name || null,
+    rider_phone: deliveries[0].rider?.phone || null,
+    order_count: deliveries.length,
+    orders: deliveries.map((d) => ({
+      delivery_id: d.delivery_id,
+      order_id: d.order_id,
+      order_number: d.order.order_number,
+      order_status: d.order.status,
+      delivery_status: d.status,
+      customer_name: d.order.customer_name_snapshot,
+      customer_phone: d.order.customer_phone_snapshot,
+      branch_name: d.order.branch?.branch_name || null,
+    })),
   };
 }

@@ -448,17 +448,17 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
       ? MARKETPLACE_CHILD_ROUTES
       : ADMIN_CHILD_ROUTES;
   const defaultMenuId = isFleet
-    ? "fleet-riders"
+    ? "fleet-dashboard"
     : isMarketplace
       ? "mp-users"
       : "dashboard";
   const defaultPath = isFleet
-    ? "/fleet/riders"
+    ? "/fleet/dashboard"
     : isMarketplace
       ? "/marketplace/users"
       : "/dashboard";
   const defaultBreadcrumbs = isFleet
-    ? ["Fleet", "Riders"]
+    ? ["Fleet", "Dashboard"]
     : isMarketplace
       ? ["Marketplace", "Users"]
       : ["Dashboard"];
@@ -600,26 +600,18 @@ const AdminSidebar = ({ expanded, onExpandChange }) => {
       transition={SIDEBAR_TRANSITION}
     >
       <nav
-        className="flex flex-col h-full pt-2 pb-4 px-2 overflow-y-auto sidebar-nav"
+        className="flex flex-col h-full pb-4 px-2 overflow-y-auto sidebar-nav"
         style={{ gap: "clamp(4px, 1.5vh, 16px)" }}
       >
         <motion.div
-          className="px-2 pt-1 pb-2"
+          className="px-2 pb-2"
           animate={{
             opacity: expanded ? 1 : 0,
             height: expanded ? "auto" : 0,
           }}
           transition={SIDEBAR_TRANSITION}
         >
-          {expanded && (
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-              {isFleet
-                ? "Fleet"
-                : isMarketplace
-                  ? "Marketplace"
-                  : "Administration"}
-            </span>
-          )}
+          
         </motion.div>
 
         <div className="flex flex-col" style={{ gap: "clamp(2px, 1vh, 12px)" }}>

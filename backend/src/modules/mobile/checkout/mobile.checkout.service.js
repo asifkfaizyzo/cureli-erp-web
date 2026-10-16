@@ -22,6 +22,21 @@ import { validateRedemption } from "../../loyalty/loyalty.engine.js";
 
 const SESSION_TTL_MINS = 15;
 
+/**
+ * Returns the current hour in IST (0-23).
+ * Used for Same Day cutoff validation.
+ */
+function getCurrentISTHour() {
+  return parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date()),
+    10,
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LOAD CONFIG (cached in memory, invalidated by version change)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,6 +129,33 @@ export async function getQuote({
   const subtotal = await resolveSubtotal(items, branch_id);
   const config = await getConfig(fulfillment_type);
 
+  // ── Same Day cutoff gate ───────────────────────────────
+  if (fulfillment_type === "SAME_DAY") {
+    const istHour = getCurrentISTHour();
+    if (istHour >= config.same_day_cutoff_hour) {
+      return {
+        subtotal,
+        service_charge: 0,
+        delivery_fee: 0,
+        km_surcharge: 0,
+        packing_charge: 0,
+        tip: 0,
+        grand_total: 0,
+        delivery_available: false,
+        unavailable_reason: `Same Day delivery closed after ${config.same_day_cutoff_hour > 12 ? config.same_day_cutoff_hour - 12 : config.same_day_cutoff_hour}:00 PM IST. Choose Instant Delivery or Pickup.`,
+        service_charge_anchor: null,
+        delivery_charge_anchor: null,
+        platform_savings: 0,
+        coupon_code: null,
+        coupon_discount: 0,
+        coupon_reason: null,
+        loyalty_points_redeemed: 0,
+        loyalty_discount: 0,
+        loyalty_reason: null,
+      };
+    }
+  }
+
   const basePricing = computePricing({
     subtotal,
     distance_km,
@@ -201,6 +243,21 @@ export async function getQuote({
   const rawGrandTotal = slashed.grand_total - combinedDiscounts;
   const grand_total = parseFloat(Math.max(1, rawGrandTotal).toFixed(2));
 
+  // ── Same Day availability (always included for the selector) ──
+  let same_day_available = false;
+  let same_day_cutoff_hour = 15;
+  try {
+    const sdConfig = await prisma.deliveryPricingConfig.findUnique({
+      where: { fulfillment_type: "SAME_DAY" },
+      select: { same_day_cutoff_hour: true },
+    });
+    same_day_cutoff_hour = sdConfig?.same_day_cutoff_hour ?? 15;
+    const istHour = getCurrentISTHour();
+    same_day_available = istHour < same_day_cutoff_hour;
+  } catch {
+    // Non-critical — selector falls back to default
+  }
+
   return {
     subtotal: slashed.subtotal ?? subtotal,
     service_charge: slashed.service_charge,
@@ -220,6 +277,8 @@ export async function getQuote({
     loyalty_discount,
     loyalty_reason,
     grand_total,
+    same_day_available,
+    same_day_cutoff_hour,
   };
 }
 
@@ -244,6 +303,16 @@ export async function createCheckoutSession({
 }) {
   const isPickup = fulfillment_type === "PICKUP";
   const config = await getConfig(fulfillment_type);
+
+  // ── 0. Same Day cutoff gate ────────────────────────────
+  if (fulfillment_type === "SAME_DAY") {
+    const istHour = getCurrentISTHour();
+    if (istHour >= config.same_day_cutoff_hour) {
+      throw new Error(
+        `Same Day delivery is no longer available today (cutoff: ${config.same_day_cutoff_hour > 12 ? config.same_day_cutoff_hour - 12 : config.same_day_cutoff_hour}:00 PM IST). Please choose Instant Delivery or Pickup.`,
+      );
+    }
+  }
 
   // ── 1. Validate customer ─────────────────────────────────
   const customer = await prisma.cureliMobileUser.findUnique({

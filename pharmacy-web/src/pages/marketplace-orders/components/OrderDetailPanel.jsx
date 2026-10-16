@@ -293,7 +293,9 @@ function DeliveryProgressTracker({ delivery }) {
             <p className="text-[10px] text-white/50 mt-0.5">
               {delivery.rider_name
                 ? "Previous rider was unassigned. Awaiting new assignment."
-                : "No rider assigned yet. CAdmin will assign a delivery partner."}
+                : delivery.fulfillment_type === "SAME_DAY"
+                  ? "Same Day batch delivery — Cureli admin will assign a rider with other orders."
+                  : "No rider assigned yet. CAdmin will assign a delivery partner."}
             </p>
           </div>
         </div>
@@ -347,7 +349,7 @@ function DeliveryProgressTracker({ delivery }) {
       <div className="space-y-0">
         {DELIVERY_MILESTONES.map((milestone, idx) => {
           const isComplete = timestamps[milestone.key] != null;
-          const isCurrent =
+          const isCurrent =Bike
             !isComplete &&
             idx <= currentIdx + 1 &&
             idx ===

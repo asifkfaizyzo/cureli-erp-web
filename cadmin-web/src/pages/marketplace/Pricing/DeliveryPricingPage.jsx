@@ -40,7 +40,6 @@ const FULFILLMENT_TYPES = [
   { value: "INSTANT_DELIVERY", label: "Delivery", icon: Truck },
   { value: "PICKUP", label: "Pickup", icon: Settings2 },
   { value: "SAME_DAY", label: "Same Day", icon: Truck },
-  { value: "NEXT_DAY", label: "Next Day", icon: Truck },
 ];
 
 const DEFAULT_PRICING = {
@@ -73,6 +72,8 @@ const DEFAULT_PRICING = {
   packing_tier_2_max: 1999.99,
   packing_tier_2_charge: 15,
   packing_tier_3_charge: 20,
+  // ── Same Day Cutoff ──
+  same_day_cutoff_hour: 15,
 };
 
 const DEFAULT_SLASH = {
@@ -92,7 +93,8 @@ export default function MarketplaceDeliveryPricingPage() {
   const [saved, setSaved] = useState(false);
 
   // ── Fulfillment type tab state ──
-  const [activeFulfillment, setActiveFulfillment] = useState("INSTANT_DELIVERY");
+  const [activeFulfillment, setActiveFulfillment] =
+    useState("INSTANT_DELIVERY");
 
   // States for base pricing
   const [form, setForm] = useState(DEFAULT_PRICING);
@@ -122,18 +124,25 @@ export default function MarketplaceDeliveryPricingPage() {
           Object.entries(pricingData).map(([k, v]) => [
             k,
             v !== null && typeof v === "string" ? parseFloat(v) : v,
-          ])
+          ]),
         );
 
         // Normalise Decimal slash config fields
         const normalizedSlash = {
           ...slashData,
-          service_pct: slashData.service_pct !== null ? parseFloat(slashData.service_pct) : 0,
+          service_pct:
+            slashData.service_pct !== null
+              ? parseFloat(slashData.service_pct)
+              : 0,
           delivery_tiers: Array.isArray(slashData.delivery_tiers)
             ? slashData.delivery_tiers.map((t) => ({
                 ...t,
-                min_subtotal: t.min_subtotal !== null ? parseFloat(t.min_subtotal) : null,
-                max_distance_km: t.max_distance_km !== null ? parseFloat(t.max_distance_km) : null,
+                min_subtotal:
+                  t.min_subtotal !== null ? parseFloat(t.min_subtotal) : null,
+                max_distance_km:
+                  t.max_distance_km !== null
+                    ? parseFloat(t.max_distance_km)
+                    : null,
                 pct: parseFloat(t.pct) || 0,
               }))
             : [],
@@ -145,16 +154,19 @@ export default function MarketplaceDeliveryPricingPage() {
         setSlashForm(normalizedSlash);
         setSlashOriginal(normalizedSlash);
 
-        if (showToast) toast.success("Refreshed", "Configurations reloaded from database");
+        if (showToast)
+          toast.success("Refreshed", "Configurations reloaded from database");
       } catch (err) {
-        const msg = err.response?.data?.message || "Failed to load pricing or slash config";
+        const msg =
+          err.response?.data?.message ||
+          "Failed to load pricing or slash config";
         setError(msg);
         if (showToast) toast.error("Load Failed", msg);
       } finally {
         setLoading(false);
       }
     },
-    [activeFulfillment, original, slashOriginal, toast]
+    [activeFulfillment, original, slashOriginal, toast],
   );
 
   useEffect(() => {
@@ -183,6 +195,13 @@ export default function MarketplaceDeliveryPricingPage() {
           form.max_delivery_km === 0 || form.max_delivery_km === ""
             ? null
             : toNum(form.max_delivery_km) || null,
+        same_day_cutoff_hour:
+          activeFulfillment === "SAME_DAY"
+            ? Math.min(
+                23,
+                Math.max(0, parseInt(form.same_day_cutoff_hour) || 15),
+              )
+            : undefined,
       };
 
       const slashPayload = {
@@ -191,7 +210,8 @@ export default function MarketplaceDeliveryPricingPage() {
         delivery_tiers: slashForm.delivery_tiers.map((t) => ({
           priority: Number(t.priority),
           min_subtotal: t.min_subtotal === "" ? null : Number(t.min_subtotal),
-          max_distance_km: t.max_distance_km === "" ? null : Number(t.max_distance_km),
+          max_distance_km:
+            t.max_distance_km === "" ? null : Number(t.max_distance_km),
           pct: Number(t.pct),
         })),
       };
@@ -205,7 +225,10 @@ export default function MarketplaceDeliveryPricingPage() {
       setOriginal(form);
       setSlashOriginal(slashForm);
       setSaved(true);
-      toast.success("Saved", "Marketplace and Slash display configurations updated");
+      toast.success(
+        "Saved",
+        "Marketplace and Slash display configurations updated",
+      );
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to save configuration";
@@ -231,7 +254,8 @@ export default function MarketplaceDeliveryPricingPage() {
   };
 
   const isPricingDirty = JSON.stringify(form) !== JSON.stringify(original);
-  const isSlashDirty = JSON.stringify(slashForm) !== JSON.stringify(slashOriginal);
+  const isSlashDirty =
+    JSON.stringify(slashForm) !== JSON.stringify(slashOriginal);
   const isDirty = isPricingDirty || isSlashDirty;
 
   if (loading) {
@@ -266,7 +290,9 @@ export default function MarketplaceDeliveryPricingPage() {
             <AlertCircle size={32} className="text-red-500" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Failed to load configuration</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Failed to load configuration
+            </h3>
             <p className="text-gray-500 mt-1 text-sm">{error}</p>
           </div>
           <button
@@ -283,7 +309,6 @@ export default function MarketplaceDeliveryPricingPage() {
 
   return (
     <div className="w-full bg-gray-50/50">
-      
       {/* 
         Page Header - Stays Fixed/Sticky at the Top.
         Negative margins offset the main wrapper padding to look perfectly seamless.
@@ -295,9 +320,12 @@ export default function MarketplaceDeliveryPricingPage() {
               <Settings2 size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Delivery Pricing Config</h1>
+              <h1 className="text-xl font-bold text-gray-900">
+                Delivery Pricing Config
+              </h1>
               <p className="text-xs text-gray-500">
-                Manage service charges, base delivery tiers, surcharges, and visual slash displays
+                Manage service charges, base delivery tiers, surcharges, and
+                visual slash displays
               </p>
             </div>
           </div>
@@ -360,7 +388,7 @@ export default function MarketplaceDeliveryPricingPage() {
       </div>
 
       {/* ── Fulfillment Type Tab Bar ── */}
-      <div className="max-w-6xl mx-auto mb-4 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto mb-4  ">
         <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 p-1.5 shadow-sm">
           {FULFILLMENT_TYPES.map((ft) => {
             const isActive = activeFulfillment === ft.value;
@@ -385,22 +413,119 @@ export default function MarketplaceDeliveryPricingPage() {
         {activeFulfillment === "PICKUP" && (
           <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
             <p className="text-[11px] text-[#05015A] font-medium">
-              Configuring charges for <strong className="font-bold">Pickup</strong> orders. Toggle individual charges on or off using the switch in each section header.
+              Configuring charges for{" "}
+              <strong className="font-bold">Pickup</strong> orders. Toggle
+              individual charges on or off using the switch in each section
+              header.
             </p>
           </div>
         )}
-        {(activeFulfillment === "SAME_DAY" || activeFulfillment === "NEXT_DAY") && (
+        {activeFulfillment === "SAME_DAY" && (
+          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg flex items-center gap-2">
+            <Truck size={13} className="text-[#05015A] flex-shrink-0" />
+            <p className="text-[11px] text-[#05015A] font-medium">
+              <strong>Same Day Delivery</strong> — orders placed before the
+              cutoff hour are batch-assigned to team riders by end of day.
+            </p>
+          </div>
+        )}
+        {activeFulfillment === "NEXT_DAY" && (
           <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
             <p className="text-[11px] text-[#05015A] font-medium">
-              Configuring charges for <strong className="font-bold">{activeFulfillment === "SAME_DAY" ? "Same Day" : "Next Day"}</strong> orders. Scheduling logic is not yet active — these currently behave like instant delivery.
+              Configuring charges for{" "}
+              <strong className="font-bold">Next Day</strong> orders. Scheduling
+              logic is not yet active — these currently behave like instant
+              delivery.
             </p>
           </div>
         )}
       </div>
 
+      {/* Same Day Cutoff — compact horizontal design */}
+      {activeFulfillment === "SAME_DAY" && (
+        <div className="max-w-6xl mx-auto mb-4">
+          <div className="relative overflow-hidden bg-gradient-to-r from-[#05015A]/5 via-white to-white rounded-xl border border-[#05015A]/15 shadow-sm">
+            {/* Decorative accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#05015A]/60 to-[#05015A]" />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 pl-6">
+              {/* Left: Title + Description */}
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-[#05015A]/10 flex items-center justify-center flex-shrink-0 ring-4 ring-[#05015A]/5">
+                  <Truck size={18} className="text-[#05015A]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Order Cutoff Time
+                    </h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#05015A] bg-[#05015A]/10 px-1.5 py-0.5 rounded">
+                      IST
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Same Day orders are blocked after this hour. Use 24h format
+                    <span className="text-gray-400">
+                      {" "}
+                      (e.g. 15 = 3 PM, 18 = 6 PM)
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Input + Live preview */}
+              <div className="flex items-center gap-4 flex-shrink-0">
+                {/* Unified time input — no Field suffix gap */}
+                <div className="flex items-center bg-white border border-[#05015A]/20 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-[#05015A]/20 focus-within:border-[#05015A]/40">
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={form.same_day_cutoff_hour ?? 15}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      handlePricingChange(
+                        "same_day_cutoff_hour",
+                        v === ""
+                          ? ""
+                          : Math.min(23, Math.max(0, parseInt(v) || 0)),
+                      );
+                    }}
+                    className="w-10 text-center text-base font-bold text-[#05015A] tabular-nums py-2 pl-3 pr-0 bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-base font-bold text-gray-400 tabular-nums select-none">
+                    :
+                  </span>
+                  <span className="text-base font-bold text-gray-400 tabular-nums select-none pr-1">
+                    00
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#05015A]/60  px-2 py-2 border-l border-[#05015A]/10 select-none">
+                    IST
+                  </span>
+                </div>
+
+                {/* Live 12h preview */}
+                <div className="hidden md:flex flex-col items-start px-3 py-1.5 bg-white rounded-lg border border-[#05015A]/15">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Cuts off at
+                  </span>
+                  <span className="text-sm font-bold text-[#05015A] tabular-nums">
+                    {(() => {
+                      const h = parseInt(form.same_day_cutoff_hour) || 0;
+                      const period = h >= 12 ? "PM" : "AM";
+                      const hr12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                      return `${hr12}:00 ${period}`;
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: items-start allows sticky elements to stop stretching and slide */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
-        
         {/* Left Side Editors - Scrolls naturally with Page Body */}
         <div className="xl:col-span-2 space-y-5 pb-12">
           {/* Service Charge */}
@@ -413,7 +538,9 @@ export default function MarketplaceDeliveryPricingPage() {
             onChange={handlePricingChange}
             defaultOpen={form.service_charge_enabled}
           >
-            <InfoBanner>Applied on every basket. Goes directly to platform revenue.</InfoBanner>
+            <InfoBanner>
+              Applied on every basket. Goes directly to platform revenue.
+            </InfoBanner>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
                 <span>Tier</span>
@@ -457,7 +584,8 @@ export default function MarketplaceDeliveryPricingPage() {
             defaultOpen={form.delivery_fee_enabled}
           >
             <InfoBanner>
-              Flat baseline delivery cost before any distance surcharges are applied.
+              Flat baseline delivery cost before any distance surcharges are
+              applied.
             </InfoBanner>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
@@ -613,10 +741,7 @@ export default function MarketplaceDeliveryPricingPage() {
           </Section>
 
           {/* Price slash configuration section */}
-          <SlashConfigSection
-            form={slashForm}
-            onChange={handleSlashChange}
-          />
+          <SlashConfigSection form={slashForm} onChange={handleSlashChange} />
         </div>
 
         {/* 
@@ -634,11 +759,11 @@ export default function MarketplaceDeliveryPricingPage() {
             <Info size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
             <p className="text-[11px] text-amber-700 leading-relaxed">
               Settings update instantly across active customer channels. Pending
-              orders/sessions initialized prior retain calculations locked at start time.
+              orders/sessions initialized prior retain calculations locked at
+              start time.
             </p>
           </div>
         </div>
-
       </div>
     </div>
   );

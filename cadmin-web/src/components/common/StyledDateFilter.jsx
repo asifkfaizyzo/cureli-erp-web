@@ -11,7 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const StyledDateFilter = ({ label, date, setDate }) => {
+const StyledDateFilter = ({ label, date, setDate, formatLabel }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dropdownPosition, setDropdownPosition] = useState(null);
@@ -188,6 +188,12 @@ const StyledDateFilter = ({ label, date, setDate }) => {
   };
 
   const isActive = Boolean(date);
+  // Optional display override (e.g. Batch History's "Today" label).
+  // Falls back to the original formatted-date / "Select Date" text for
+  // every existing call site that doesn't pass this prop.
+  const displayText =
+    (formatLabel && formatLabel(date)) ||
+    (isActive ? formatDateDisplay(date) : "Select Date");
 
   const getPositionStyle = () => {
     if (!dropdownPosition) return {};
@@ -366,7 +372,7 @@ const StyledDateFilter = ({ label, date, setDate }) => {
               isActive ? "text-indigo-500" : "text-gray-400"
             }`}
           />
-          <span>{isActive ? formatDateDisplay(date) : "Select Date"}</span>
+          <span>{displayText}</span>
         </span>
 
         {isActive ? (

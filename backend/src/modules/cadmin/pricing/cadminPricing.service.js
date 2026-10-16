@@ -25,6 +25,7 @@ const NUMERIC_FIELDS = [
   "packing_tier_2_max",
   "packing_tier_2_charge",
   "packing_tier_3_charge",
+  "same_day_cutoff_hour",
 ];
 
 const TOGGLE_FIELDS = [

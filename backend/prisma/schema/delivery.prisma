@@ -25,16 +25,10 @@ model RiderPricingConfig {
   name               String                 @db.VarChar(100)
   status             PricingConfigStatus    @default(DRAFT)
 
-  // Minimum floor payout guarantee (e.g., no delivery pays less than ₹25)
   min_floor_payout   Decimal                @default(25.00) @db.Decimal(10, 2)
-
-  // Leg 1: Rider -> Pharmacy Base Fee
   pickup_base_fee    Decimal                @default(10.00) @db.Decimal(10, 2)
-
-  // Leg 2: Pharmacy -> Customer Base Fee
   drop_base_fee      Decimal                @default(15.00) @db.Decimal(10, 2)
 
-  // Scheduling & Lifecycle
   effective_from     DateTime               @db.Timestamptz(6)
   effective_until    DateTime?              @db.Timestamptz(6)
 
@@ -55,9 +49,9 @@ model PricingDistanceSlab {
   leg_type           DistanceLegType
 
   from_km            Decimal                @db.Decimal(6, 2)
-  to_km              Decimal?               @db.Decimal(6, 2) // null = unbounded / infinity
+  to_km              Decimal?               @db.Decimal(6, 2)
   rate_type          SlabRateType           @default(PER_KM)
-  rate               Decimal                @db.Decimal(10, 2) // ₹ flat amount OR ₹/km
+  rate               Decimal                @db.Decimal(10, 2)
 
   created_at         DateTime               @default(now()) @db.Timestamptz(6)
 
@@ -67,7 +61,6 @@ model PricingDistanceSlab {
   @@map("pricing_distance_slabs")
 }
 
-// ── 2. Surge Pricing Rules (Manual Control) ──────────────────────────────────
 model RiderSurgeRule {
   rule_id            String                 @id @default(uuid()) @db.Uuid
   name               String                 @db.VarChar(100)
@@ -75,9 +68,8 @@ model RiderSurgeRule {
   is_active          Boolean                @default(false)
 
   calc_type          SurgeCalculationType   @default(MULTIPLIER)
-  value              Decimal                @db.Decimal(10, 2) // Multiplier (e.g. 1.50) or Flat Addition (e.g. 25.00)
+  value              Decimal                @db.Decimal(10, 2)
 
-  // Optional auto-expiry safety net
   expires_at         DateTime?              @db.Timestamptz(6)
 
   activated_at       DateTime?              @db.Timestamptz(6)
@@ -91,7 +83,6 @@ model RiderSurgeRule {
   @@map("rider_surge_rules")
 }
 
-// ── 3. Incentive Templates (Reusable Blueprints) ─────────────────────────────
 model IncentiveTemplate {
   template_id            String              @id @default(uuid()) @db.Uuid
   title                  String              @db.VarChar(150)
@@ -99,7 +90,6 @@ model IncentiveTemplate {
   period_type            IncentivePeriodType @default(DAILY)
   metric_type            IncentiveMetricType @default(ORDER_COUNT)
 
-  // Gating Conditions
   min_online_hours       Decimal?            @db.Decimal(4, 2)
   max_denial_count       Int?
   max_cancellation_count Int?
@@ -121,9 +111,9 @@ model IncentiveTemplate {
 model IncentiveTier {
   tier_id            String                 @id @default(uuid()) @db.Uuid
   template_id        String                 @db.Uuid
-  tier_level         Int                    // 1 to 6
-  target_value       Decimal                @db.Decimal(10, 2) // Order count or ₹ base earnings
-  reward_amount      Decimal                @db.Decimal(10, 2) // ₹ incentive reward
+  tier_level         Int
+  target_value       Decimal                @db.Decimal(10, 2)
+  reward_amount      Decimal                @db.Decimal(10, 2)
 
   template           IncentiveTemplate      @relation(fields: [template_id], references: [template_id], onDelete: Cascade)
 
@@ -132,7 +122,6 @@ model IncentiveTier {
   @@map("incentive_tiers")
 }
 
-// ── 4. Calendar & Campaign Schedules ─────────────────────────────────────────
 model IncentiveSchedule {
   schedule_id        String                 @id @default(uuid()) @db.Uuid
   template_id        String                 @db.Uuid
@@ -154,87 +143,71 @@ model IncentiveSchedule {
   @@map("incentive_schedules")
 }
 
-// ── Rider Account ────────────────────────────────────────────────────────────
 model Rider {
   rider_id                 String                  @id @default(uuid()) @db.Uuid
   phone                    String                  @unique @db.VarChar(15)
   password_hash            String?                 @db.VarChar(255)
   rider_type               RiderType               @default(INDEPENDENT)
 
-  // ── Personal Details ──────────────────────────────────────
   full_name                String?                 @db.VarChar(200)
   email                    String?                 @unique @db.VarChar(255)
   date_of_birth            DateTime?               @db.Date
   sex                      UserSex?
   profile_photo_key        String?                 @db.VarChar(500)
 
-  // ── Location ──────────────────────────────────────────────
   current_city             String?                 @db.VarChar(100)
   residential_address      String?                 @db.VarChar(500)
   preferred_lat            Decimal?                @db.Decimal(10, 8)
   preferred_lng            Decimal?                @db.Decimal(11, 8)
   preferred_address        String?                 @db.VarChar(500)
 
-  // ── Vehicle ───────────────────────────────────────────────
   vehicle_type             String?                 @db.VarChar(20)
   vehicle_number           String?                 @db.VarChar(20)
   vehicle_make_model       String?                 @db.VarChar(100)
 
-  // ── Status ────────────────────────────────────────────────
   status                   RiderStatus             @default(DRAFT)
 
-  // ── Onboarding Progress ───────────────────────────────────
   onboarding_step          OnboardingStep          @default(PERSONAL_DETAILS)
   submitted_for_review     Boolean                 @default(false)
   first_submitted_at       DateTime?               @db.Timestamptz(6)
   last_resubmitted_at      DateTime?               @db.Timestamptz(6)
   is_resubmission          Boolean                 @default(false)
 
-  // ── Real-time telemetry ───────────────────────────────────
   is_online                Boolean                 @default(false)
   current_lat              Decimal?                @db.Decimal(10, 8)
   current_lng              Decimal?                @db.Decimal(11, 8)
   last_location_at         DateTime?               @db.Timestamptz(6)
 
-  // ── Bank details ──────────────────────────────────────────
   bank_account_number      String?                 @db.VarChar(30)
   bank_ifsc                String?                 @db.VarChar(15)
   bank_holder_name         String?                 @db.VarChar(200)
   bank_name                String?                 @db.VarChar(100)
   bank_verified            Boolean                 @default(false)
 
-  // ── Compliance ────────────────────────────────────────────
   terms_accepted_at        DateTime?               @db.Timestamptz(6)
 
-  // ── Emergency contact ─────────────────────────────────────
   emergency_contact_name   String?                 @db.VarChar(200)
   emergency_contact_phone  String?                 @db.VarChar(15)
 
-  // ── Ratings ───────────────────────────────────────────────
   rating                   Float                   @default(0)
   total_ratings            Int                     @default(0)
   total_deliveries         Int                     @default(0)
 
-  // ── Referral ──────────────────────────────────────────────
   referral_code            String?                 @unique @db.VarChar(20)
   referred_by_code         String?                 @db.VarChar(20)
 
-  // ── Suspension ────────────────────────────────────────────
   suspension_reason        String?                 @db.VarChar(500)
   suspended_at             DateTime?               @db.Timestamptz(6)
   suspended_by             String?                 @db.Uuid
 
-  // ── Auth OTP fields ───────────────────────────────────────
   login_otp_hash           String?
   login_otp_expires        DateTime?               @db.Timestamptz(6)
   login_otp_attempts       Int                     @default(0)
   otp_cycle_failures       Int                     @default(0)
   otp_locked_until         DateTime?               @db.Timestamptz(6)
 
-  // ── Session control ───────────────────────────────────────
   logout_all_issued_at     DateTime?               @db.Timestamptz(6)
 
-  // ── Soft delete ───────────────────────────────────────────
   deleted_at               DateTime?               @db.Timestamptz(6)
   deletion_reason          String?                 @db.VarChar(500)
 
@@ -242,7 +215,6 @@ model Rider {
   updated_at               DateTime                @updatedAt @db.Timestamptz(6)
   last_seen_at             DateTime?               @db.Timestamptz(6)
 
-  // ── Relations ─────────────────────────────────────────────
   sessions                 RiderSession[]
   documents                RiderDocument[]
   zoneChangeRequests       ZoneChangeRequest[]
@@ -257,6 +229,7 @@ model Rider {
   notifications            RiderNotification[]
   assignmentLogs           DeliveryAssignmentLog[]
   onlineSessions         RiderOnlineSession[]
+
   @@index([phone])
   @@index([status])
   @@index([is_online, status])
@@ -352,6 +325,12 @@ model Delivery {
   zone_id                String?                 @db.Uuid
   status                 DeliveryStatus          @default(PENDING_ASSIGNMENT)
 
+  // ── Same Day Batch Grouping ──────────────────────────────
+  // Deliveries that share a batch_group_id are part of the same
+  // Same Day batch assigned to a single team rider in one action.
+  // NULL for instant delivery and standalone orders.
+  batch_group_id         String?                 @db.VarChar(30)
+
   // Assignment tracking
   assigned_at            DateTime?               @db.Timestamptz(6)
   accepted_at            DateTime?               @db.Timestamptz(6)
@@ -382,16 +361,18 @@ model Delivery {
   drop_lng               Decimal?                @db.Decimal(11, 8)
 
   // Granular Two-Leg Distances
-  pickup_distance_km     Decimal?                @db.Decimal(10, 2) // Leg 1: Rider -> Pharmacy
-  drop_distance_km       Decimal?                @db.Decimal(10, 2) // Leg 2: Pharmacy -> Customer
-  total_distance_km      Decimal?                @db.Decimal(10, 2) // Leg 1 + Leg 2
+  pickup_distance_km     Decimal?                @db.Decimal(10, 2)
+  drop_distance_km       Decimal?                @db.Decimal(10, 2)
+  total_distance_km      Decimal?                @db.Decimal(10, 2)
 
-  // Granular Earnings Breakdown (Immutable once marked DELIVERED)
-  pickup_fee             Decimal?                @db.Decimal(10, 2) // Base + Slabs for Leg 1
-  drop_fee               Decimal?                @db.Decimal(10, 2) // Base + Slabs for Leg 2
-  surge_fee              Decimal?                @db.Decimal(10, 2) // Surge increment applied
-  floor_topup_fee        Decimal?                @db.Decimal(10, 2) // Amount added to hit min floor payout
-  total_rider_earning    Decimal?                @db.Decimal(10, 2) // pickup_fee + drop_fee + surge_fee + floor_topup_fee
+  // Granular Earnings Breakdown
+  // For SAME_DAY batch deliveries (team riders): all fields remain NULL.
+  // Team riders are on fixed salary — no per-delivery earnings calculation.
+  pickup_fee             Decimal?                @db.Decimal(10, 2)
+  drop_fee               Decimal?                @db.Decimal(10, 2)
+  surge_fee              Decimal?                @db.Decimal(10, 2)
+  floor_topup_fee        Decimal?                @db.Decimal(10, 2)
+  total_rider_earning    Decimal?                @db.Decimal(10, 2)
   tip_amount             Decimal?                @db.Decimal(10, 2)
 
   // Reference snapshots
@@ -415,6 +396,8 @@ model Delivery {
   @@index([rider_id, status])
   @@index([status, created_at(sort: Desc)])
   @@index([zone_id, status])
+  @@index([rider_id, batch_group_id])
+  @@index([batch_group_id])
   @@map("deliveries")
 }
 
@@ -425,7 +408,7 @@ model RiderOnlineSession {
   went_offline_at  DateTime? @db.Timestamptz(6)
   duration_minutes Decimal?  @db.Decimal(8, 2)
   shift_date       DateTime  @db.Date
-  closed_by        String?   @db.VarChar(20)   // "rider" | "stale_cron" | "system"
+  closed_by        String?   @db.VarChar(20)
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
 
   rider            Rider     @relation(fields: [rider_id], references: [rider_id], onDelete: Cascade)
@@ -499,34 +482,24 @@ model RiderPayout {
   status                 PayoutStatus            @default(DRAFT)
   payment_method         PayoutMethod            @default(MANUAL)
 
-  // Finalization control
   is_finalized           Boolean                 @default(false)
   finalized_at           DateTime?               @db.Timestamptz(6)
 
-  // Full earnings breakdown snapshot (JSON)
   breakdown_snapshot     Json?
 
-  // Deductions (free-form)
-  // Structure: [{ "label": "COD Reconciliation", "amount": 500, "note": "3 COD orders" }]
   deductions             Json                    @default("[]")
 
-  // Internal notes (CAdmin-only audit trail)
-  // Structure: [{ "by": "uuid", "at": "ISO", "text": "..." }]
   internal_notes         Json                    @default("[]")
 
-  // Manual payout fields
   manual_reference       String?                 @db.VarChar(100)
   manual_notes           String?                 @db.VarChar(500)
   manual_payment_date    DateTime?               @db.Date
   manual_bank_used       String?                 @db.VarChar(100)
 
-  // Provider payload
   provider_payload       Json?
 
-  // Bank details snapshot at time of payout
   bank_snapshot          Json?
 
-  // Refresh tracking
   last_refreshed_at      DateTime?               @db.Timestamptz(6)
   refreshed_by           String?                 @db.Uuid
 

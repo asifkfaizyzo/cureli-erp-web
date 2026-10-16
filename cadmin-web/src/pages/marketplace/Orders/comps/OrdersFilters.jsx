@@ -23,31 +23,18 @@ const RX_STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
-const FULFILLMENT_OPTIONS = [
-  { value: "", label: "All Types" },
-  { value: "INSTANT_DELIVERY", label: "Instant Delivery" },
-  { value: "PICKUP", label: "In-Person Pickup" },
-  { value: "SAME_DAY", label: "Same Day" },
-  // { value: "NEXT_DAY", label: "Next Day" },
-];
-
 const OrdersFilters = ({
   viewMode,
   search,
   setSearch,
   statusFilter,
   setStatusFilter,
-  fulfillmentFilter = "",
-  setFulfillmentFilter = () => {},
 }) => {
-  const isOrders = viewMode === "orders";
-  const hasActiveFilters = Boolean(
-    statusFilter || (isOrders && fulfillmentFilter) || search
-  );
+  const isPrescriptions = viewMode === "prescriptions";
+  const hasActiveFilters = Boolean(statusFilter || search);
 
   const handleClearFilters = () => {
     setStatusFilter("");
-    setFulfillmentFilter("");
     setSearch("");
   };
 
@@ -63,9 +50,9 @@ const OrdersFilters = ({
           <input
             type="text"
             placeholder={
-              isOrders
-                ? "Search by Order ID, Customer, or Shop..."
-                : "Search by Request ID or Customer..."
+              isPrescriptions
+                ? "Search by Request ID or Customer..."
+                : "Search by Order ID, Customer, or Shop..."
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -90,22 +77,10 @@ const OrdersFilters = ({
           <StyledSelect
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
-            options={isOrders ? ORDER_STATUS_OPTIONS : RX_STATUS_OPTIONS}
+            options={isPrescriptions ? RX_STATUS_OPTIONS : ORDER_STATUS_OPTIONS}
             placeholder="All Statuses"
           />
         </div>
-
-        {/* Fulfillment Filter (Orders Only) */}
-        {isOrders && (
-          <div className="w-full sm:w-44 lg:w-48 flex-shrink-0">
-            <StyledSelect
-              value={fulfillmentFilter}
-              onChange={(value) => setFulfillmentFilter(value)}
-              options={FULFILLMENT_OPTIONS}
-              placeholder="All Types"
-            />
-          </div>
-        )}
 
         {/* Clear Filters Button */}
         {hasActiveFilters && (

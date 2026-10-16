@@ -1,315 +1,410 @@
+# Cureli — Same Day Delivery Lifecycle — October 2026
 
-## Document 2: Same Day Delivery — Future Scope
-
-
-# Same Day Delivery — Future Scope & Implementation Plan
-
-> Context document for when Same Day (and Next Day) delivery is ready to be built.
-> Last updated: October 2026
+> **Companion to:** Cureli Instant Delivery Lifecycle doc.
+> **Scope:** Detailed technical reference for the Same Day delivery flow — cutoff enforcement, batch assembly, team rider assignment, batch acceptance, per-order fulfillment, and batch-aware events.
+> **Last verified against:** Current repository implementation (post Same Day v1 shipping).
 
 ---
 
-## 1. Current State (Already Built)
+## 1. Business Model
 
-The following infrastructure is already in place from the Pickup/Fulfillment Type work:
+Same Day is a **batch-dispatched, team-rider fulfillment type** that sits alongside Instant Delivery, Pickup, and (future) Next Day. It is designed to let pharmacies clear a backlog of lower-urgency orders in a single multi-stop route driven by a salaried team rider.
 
-### Database
-- [x] `FulfillmentType` enum includes `SAME_DAY` and `NEXT_DAY`
-- [x] `DeliveryPricingConfig` has rows for `SAME_DAY` and `NEXT_DAY` (copied from INSTANT_DELIVERY defaults)
-- [x] `MarketplaceOrder.fulfillment_type` accepts all 4 values
-- [x] `@@index([fulfillment_type, status])` exists for efficient querying
+### Key Differences vs Instant Delivery
 
-### Backend
-- [x] Pricing engine accepts `fulfillment_type` parameter
-- [x] `DeliveryPricingConfig` CRUD supports all 4 types via CAdmin API
-- [x] Order list/detail APIs return `fulfillment_type`
-- [x] SSE payloads include `fulfillment_type`
-- [x] CAdmin order filters support `fulfillment_type` query param
-
-### Customer App
-- [x] `FulfillmentTypeSelector` shows Same Day option (3rd card)
-- [x] Same Day auto-locks after 3 PM (`new Date().getHours() >= 15`)
-- [x] Tag shows "BUDGET" when available, "CLOSED" when locked
-- [x] Subtitle: "Delivered to you by end of day"
-- [x] `checkoutStore` has `fulfillmentType` state that supports `SAME_DAY`
-- [x] Checkout API passes `fulfillment_type` to backend
-
-### CAdmin
-- [x] Pricing page has Same Day / Next Day tabs
-- [x] Info banner: "Scheduling logic is not yet active — these currently behave like instant delivery"
-- [x] Order filters include Same Day / Next Day options
-
-### What SAME_DAY currently does
-**Nothing different from INSTANT_DELIVERY.** If a customer selects Same Day today,
-the order is placed, a rider is assigned immediately, and it's delivered within
-30–45 minutes — exactly like instant. The only difference is the label.
-
----
-
-## 2. What Needs to Be Built
-
-### 2.1 Scheduling & Time Windows
-
-**Concept:** Same Day orders are NOT dispatched immediately. They are collected
-into batches and delivered during scheduled windows.
-
-**Decisions needed:**
-- [ ] Define delivery windows (e.g., 2 PM–5 PM, 5 PM–8 PM, 8 PM–10 PM)
-- [ ] Define cutoff time per window (e.g., orders before 1 PM → 2–5 PM window)
-- [ ] Is the 3 PM hard cutoff sufficient, or do we need multiple cutoffs?
-- [ ] How to handle orders placed after the last window cutoff? (Push to Next Day?)
-- [ ] Time zone handling (all IST? or per-city?)
-
-**Suggested model:**
-```
-Order placed 9 AM – 1 PM  →  Window: 2 PM – 5 PM
-Order placed 1 PM – 4 PM  →  Window: 5 PM – 8 PM
-Order placed 4 PM – 7 PM  →  Window: 8 PM – 10 PM
-Order placed after 7 PM   →  Next Day (auto-convert or reject)
-```
-
-### 2.2 Order Holding & Batch Dispatch
-
-**Concept:** Instead of creating a `Delivery` record immediately on ACCEPTED,
-Same Day orders are held in a "batch queue" and dispatched together.
-
-**New status needed?** Options:
-- Option A: Reuse `ACCEPTED` + add `delivery_window` field. Cron dispatches when window opens.
-- Option B: New status `SCHEDULED` between ACCEPTED and READY_FOR_PICKUP.
-- Option C: Reuse `READY_FOR_PICKUP` to mean "ready for batch dispatch".
-
-**Recommended:** Option A (minimal schema change). Add `delivery_window_start`
-and `delivery_window_end` timestamps to `MarketplaceOrder`.
-
-**Batch dispatch logic:**
-1. Cron runs every 15 minutes
-2. Finds all SAME_DAY orders where `status = ACCEPTED` AND `delivery_window_start <= now`
-3. Groups by pharmacy + geographic zone
-4. Creates `Delivery` records for the batch
-5. Assigns riders to batches (not individual orders)
-
-### 2.3 Rider Assignment — Batch Model
-
-**Current model (Instant):** 1 rider → 1 order. Rider goes pharmacy → customer.
-
-**Same Day model:** 1 rider → N orders. Rider does a multi-stop route.
-
-**Decisions needed:**
-- [ ] Max orders per rider per batch? (e.g., 5–8)
-- [ ] Route optimization algorithm? (TSP / Google Directions API / OSRM)
-- [ ] Does rider pick up all orders from one pharmacy, or multiple?
-- [ ] How to handle partial batch failures (one customer unreachable)?
-- [ ] Rider earning model for batch deliveries (per-order or per-batch?)
-
-**Suggested approach:**
-- Group orders by pharmacy branch
-- One rider picks up all orders from one branch
-- Route optimization sorts drop-offs by proximity
-- Rider app shows multi-stop route (this is a rider app change)
-
-### 2.4 Pricing Model
-
-**Current SAME_DAY config:** Copied from INSTANT_DELIVERY (full fees).
-
-**Planned changes:**
-- [ ] Reduced delivery fee (e.g., 50% of instant) — because batch delivery is cheaper
-- [ ] No km surcharge (flat rate for same-day zone)
-- [ ] Service charge same as instant
-- [ ] Packing charge same as instant
-- [ ] Possible "early bird" discount for orders placed before 10 AM?
-
-**CAdmin pricing page:** Already supports per-fulfillment-type config.
-Just need to set the actual values when ready.
-
-### 2.5 Customer App Changes
-
-**Cart / Checkout:**
-- [ ] Show estimated delivery window instead of "30–45 min" ETA
-  - e.g., "Delivered between 5 PM – 8 PM today"
-- [ ] Dynamic cutoff display: "Order within 45 min for 5 PM delivery"
-- [ ] After cutoff: auto-disable Same Day or show "Next available: tomorrow 2 PM"
-
-**Active Tracking:**
-- [ ] Different tracking view for Same Day (similar to Instant but with window ETA)
-- [ ] Show batch status: "Your order is in a delivery batch with 4 other orders"
-- [ ] ETA updates as rider completes earlier stops
-- [ ] Reuse `TrackingBottomSheet` + `TrackingMapView` with modified `TrackingStatusHero`
-
-**Order Detail:**
-- [ ] Show delivery window in timeline
-- [ ] "Scheduled for 5–8 PM delivery" label
-
-**Notifications:**
-- [ ] "Your Same Day order has been dispatched!" (when batch leaves pharmacy)
-- [ ] "Your delivery is 2 stops away" (when rider is nearby)
-- [ ] Standard arrival OTP flow (same as instant)
-
-### 2.6 Pharmacy ERP Changes
-
-- [ ] Order card shows "Same Day" badge (cyan) + delivery window
-- [ ] "Mark Ready" button behavior: marks order ready for batch pickup, not immediate dispatch
-- [ ] Batch pickup notification: "Rider arriving to pick up 5 Same Day orders"
-- [ ] No change to billing/acceptance flow
-
-### 2.7 CAdmin Changes
-
-- [ ] Order list: delivery window column for Same Day orders
-- [ ] Batch management view: see which orders are grouped together
-- [ ] Manual batch override: split/merge batches, reassign riders
-- [ ] Delivery tracking: multi-stop route visualization on map
-- [ ] Pricing page: set actual Same Day rates (remove "behaves like instant" banner)
-
-### 2.8 Rider App Changes (Out of Current Scope)
-
-- [ ] Multi-stop route view (ordered list of drop-offs)
-- [ ] Batch pickup at pharmacy (scan/confirm multiple orders)
-- [ ] Per-stop OTP verification
-- [ ] Route navigation (next stop → next stop)
-- [ ] Batch earning summary
-
----
-
-## 3. Database Changes Needed
-
-### New fields on `MarketplaceOrder`:
-
-```prisma
-model MarketplaceOrder {
-  // ... existing fields
-
-  delivery_window_start  DateTime?   // e.g., 2026-10-27T14:00:00Z
-  delivery_window_end    DateTime?   // e.g., 2026-10-27T17:00:00Z
-  batch_id               String?     // Groups orders in same delivery batch
-}
-```
-
-### New model (optional):
-
-```prisma
-model DeliveryBatch {
-  batch_id        String   @id @default(cuid())
-  pharmacy_id     String
-  rider_id        String?
-  window_start    DateTime
-  window_end      DateTime
-  order_count     Int
-  status          String   @default("PENDING") // PENDING, DISPATCHED, COMPLETED
-  created_at      DateTime @default(now())
-  dispatched_at   DateTime?
-}
-```
-
-### Pricing config updates:
-
-Update the SAME_DAY row in `DeliveryPricingConfig`:
-```
-delivery_fee_enabled    = true   (but lower amount)
-km_surcharge_enabled    = false  (flat rate, no distance)
-service_charge_enabled  = true
-packing_enabled         = true
-```
-
----
-
-## 4. Backend Services Needed
-
-| Service | Location | Purpose |
+| Dimension | Instant | Same Day |
 |---|---|---|
-| `assignDeliveryWindow()` | `marketplace.orders.service.js` | Calculate window based on order time |
-| `dispatchBatchCron()` | `cron/sameDayBatchWorker.js` | Find ready batches, create Delivery records, assign riders |
-| `optimizeRoute()` | `services/routeOptimization.service.js` | Sort drop-off coordinates for multi-stop |
-| `getBatchForOrder()` | `marketplace.orders.service.js` | Return batch info for tracking |
+| Dispatch model | 1 order → 1 rider immediately | N orders → 1 team rider in one batch |
+| Rider assignment timing | Immediately on `ACCEPTED` | Manual by CAdmin, N minutes/hours later |
+| Rider pool | `INDEPENDENT` or `TEAM` | `TEAM` only |
+| Earnings | Per-delivery (pickup + drop + surge + floor) | None — team riders are salaried; all earning fields `null` |
+| Customer tracking | Live rider GPS, countdown ETA | No rider location, "Delivered by end of day" |
+| Window enforcement | None (immediate) | Hard cutoff hour (`same_day_cutoff_hour` on pricing config) |
+| Rider route | Pharmacy → Customer | Pharmacy (shared) → N customers in rider-chosen sequence |
+| Rider screen | `ActiveDeliveryScreen` (single-order lock) | `BatchDeliveryScreen` (multi-order lock) |
+| CAdmin workspace | Standard order row with "Assign Rider" | Dedicated **Same Day tab** with batch workspace |
 
-### Cron Jobs:
+### Deliberate Non-Features
 
-| Schedule | Job | Purpose |
+- **No concurrent batches.** A team rider can hold at most one active batch.
+- **No customer-facing rider location.** Customers see only status + "Delivered by end of day". CAdmin also does not see rider GPS during batch assignment.
+- **No post-pickup reassignment.** Orders can only be moved between batches BEFORE pickup (status `< PICKED_UP`).
+- **No live ETA.** Same Day explicitly does not use countdowns, map ETAs, or per-stop estimates.
+- **No rider rejection UX for individual orders.** When a batch is offered, the rider accepts or declines the **entire batch**.
+
+---
+
+## 2. Cutoff Enforcement
+
+### Configuration
+
+A single integer field `same_day_cutoff_hour` lives on the `DeliveryPricingConfig` row with `fulfillment_type = SAME_DAY`. It stores the hour-of-day (0–23 in server time zone, IST) after which Same Day is unavailable for the current calendar day.
+
+### Enforcement Points
+
+| Layer | File | Behavior |
 |---|---|---|
-| Every 15 min | `sameDayBatchWorker` | Dispatch batches whose window has opened |
-| Every 5 min | `sameDayRouteOptimizer` | Re-optimize routes for active batches |
-| 11 PM daily | `sameDayUndeliveredWorker` | Auto-cancel or push to Next Day |
+| CAdmin config UI | `cadmin-web/src/pages/marketplace/Pricing/DeliveryPricingPage.jsx` | Dedicated card at top of Same Day panel. CAdmin can change the hour at any time. |
+| Pricing service | `backend/src/modules/cadmin/pricing/cadminPricing.service.js` | `same_day_cutoff_hour` is in `NUMERIC_FIELDS` and coerced on write. |
+| Customer app | `FulfillmentTypeSelector` | After cutoff hour (local device time), Same Day card locks and shows "CLOSED" tag. Subtitle flips from "Delivered by end of day" to "Available tomorrow". |
+| Checkout backend | `mobile.checkout.service.js` (`createCheckoutSession`) | Server-side re-check: if `fulfillment_type === SAME_DAY` and current server hour ≥ cutoff, checkout is rejected with a user-friendly error. |
+
+### What Happens After Cutoff
+
+Orders placed before cutoff with `SAME_DAY` fulfillment flow normally. There is **no automatic conversion** to another fulfillment type after cutoff — the customer must either reselect or try again tomorrow.
 
 ---
 
-## 5. Suggested Implementation Phases
+## 3. Order Status Machine (Same Day)
 
-### Phase 1: Foundation (Week 1–2)
-- [ ] Add `delivery_window_start/end` to schema
-- [ ] Implement `assignDeliveryWindow()` in checkout flow
-- [ ] Customer sees window estimate in cart and tracking
-- [ ] Cutoff logic (3 PM hard cutoff → orders after go to Next Day)
-
-### Phase 2: Batch Dispatch (Week 3–4)
-- [ ] Create `DeliveryBatch` model
-- [ ] Implement batch grouping cron
-- [ ] Create Delivery records from batches
-- [ ] Single rider assigned to batch
-
-### Phase 3: Multi-Stop Routing (Week 5–6)
-- [ ] Route optimization service
-- [ ] Rider app multi-stop view (if rider app is in scope)
-- [ ] Sequential OTP verification per stop
-- [ ] ETA updates per stop
-
-### Phase 4: Pricing & Polish (Week 7–8)
-- [ ] Set actual Same Day pricing in CAdmin
-- [ ] Reduced delivery fee logic
-- [ ] Customer notifications for batch dispatch
-- [ ] CAdmin batch management UI
-- [ ] Remove "behaves like instant" banner
-
-### Phase 5: Next Day (Week 9–10)
-- [ ] Next Day is Same Day + 1 calendar day offset
-- [ ] Cutoff: orders after 7 PM → Next Day window
-- [ ] Same batch/route logic, different date
-- [ ] Customer sees "Tomorrow 2–5 PM" estimate
-
----
-
-## 6. Open Questions
-
-| # | Question | Impact |
-|---|---|---|
-| 1 | Do we support Same Day for all cities or only metro? | Geographic gating logic |
-| 2 | Can a customer choose their preferred window? | UI + scheduling complexity |
-| 3 | What happens if a batch rider cancels mid-route? | Fallback reassignment logic |
-| 4 | Is there a minimum order value for Same Day? | Pricing config addition |
-| 5 | Do we offer real-time tracking for batch deliveries? | Rider app GPS streaming |
-| 6 | Can Same Day orders include prescriptions? | Verification timing |
-| 7 | How do refunds work for batch partial failures? | Order-level vs batch-level |
-| 8 | Should Next Day have its own pricing or copy Same Day? | Config decision |
-
----
-
-## 7. Reference: How Instant Delivery Works Today
-
-For comparison when designing Same Day:
+Same Day orders use the **same `MarketplaceOrderStatus` enum** as Instant. The only difference is that the auto-created `Delivery` record is **not** immediately assignable — it waits for a human CAdmin to batch it.
 
 ```
-Customer places order
-  → PLACED
-  → Pharmacy accepts → ACCEPTED
-  → Delivery record created (PENDING_ASSIGNMENT)
-  → CAdmin assigns rider → RIDER_NOTIFIED
-  → Rider accepts → ACCEPTED (delivery)
-  → Rider arrives at pharmacy → ARRIVED_AT_PHARMACY
-  → Pharmacy marks ready → READY_FOR_PICKUP (order)
-  → Rider picks up → PICKED_UP (delivery)
-  → Rider en route → EN_ROUTE
-  → Rider arrives → ARRIVED_AT_CUSTOMER
-  → OTP verified → DELIVERED (delivery) + COMPLETED (order)
+PLACED → ACCEPTED → READY_FOR_PICKUP → COMPLETED
+                              (also: REJECTED, CANCELLED terminals)
 ```
 
-**Same Day will differ at:**
-- Delivery record NOT created on ACCEPTED (deferred to batch dispatch)
-- Multiple orders share one rider
-- ETA is a window, not a countdown
-- Route has multiple stops
+### Key Divergences from Instant at Each Step
 
+| Status | Instant Behavior | Same Day Behavior |
+|---|---|---|
+| `PLACED` | Standard | Standard |
+| `ACCEPTED` | `Delivery` created, visible for rider assignment immediately | `Delivery` created with `batch_group_id = null`, visible in **Same Day → Unassigned Orders** tab only |
+| `READY_FOR_PICKUP` | Signals single rider to pick up | Signals the team rider who holds the batch that *this specific order* is now pickup-ready. Other orders in the batch may still be `ACCEPTED`. |
+| `COMPLETED` | Via rider OTP, closes delivery | Same — but only closes one order; batch remains active if other orders are not yet delivered. |
 
 ---
 
-Save these as:
-- `docs/pickup-fulfillment-reference.md`
-- `docs/same-day-delivery-future-scope.md`
+## 4. Delivery Status Machine (Same Day)
 
-The Same Day doc is designed so you can hand it directly to yourself (or another dev) as the starting context when you begin implementation — it tells you exactly what exists, what's missing, and what order to build things in.
+Same uses the same `DeliveryStatus` enum as Instant. The schema addition that makes Same Day work is a nullable `batch_group_id` string on `Delivery`.
+
+### Batch Grouping Rule
+
+- `batch_group_id = null` → delivery is a standalone instant delivery, OR a Same Day delivery not yet batched.
+- `batch_group_id = <uuid>` → delivery belongs to a Same Day batch. All deliveries sharing the same UUID were assigned together, hold the same `rider_id`, and share one assignment lifecycle.
+
+### Why `getActiveDelivery()` Filters by `batch_group_id: null`
+
+The rider app has two different active-delivery queries:
+
+| Query | Returns | Consumer |
+|---|---|---|
+| `getActiveDelivery()` | Single instant delivery (adds `batch_group_id: null` filter) | `ActiveDeliveryScreen` single-order flow |
+| `getActiveDeliveries()` | `{ instant, batches: [...] }` | `BatchDeliveryScreen`, hydration gate, SSE resync |
+
+If `getActiveDelivery()` did not filter by `batch_group_id: null`, it would return the first batch delivery and the rider app would wrongly lock into the single-order screen for a multi-order batch.
+
+---
+
+## 5. Complete Same Day Lifecycle
+
+### Phase 1 — Customer Checkout (Pre-Cutoff)
+
+1. Customer opens cart, taps fulfillment selector.
+2. `FulfillmentTypeSelector` shows Same Day card:
+   - Before cutoff: "BUDGET" tag, subtitle "Delivered to you by end of day".
+   - After cutoff: "CLOSED" tag, disabled.
+3. Customer selects Same Day → `checkoutStore.fulfillmentType = SAME_DAY`.
+4. `DeliverySummaryCard` → `ETAHeader` renders with `isSameDay` prop:
+   - Icon: calendar.
+   - Text: "Delivered by end of day".
+   - No countdown, no map ETA.
+5. Pricing engine computes identically to Instant (same tiers, same service/delivery/km/packing structure). Same Day pricing differences are planned but not currently applied — the row exists with its own values and CAdmin can tune it.
+6. Payment flow is identical to Instant (Razorpay → `confirmCheckoutPayment` → `_createOrderFromSession`).
+7. Order is created with `fulfillment_type = SAME_DAY`. Status `PLACED`.
+8. `fireOrderPlacedEvents` fires — SSE goes to ERP + CAdmins. Customer gets order-placed push.
+9. `OrderSuccess` subtitle flips to Same Day phrasing when `placedOrderIsSameDay` is true.
+
+### Phase 2 — Pharmacy Processing (Standard)
+
+10. Pharmacy ERP receives order. Same workflow as Instant.
+11. Pharmacy accepts → `transitionOrderStatus(ACCEPTED)`:
+    - Order → `ACCEPTED`, `accepted_at` set.
+    - **`Delivery` is auto-created** with `status = PENDING_ASSIGNMENT`, `batch_group_id = null`, pickup/drop coordinates populated from snapshots.
+    - **No immediate rider notification** (this is where Same Day diverges from Instant).
+12. SSE fires `delivery_status_changed` to CAdmins → the delivery appears in **CAdmin → Orders → Same Day tab → Unassigned Orders**.
+
+### Phase 3 — CAdmin Batch Assembly
+
+The entire Same Day workspace lives in `cadmin-web/src/pages/marketplace/Orders/comps/SameDayTab.jsx`. It is reached via the Same Day tab (one of the four tabs: Instant / Pickup / Same Day / Prescriptions) in `MarketplaceOrdersPage.jsx`.
+
+13. CAdmin opens the Same Day tab. The page renders:
+    - **Unassigned Orders table** — all `SAME_DAY` deliveries with `rider_id = null` AND `batch_group_id = null`.
+    - **Active Batches section** — one `ActiveBatchCard` per currently-active batch, with progress bar and per-order breakdown.
+14. CAdmin clicks **"Create Batch"** → `CreateBatchModal` opens (2-step flow):
+    - **Step 1 — Pick Rider:** fetches `getAvailableTeamRidersForBatch()` which returns all `ACTIVE` `TEAM` riders where `is_online = true` AND the rider has **no existing active batch**.
+    - **Step 2 — Pick Orders:** CAdmin selects N unassigned orders. UI constraint: all orders must share a pharmacy branch (frontend enforces this).
+15. CAdmin confirms → `batchAssignOrders()`:
+    - Generates a fresh `batch_group_id` UUID.
+    - **Stale cleanup:** before writing, deletes any orphaned `Delivery` rows for selected orders where status ∈ `{CANCELLED, FAILED, PENDING_ASSIGNMENT with no rider_id}`.
+    - Updates each selected `Delivery`:
+      - `rider_id = <team rider>`, `batch_group_id = <uuid>`.
+      - `status = RIDER_NOTIFIED`.
+      - `assigned_at = now`, `assignment_attempts += 1`.
+      - All earning fields explicitly `null` (team riders are salaried).
+      - Pickup/drop coordinates copied from snapshots.
+    - Creates one `DeliveryAssignmentLog` per delivery (action `NOTIFIED`).
+    - SSE `batch_assigned` fires once to the rider with full batch payload (order count, pharmacy name, deliveries array).
+    - SSE `delivery_status_changed` fires per delivery to CAdmins (so the Same Day tab live-updates).
+    - Push notification fires to rider (alarm channel, failsafe for background).
+
+### Phase 4 — Rider Receives Batch
+
+16. Rider app receives `batch_assigned` via SSE (`src/services/sseManager.ts` → `src/hooks/useDeliveryEvents.ts`).
+17. `useDeliveryEvents` sets `incomingBatch` in `deliveryStore`.
+18. `IncomingOrderOverlay` renders in **batch mode**:
+    - Hero: "NEW BATCH".
+    - Order count badge.
+    - Timer.
+    - **No deny button** (team rider policy — if the rider genuinely can't take it, they contact CAdmin out-of-band).
+    - **No pickup/earning info row** (both are irrelevant for team riders).
+    - **Slide-to-accept** gesture.
+19. Rider slides to accept → `acceptBatch()`:
+    - For every delivery in the batch:
+      - `status = ACCEPTED`.
+      - Creates `DeliveryAssignmentLog` (action `ACCEPTED`).
+      - SSE `delivery_update` to the customer (status transitioned).
+      - SSE `delivery_status_changed` to CAdmins.
+    - Rider's active delivery registration happens per-delivery for presence tracking.
+20. If rider dismisses the overlay without accepting (timer expires or they close it) → `declineBatch()`:
+    - For every delivery in the batch: **DELETE** the delivery row entirely (not reset to `PENDING_ASSIGNMENT`).
+    - Why: PENDING_ASSIGNMENT without a rider is semantically orphaned; deleting lets CAdmin re-batch from a clean slate.
+    - SSE `delivery_status_changed` fires per order (CAdmin's existing listener handles this; a dedicated `batch_declined` event was removed because CAdmin didn't listen for it).
+    - SSE `order_removed_from_batch` fires per order (removes from rider-side state if any ghost reference remains).
+    - SSE customer notification per order (so customer app clears "rider assigned" state).
+
+### Phase 5 — Rider App Enters Batch Lock
+
+21. `useDeliveryEvents` resync pulls `getActiveDeliveries()` → populates `activeBatches` in `deliveryStore`.
+22. `app/(app)/_layout.tsx` evaluates:
+    - `isDeliveryLocked(activeDelivery)` → false (no instant delivery).
+    - `isBatchLocked(activeBatches)` → true (at least one batch with undelivered orders).
+    - Renders `<BatchDeliveryScreen />` with tabs **unmounted** — same structural guarantee as `ActiveDeliveryScreen` for Instant.
+23. The hydration gate (`DeliveryHydrationGate`) handles the cold-start case: on app launch, if the resync returns a batch and no instant delivery, it directly renders `BatchDeliveryScreen` without ever mounting tabs.
+
+### Phase 6 — Rider Fulfills Each Order (Free Sequence)
+
+`BatchDeliveryScreen` shows:
+- Header: "Same Day Batch", progress bar `(delivered/total)`.
+- Map (currently showing the selected order's leg target).
+- Horizontal scroll of order chips at the bottom — each shows order number, status, and status-color dot.
+- When an order chip is tapped, an **action panel** appears above it with the status-appropriate button for that order.
+
+The rider freely chooses which order to work on next. There is no enforced sequence. For each order:
+
+24. Rider taps a chip (status `ACCEPTED`) → action panel shows **"Arrived at Pharmacy"**:
+    - `updateDeliveryStatus(ARRIVED_AT_PHARMACY)` — currently no geofence check in batch flow (same shared pharmacy means arrival is implicitly batched).
+25. Rider taps same chip (now `ARRIVED_AT_PHARMACY`) → **"Enter Pickup PIN"**:
+    - `OtpModal` opens, rider enters the 4-digit `pickup_otp` shown on pharmacy ERP for that specific order.
+    - `updateDeliveryStatus(PICKED_UP)` with OTP.
+    - Validates order status is `READY_FOR_PICKUP`. If not, pharmacy hasn't marked it ready yet — rider sees error.
+26. Rider taps chip (now `PICKED_UP`) → **"Start Delivery"**:
+    - `updateDeliveryStatus(EN_ROUTE)`.
+    - `useBatchAutoEnRoute` hook can also auto-transition on a delay.
+27. Rider taps chip (now `EN_ROUTE`) → **"Arrived at Customer"**:
+    - `updateDeliveryStatus(ARRIVED_AT_CUSTOMER)`.
+    - Customer app now reveals the `delivery_otp`.
+28. Rider taps chip (now `ARRIVED_AT_CUSTOMER`) → **"Enter Delivery PIN"**:
+    - `OtpModal` opens, rider enters `delivery_otp` shared by customer.
+    - `completeDelivery()` with OTP:
+      - Delivery → `DELIVERED`, order → `COMPLETED`.
+      - `removeOrderFromBatch(delivery_id)` in rider store.
+      - Resync pulls fresh batch state.
+29. Rider repeats for next chip. The pharmacy pickup phase (steps 24–25) is typically done in a single visit for all orders — the rider arrives at the pharmacy once, enters each order's pickup OTP in sequence, then begins the drop route.
+
+### Phase 7 — Mid-Batch Mutations
+
+Three scenarios where the batch changes mid-flight:
+
+#### 7a. CAdmin Adds an Order to an Active Batch
+
+- CAdmin opens `AddOrdersToBatchModal` from an `ActiveBatchCard`.
+- `addOrderToBatch()`:
+  - Stale cleanup on the target order's delivery row (same as initial batch).
+  - Updates delivery: assigns `rider_id`, `batch_group_id = <existing uuid>`, `status = ACCEPTED` (skip RIDER_NOTIFIED since rider already holds the batch).
+  - SSE `order_added_to_batch` fires to rider → rider's `useDeliveryEvents` listener triggers a resync.
+  - SSE `delivery_status_changed` fires to CAdmins.
+  - Rider sees a simple notification (not a sticky alert — explicit UX decision).
+
+#### 7b. CAdmin Removes an Order From an Active Batch
+
+- Only allowed while that specific order's status is `< PICKED_UP`.
+- CAdmin clicks remove on the order row in `ActiveBatchCard`.
+- `removeOrderFromBatch()`:
+  - Validates status < PICKED_UP.
+  - Clears `rider_id` and `batch_group_id`, sets status back to `PENDING_ASSIGNMENT`.
+  - Order returns to the Unassigned Orders table.
+  - SSE `order_removed_from_batch` to rider → rider store removes the chip.
+  - SSE `delivery_status_changed` to CAdmins.
+
+#### 7c. CAdmin Reassigns a Pre-Pickup Order
+
+- Same gate as above: status must be `< PICKED_UP`.
+- `reassignBatchOrder()`:
+  - Target rider must be `is_online = true`.
+  - Delivery is re-pointed: `rider_id = <new>`, pushed into the new rider's batch (or new batch if new rider has none).
+  - Push notification to new rider.
+  - SSE `delivery_status_changed` to CAdmins.
+
+### Phase 8 — Batch Completion
+
+30. Rider delivers last order → final `completeDelivery()` call.
+31. All orders in the batch are now in terminal statuses (`DELIVERED`, `FAILED`, or `CANCELLED`).
+32. `BatchDeliveryScreen` detects `allDelivered` via `useMemo`:
+    - Shows green "All orders delivered! Batch complete." banner.
+    - After 3 seconds, calls `removeBatch(batch_group_id)` → `activeBatches` becomes empty.
+33. `isBatchLocked(activeBatches)` → false → `app/(app)/_layout.tsx` re-renders → tabs mount fresh → rider lands on home.
+34. (P3 — not yet shipped) A batch-completion notification will fire here.
+
+---
+
+## 6. SSE Events (Same Day Specific)
+
+| Event | Producer | Consumer | Trigger |
+|---|---|---|---|
+| `batch_assigned` | `batchAssignOrders` | Rider | CAdmin creates batch |
+| `order_added_to_batch` | `addOrderToBatch` | Rider | CAdmin injects order into active batch |
+| `order_removed_from_batch` | `removeOrderFromBatch`, `declineBatch` | Rider | CAdmin removes order OR rider declines batch |
+| `delivery_status_changed` | All Same Day mutations | CAdmins | Per-delivery granularity — reused across all CAdmin flows |
+| `delivery_update` | `acceptBatch`, per-order status transitions | Customer mobile | Any status change on a batched order |
+
+### Why Not a `batch_declined` Event
+
+Earlier implementation fired a dedicated `batch_declined` event when the rider dismissed a batch offer. CAdmin's `useMarketplaceSSE` did not listen for it, so the Same Day tab silently went stale. Fix: fire `delivery_status_changed` per order (an event CAdmin already handles) during decline. The decline flow also DELETEs the rows, so the next CAdmin refresh naturally shows the unassigned orders again.
+
+### Rider SSE Listener Registration
+
+All five events (`batch_assigned`, `order_added_to_batch`, `order_removed_from_batch`, `delivery_update`, `order_status_changed`) are registered in `src/services/sseManager.ts`. Omitting any of them causes the event to be silently dropped at the socket layer — not surfaced as an error. This was the root cause of several early bugs during Same Day development.
+
+---
+
+## 7. Rider App Navigation Lock Model
+
+The rider app enforces a **structural** lock (not an overlay) whenever a delivery is in progress. This applies identically to Instant and Same Day:
+
+| State | Mounted Tree |
+|---|---|
+| No active delivery | `<Stack>` → `(tabs)` → `home` + `IncomingOrderOverlay` |
+| Instant delivery active | `<ActiveDeliveryScreen />` only — tabs are not in the tree at all |
+| Same Day batch active | `<BatchDeliveryScreen />` only — tabs are not in the tree at all |
+| Not yet hydrated | `<DeliveryHydrationGate />` (which may itself render `BatchDeliveryScreen` on cold start) |
+
+### Why Structural, Not Overlay
+
+Any navigation action (tab press, `router.push`, deep link, notification tap) must resolve to a route in the mounted tree. If the tabs are not mounted, there is no route for the navigator to resolve to — the lock cannot be bypassed by any means. When all orders in the batch reach terminal status, `isBatchLocked` flips to false, the layout re-renders, and tabs mount fresh at their default route.
+
+### Hydration Gate Fallback
+
+On cold start, `DeliveryHydrationGate` runs before the layout decides which screen to show. It:
+1. Blocks with a spinner until `getActiveDeliveries()` returns.
+2. If a batch is present and no instant delivery, renders `BatchDeliveryScreen` directly (handles the case where the app was killed mid-batch).
+3. If the sync fails, blocks with a retry UI — **fails closed** so a stale in-progress batch is never missed.
+
+---
+
+## 8. Earnings & Payout
+
+Team riders are **salaried**. All earning fields on batch `Delivery` records are explicitly set to `null`:
+
+- `pickup_fee = null`
+- `drop_fee = null`
+- `surge_fee = null`
+- `floor_topup_fee = null`
+- `total_rider_earning = null`
+- `tip_amount = null`
+
+No `RiderEarningLedger` entry is created for Same Day deliveries. Pharmacy payout (`PharmacyPayout`) still processes normally — the pharmacy's share of each order is independent of the rider's compensation model.
+
+---
+
+## 9. CAdmin 4-Tab Architecture
+
+Prior to Same Day, `MarketplaceOrdersPage.jsx` was a single table with a fulfillment filter dropdown. The Same Day workspace demanded enough custom UI that the page was restructured:
+
+| Tab | Icon | Content |
+|---|---|---|
+| Instant | Bike | Standard orders table (no checkbox column — the batch-select column was removed) |
+| Pickup | Store | Pickup orders (future workspace) |
+| Same Day | Truck | `SameDayTab` — unassigned orders + active batches + batch modals |
+| Prescriptions | FileText | Prescription review workspace |
+
+All Same Day-specific logic was pulled out of the shared table and lives inside `SameDayTab`. The fulfillment filter dropdown was removed from `OrdersFilters.jsx` because the tab itself now serves as the filter.
+
+### Same Day Tab Components
+
+| File | Purpose |
+|---|---|
+| `SameDayTab.jsx` | Container — unassigned orders table + active batches + SSE live refresh |
+| `CreateBatchModal.jsx` | 2-step modal: pick rider → pick orders |
+| `ActiveBatchCard.jsx` | Expandable card per active batch, progress bar, per-order remove button |
+| `AddOrdersToBatchModal.jsx` | Pick unassigned orders to inject into an existing batch |
+
+### Backend API
+
+| Endpoint | Service Function | Purpose |
+|---|---|---|
+| `GET /cadmin/delivery/active-batches` | `getActiveBatches` | Groups active deliveries by `batch_group_id`, computes progress stats |
+| `POST /cadmin/delivery/batch-assign` | `batchAssignOrders` | Create a new batch |
+| `POST /cadmin/delivery/add-to-batch` | `addOrderToBatch` | Inject order into existing batch |
+| `POST /cadmin/delivery/remove-from-batch` | `removeOrderFromBatch` | Pull order out of batch (pre-pickup only) |
+| `POST /cadmin/delivery/reassign-batch-order` | `reassignBatchOrder` | Move pre-pickup order between riders |
+| `GET /cadmin/delivery/available-team-riders` | `getAvailableTeamRidersForBatch` | Team riders who are online AND have no active batch |
+
+---
+
+## 10. Customer Tracking (Same Day)
+
+`TrackingStatusHero` branches on `fulfillment_type`:
+
+| Fulfillment | Hero Text | Rotating Subtitle | Icon |
+|---|---|---|---|
+| Instant | Status-driven ("Rider on the way", countdown) | Live ETA + distance | Bike |
+| Pickup | "Ready for pickup" / status | Store info | Storefront |
+| Same Day | "Delivered by end of day" + status-specific line | Reassurance messages that rotate (e.g., "Your order is being prepared", "Rider assigned to batch", "Out for delivery") | Calendar |
+
+The rotation logic lives in `useRotatingMessage.ts` with a dedicated Same Day branch per order status. **No live rider marker is shown on the customer map for Same Day orders** — the rider location is not even requested from the backend for these fulfillment types.
+
+---
+
+## 11. Known Gaps & Future Work
+
+| # | Gap | Priority | Notes |
+|---|---|---|---|
+| 1 | Empty batch creation shows no feedback | P3 | When CAdmin confirms a batch with zero orders selected, UI should show a toast |
+| 2 | Batch completion notification | P3 | Rider gets no celebratory push/sound when a full batch is cleared |
+| 3 | Multi-pharmacy batches | Future | Current UI enforces single-pharmacy batches. Multi-pharmacy would require significant route-planning UX |
+| 4 | Route optimization | Future | Rider freely chooses sequence today. Future: suggest optimal sequence based on drop coordinates (TSP / OSRM) |
+| 5 | Window scheduling (early/late) | Future | Current model has one hard cutoff per day. Future: multiple windows (2–5 PM, 5–8 PM) with per-window cutoffs |
+| 6 | Next Day fulfillment | Future | Will reuse batch infrastructure, offset by one calendar day. `NEXT_DAY` enum already exists |
+| 7 | Reduced Same Day pricing | Config decision | Pricing config supports per-fulfillment-type rates but Same Day currently uses Instant-equivalent values |
+| 8 | Independent rider Same Day pool | Deliberate exclusion | Current policy is TEAM-only. Opening to INDEPENDENT would require an earnings model for batch work |
+
+---
+
+## 12. Key Code Locations
+
+| Area | File |
+|---|---|
+| Rider delivery service (`getActiveDelivery`, `getActiveDeliveries`, `acceptBatch`, `declineBatch`) | `backend/src/modules/rider/delivery/rider.delivery.service.js` |
+| CAdmin batch service (`batchAssignOrders`, `addOrderToBatch`, `removeOrderFromBatch`, `reassignBatchOrder`, `getActiveBatches`, `getAvailableTeamRidersForBatch`) | `backend/src/modules/cadmin/delivery/cadmin.delivery.service.js` |
+| CAdmin batch routes | `backend/src/modules/cadmin/delivery/cadmin.delivery.routes.js` |
+| Pricing config (cutoff hour) | `backend/src/modules/cadmin/pricing/cadminPricing.service.js` |
+| Rider navigation lock | `cureli-med-rider/app/(app)/_layout.tsx` |
+| Lock evaluation helpers | `cureli-med-rider/src/utils/deliveryStatus.ts` (`isDeliveryLocked`, `isBatchLocked`, `isRiderLocked`) |
+| Rider batch store | `cureli-med-rider/src/store/deliveryStore.ts` |
+| Rider SSE registration | `cureli-med-rider/src/services/sseManager.ts` |
+| Rider SSE handlers / resync | `cureli-med-rider/src/hooks/useDeliveryEvents.ts` |
+| Batch screen | `cureli-med-rider/src/components/delivery/BatchDeliveryScreen.tsx` |
+| Incoming batch overlay (batch mode) | `cureli-med-rider/src/components/delivery/IncomingOrderOverlay.tsx` |
+| Hydration gate | `cureli-med-rider/src/components/delivery/DeliveryHydrationGate.tsx` |
+| Auto en-route hook | `cureli-med-rider/src/hooks/useBatchAutoEnRoute.ts` |
+| CAdmin orders page (4-tab) | `cadmin-web/src/pages/marketplace/Orders/MarketplaceOrdersPage.jsx` |
+| CAdmin Same Day workspace | `cadmin-web/src/pages/marketplace/Orders/comps/SameDayTab.jsx` |
+| CAdmin batch modals | `cadmin-web/src/pages/marketplace/Orders/comps/CreateBatchModal.jsx`, `AddOrdersToBatchModal.jsx`, `ActiveBatchCard.jsx` |
+| CAdmin pricing cutoff UI | `cadmin-web/src/pages/marketplace/Pricing/DeliveryPricingPage.jsx` |
+| Customer cart ETA header | `cureli/src/features/cart/components/DeliverySummaryCard.tsx` |
+| Customer tracking hero (Same Day branch) | `cureli/src/features/orders/components/tracking/TrackingStatusHero.tsx`, `hooks/useRotatingMessage.ts` |
+| Customer fulfillment selector | `FulfillmentTypeSelector` component |
+
+---

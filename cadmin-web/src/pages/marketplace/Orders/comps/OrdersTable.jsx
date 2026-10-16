@@ -50,7 +50,7 @@ const ORDER_COLUMNS = {
   status: {
     key: "status",
     label: "Status",
-    width: 140,
+    width: 170,
     sortable: false,
     align: "center",
   },
@@ -64,7 +64,7 @@ const ORDER_COLUMNS = {
   actions: {
     key: "actions",
     label: "",
-    width: 60,
+    width: 30,
     sortable: false,
     align: "center",
   },

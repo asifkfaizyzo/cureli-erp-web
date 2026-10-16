@@ -274,6 +274,12 @@ model DeliveryPricingConfig {
   max_delivery_km     Decimal? @db.Decimal(10, 2)
   tip_enabled         Boolean  @default(true)
 
+  // ── Same Day Settings ──────────────────────────────────
+  // Only meaningful for the SAME_DAY row. IST hour (0-23) after
+  // which Same Day fulfillment is hidden at checkout. Default 15 = 3 PM.
+  same_day_cutoff_hour Int     @default(15)
+  // ────────────────────────────────────────────────────────
+
   updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   updated_by  String?  @db.Uuid
 

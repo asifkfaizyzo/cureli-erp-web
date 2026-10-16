@@ -195,5 +195,10 @@ export function normaliseConfig(dbRow) {
       : null,
 
     tip_enabled: dbRow.tip_enabled,
+
+    // ── Same Day Cutoff ──────────────────────────────────
+    // IST hour (0-23) after which Same Day is unavailable.
+    // Only meaningful for the SAME_DAY config row.
+    same_day_cutoff_hour: dbRow.same_day_cutoff_hour ?? 15,
   };
 }

@@ -32,11 +32,17 @@ const VALID_TRANSITIONS = {
   CANCELLED: [],
 };
 
+
 /**
- * Fulfillment types that do NOT require rider/delivery workflow.
- * For these, no Delivery record is created on ACCEPTED.
+ * Fulfillment types that do NOT auto-create a Delivery record on ACCEPTED.
+ *
+ * - PICKUP: Customer collects from pharmacy. No rider, no delivery ever.
+ * - SAME_DAY: Delivery is deferred until CAdmin performs batch assignment.
+ *             Orders sit at READY_FOR_PICKUP until a team rider is
+ *             batch-assigned, at which point the Delivery record is
+ *             created by cadmin.delivery.service.batchAssignOrders().
  */
-const NON_DELIVERY_FULFILLMENT_TYPES = ["PICKUP"];
+const NON_DELIVERY_FULFILLMENT_TYPES = ["PICKUP", "SAME_DAY"];
 
 /**
  * How many days until prescriptions expire after order resolution.
