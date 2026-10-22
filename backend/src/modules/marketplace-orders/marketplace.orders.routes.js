@@ -13,6 +13,7 @@ import {
   getPrescriptionUrl,
   getBillingData,
   regenerateInvoice,
+  completePickup,
 } from './marketplace.orders.controller.js';
 
 const router = Router();
@@ -89,5 +90,11 @@ router.post('/:orderId/ready', markReady);
  * POST /api/marketplace-orders/:orderId/complete
  */
 router.post('/:orderId/complete', completeOrder);
+
+/**
+ * POST /api/marketplace-orders/:orderId/complete-pickup
+ * Body: { otp }  — pharmacy verifies customer's pickup code
+ */
+router.post('/:orderId/complete-pickup', completePickup);
 
 export default router;

@@ -1,6 +1,6 @@
 // pharmacy-web/src/api/marketplaceOrders.js (do not remove this comment)
 // pharmacy-web/src/api/marketplaceOrders.js
-// Updated: Added getBillingData and getInvoiceUrl
+// Updated: Added getBillingData, getInvoiceUrl, and completePickup
 
 import API from './axios';
 
@@ -21,6 +21,13 @@ export const markReady = (orderId) =>
 
 export const completeOrder = (orderId) =>
   API.post(`/marketplace-orders/${orderId}/complete`).then((r) => r.data);
+
+/**
+ * POST /api/marketplace-orders/:orderId/complete-pickup
+ * Completes a self-pickup order after verifying customer's pickup OTP.
+ */
+export const completePickup = (orderId, otp) =>
+  API.post(`/marketplace-orders/${orderId}/complete-pickup`, { otp }).then((r) => r.data);
 
 export const getPrescriptionUrl = (orderId, prescriptionId) =>
   API.get(

@@ -3,11 +3,24 @@
 
 import CAdminAPI from "./axios";
 
-export const getPricingConfig = () =>
-  CAdminAPI.get("/marketplace/pricing-config");
+export function getPricingConfig(fulfillmentType = "INSTANT_DELIVERY") {
+  return CAdminAPI.get("/marketplace/pricing-config", {
+    params: { fulfillment_type: fulfillmentType },
+  });
+}
 
-export const updatePricingConfig = (data) =>
-  CAdminAPI.put("/marketplace/pricing-config", data);
+export function getAllPricingConfigs() {
+  return CAdminAPI.get("/marketplace/pricing-config", {
+    params: { all: "true" },
+  });
+}
+
+export function updatePricingConfig(data, fulfillmentType = "INSTANT_DELIVERY") {
+  return CAdminAPI.put("/marketplace/pricing-config", {
+    ...data,
+    fulfillment_type: fulfillmentType,
+  });
+}
 
 export const getSlashConfig = () =>
   CAdminAPI.get("/marketplace/slash-config");

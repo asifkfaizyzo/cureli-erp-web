@@ -4,6 +4,7 @@ import { createListingForMedicine, handleMedicineUnlinked } from "../marketplace
 import * as audit from "../audit/index.js";
 import { notify } from "../notifications/index.js";
 import { NOTIFICATION_EVENTS } from "../notifications/notification.events.js";
+import { propagateLinkToOtherShops } from "./linkPropagation.service.js";
 
 // ══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -871,14 +872,14 @@ export async function manuallyLinkMedicine(
   if (variantId) {
     targetVariant = await prisma.masterMedicineVariant.findUnique({
       where:  { variant_id: variantId },
-      select: { variant_id: true, sku_id: true },
+      select: { variant_id: true, sku_id: true, name: true },
     });
   }
   if (!targetVariant) {
     targetVariant = await prisma.masterMedicineVariant.findFirst({
       where:   { master_medicine_id: masterMedicineId },
       orderBy: { mrp: "asc" },
-      select:  { variant_id: true, sku_id: true },
+      select:  { variant_id: true, sku_id: true, name: true },
     });
   }
 
@@ -910,6 +911,25 @@ export async function manuallyLinkMedicine(
       } catch { /* non-critical */ }
     }
   }
+
+  // ── 👇 PROPAGATE TO OTHER SHOPS 👇 ──
+  setImmediate(() => {
+    propagateLinkToOtherShops({
+      sourceMedicineId: medicineId,
+      name: updated.name,
+      manufacturer: updated.manufacturer,
+      masterMedicineId: masterMedicineId,
+      variantId: targetVariant?.variant_id,
+      variantSku: targetVariant?.sku_id,
+      actorId: userId,
+      actorType: userType === "CADMIN" ? "cadmin" : "erp_user",
+      variantName: targetVariant?.name,
+      masterName: master.generic_name,
+    }).catch((err) =>
+      console.error("[Propagation] manuallyLinkMedicine failed:", err.message),
+    );
+  });
+  // ── 👆 END PROPAGATION 👆 ──
 
   return {
     success:  true,
@@ -1008,6 +1028,23 @@ export async function bulkAutoLinkMedicines(shopId, branchId = null) {
             await createListingForMedicine(medicine.medicine_id, medicine.branch_id, shopId, linkResult.matched_variant.variant_id);
           } catch { /* non-critical */ }
         }
+
+        // ── 👇 PROPAGATE TO OTHER SHOPS 👇 ──
+        setImmediate(() => {
+          propagateLinkToOtherShops({
+            sourceMedicineId: medicine.medicine_id,
+            name: medicine.name,
+            manufacturer: medicine.manufacturer,
+            masterMedicineId: linkResult.master_medicine_id,
+            variantId: linkResult.matched_variant?.variant_id,
+            variantSku: linkResult.matched_variant?.sku_id,
+            actorId: null,
+            actorType: "system",
+            variantName: linkResult.matched_variant?.name,
+            masterName: null,
+          }).catch(() => {});
+        });
+        // ── 👆 END PROPAGATION 👆 ──
 
         results.autoLinked++;
       } else if (linkResult.status === "PENDING") {
@@ -1179,8 +1216,6 @@ export async function resubmitMedicinesForReview(
     throw new Error("Branch selection is required");
   }
 
-
-
   ///reset after-----24 hr
   const COOLDOWN_MS = 0; 
   // const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -1232,7 +1267,6 @@ export async function resubmitMedicinesForReview(
 
   // ── Triage each medicine ──
   for (const med of medicines) {
-    // Skip already linked
     const isLinked =
       med.master_medicine_id &&
       ["AUTO_LINKED", "MANUAL_LINKED"].includes(med.link_status);
@@ -1248,7 +1282,6 @@ export async function resubmitMedicinesForReview(
       continue;
     }
 
-    // Skip cooldown
     if (
       med.last_resubmitted_at &&
       new Date(med.last_resubmitted_at) > cooldownCutoff
@@ -1272,6 +1305,9 @@ export async function resubmitMedicinesForReview(
   if (eligibleIds.length === 0) {
     return results;
   }
+
+  // ── 👇 COLLECT PROPAGATION TARGETS (fire after transaction) 👇 ──
+  const propagationQueue = [];
 
   // ── Process eligible medicines in a transaction ──
   await prisma.$transaction(async (tx) => {
@@ -1317,6 +1353,18 @@ export async function resubmitMedicinesForReview(
             },
           });
 
+          // ── 👇 QUEUE FOR PROPAGATION (after tx commits) 👇 ──
+          propagationQueue.push({
+            sourceMedicineId: medId,
+            name: med.name,
+            manufacturer: med.manufacturer,
+            masterMedicineId: matchResult.master_medicine_id,
+            variantId: matchResult.matched_variant?.variant_id,
+            variantSku: matchResult.matched_variant?.sku_id,
+            variantName: matchResult.matched_variant?.name,
+          });
+          // ── 👆 END QUEUE 👆 ──
+
           results.details.push({
             medicine_id: medId,
             name: med.name,
@@ -1349,7 +1397,6 @@ export async function resubmitMedicinesForReview(
           });
         }
       } catch (matchError) {
-        // Matcher failed — medicine stays PENDING, which is fine
         results.details.push({
           medicine_id: medId,
           name: med.name,
@@ -1384,7 +1431,7 @@ export async function resubmitMedicinesForReview(
     });
   });
 
-    // 4. Notify CAdmin catalog team (defensive fire-and-forget wrapper)
+  // 4. Notify CAdmin catalog team (defensive fire-and-forget wrapper)
   if (results.processed > 0) {
     try {
       const dispatchPromise = notify({
@@ -1397,17 +1444,28 @@ export async function resubmitMedicinesForReview(
         },
       });
 
-      // Safely catch only if a valid promise is returned
       if (dispatchPromise && typeof dispatchPromise.catch === "function") {
         dispatchPromise.catch((err) =>
           console.error("[Notification] MEDICINE_RESUBMITTED failed asynchronously:", err)
         );
       }
     } catch (dispatchError) {
-      // Prevents notification configuration issues from crashing the database write
       console.warn("[Notification] MEDICINE_RESUBMITTED sync dispatch failed safely:", dispatchError.message);
     }
   }
+
+  // ── 👇 FIRE PROPAGATION AFTER TRANSACTION COMMITS 👇 ──
+  for (const p of propagationQueue) {
+    setImmediate(() => {
+      propagateLinkToOtherShops({
+        ...p,
+        actorId: userId,
+        actorType: "erp_user",
+        masterName: null,
+      }).catch(() => {});
+    });
+  }
+  // ── 👆 END PROPAGATION FIRE 👆 ──
 
   return results;
 }

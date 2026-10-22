@@ -32,6 +32,7 @@ export async function getActiveDelivery(rider_id) {
   const delivery = await prisma.delivery.findFirst({
     where: {
       rider_id,
+      batch_group_id: null, // Exclude Same Day batch deliveries
       status: { notIn: ["DELIVERED", "FAILED", "CANCELLED"] },
     },
     include: {
@@ -468,26 +469,6 @@ export async function updateDeliveryStatus(
     });
   }
 
-  // ── ★ NEW: Notify Pharmacy ERP via SSE on every rider milestone ────────
-  // This triggers the existing `marketplace_order_status_changed` SSE event
-  // that the pharmacy ERP already listens to, causing it to auto-refresh
-  // the order detail panel with the latest delivery progress.
-  try {
-    await fireOrderStatusChangedEvents({
-      order_id: updated.order_id,
-      order_number: updated.order.order_number,
-      shop_id: updated.order.shop_id,
-      customer_id: updated.order.customer_id,
-      new_status: updated.order.status, // Order status stays READY_FOR_PICKUP
-      customer_name: updated.order.customer_name_snapshot,
-    });
-  } catch (err) {
-    console.error(
-      "[RiderDelivery] Failed to notify ERP of delivery milestone:",
-      err.message,
-    );
-  }
-
   return formatDeliveryForRider(updated);
 }
 
@@ -879,3 +860,230 @@ export async function getDeliveryHistoryDetail(delivery_id, rider_id) {
     created_at: delivery.created_at,
   };
 }
+
+
+// ── Same Day Batch — Rider Side ────────────────────────────
+
+/**
+ * Hydration endpoint: returns ALL active deliveries for the rider,
+ * split into instant (single) and batches (grouped by batch_group_id).
+ *
+ * The rider app calls this on mount instead of getActiveDelivery()
+ * when the rider has Same Day capability.
+ */
+export async function getActiveDeliveries(riderId) {
+  const ACTIVE = [
+    "PENDING_ASSIGNMENT",
+    "RIDER_NOTIFIED",
+    "ACCEPTED",
+    "ARRIVED_AT_PHARMACY",
+    "PICKED_UP",
+    "EN_ROUTE",
+    "ARRIVED_AT_CUSTOMER",
+  ];
+
+  const deliveries = await prisma.delivery.findMany({
+    where: {
+      rider_id: riderId,
+      status: { in: ACTIVE },
+    },
+    include: {
+      rider: { select: { rider_type: true } },
+      order: {
+        include: {
+          shop: { select: { business_name: true } },
+          branch: {
+            select: {
+              branch_name: true,
+              address_line_1: true,
+              city: true,
+              contact_number: true,
+              marketplaceSettings: {
+                select: {
+                  latitude: true,
+                  longitude: true,
+                  formatted_address: true,
+                  contact_override: true,
+                },
+              },
+            },
+          },
+          items: {
+            select: {
+              item_id: true,
+              medicine_name_snapshot: true,
+              pack_size_snapshot: true,
+              quantity: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { created_at: "asc" },
+  });
+
+  // Instant = no batch_group_id (at most one)
+  const instant = deliveries.find((d) => !d.batch_group_id) || null;
+
+  // Group batch deliveries
+  const batchMap = new Map();
+  for (const d of deliveries) {
+    if (!d.batch_group_id) continue;
+    if (!batchMap.has(d.batch_group_id)) {
+      batchMap.set(d.batch_group_id, []);
+    }
+    batchMap.get(d.batch_group_id).push(d);
+  }
+
+  const batches = Array.from(batchMap.entries()).map(
+    ([batchGroupId, orders]) => ({
+      batch_group_id: batchGroupId,
+      order_count: orders.length,
+      orders: orders.map((d) => formatDeliveryForRider(d)),
+    })
+  );
+
+  return {
+    instant: instant ? formatDeliveryForRider(instant) : null,
+    batches,
+  };
+}
+
+/**
+ * Rider accepts an entire Same Day batch in one action.
+ * All deliveries in the batch transition to ACCEPTED.
+ *
+ * Does NOT register presence (Same Day customers don't see
+ * live rider location — presence cache is instant-only).
+ */
+export async function acceptBatch(riderId, batchGroupId) {
+  const pending = await prisma.delivery.findMany({
+    where: {
+      rider_id: riderId,
+      batch_group_id: batchGroupId,
+      status: { in: ["PENDING_ASSIGNMENT", "RIDER_NOTIFIED"] },
+    },
+    include: {
+      order: {
+        select: {
+          order_id: true,
+          order_number: true,
+          customer_id: true,
+        },
+      },
+    },
+  });
+
+  if (pending.length === 0) {
+    throw new Error("No pending deliveries found for this batch");
+  }
+
+  const now = new Date();
+
+  await prisma.$transaction(
+    pending.map((d) =>
+      prisma.delivery.update({
+        where: { delivery_id: d.delivery_id },
+        data: {
+          status: "ACCEPTED",
+          accepted_at: now,
+        },
+      })
+    )
+  );
+
+  // ── Notify CAdmins + customers per order ──────────────────
+  for (const d of pending) {
+    sseService.notifyAllCAdmins("delivery_status_changed", {
+      order_id: d.order_id,
+      delivery_id: d.delivery_id,
+      rider_id: riderId,
+      status: "ACCEPTED",
+      timestamp: now.toISOString(),
+    });
+
+    if (d.order?.customer_id) {
+      sseService.notifyMobile(d.order.customer_id, "delivery_update", {
+        order_id: d.order_id,
+        order_number: d.order.order_number,
+        delivery_status: "ACCEPTED",
+      });
+    }
+  }
+
+  return {
+    batch_group_id: batchGroupId,
+    accepted_count: pending.length,
+  };
+}
+
+/**
+ * Rider declines an entire Same Day batch.
+ * All deliveries are unassigned and reset so CAdmin can reassign.
+ */
+export async function declineBatch(riderId, batchGroupId, reason = "DECLINED_BY_RIDER") {
+  const pending = await prisma.delivery.findMany({
+    where: {
+      rider_id: riderId,
+      batch_group_id: batchGroupId,
+      status: { in: ["PENDING_ASSIGNMENT", "RIDER_NOTIFIED"] },
+    },
+    include: {
+      order: {
+        select: {
+          order_id: true,
+          order_number: true,
+          customer_id: true,
+        },
+      },
+    },
+  });
+
+  if (pending.length === 0) {
+    throw new Error("No pending deliveries found for this batch");
+  }
+
+  const now = new Date();
+
+  // Delete orphaned deliveries entirely (matches removeOrderFromBatch behavior).
+  // Orders revert to ACCEPTED with no delivery — ready for re-batching.
+  await prisma.$transaction(
+    pending.map((d) =>
+      prisma.delivery.delete({
+        where: { delivery_id: d.delivery_id },
+      })
+    )
+  );
+
+  // ── Notify CAdmins per order ──────────────────────────────
+  // ── Notify rider app to clean up each order from batch ────
+  for (const d of pending) {
+    sseService.notifyAllCAdmins("delivery_status_changed", {
+      order_id: d.order_id,
+      delivery_id: d.delivery_id,
+      rider_id: null,
+      status: "PENDING_ASSIGNMENT",
+      reason: reason || "Rider declined batch",
+      timestamp: now.toISOString(),
+    });
+
+    sseService.notifyRider(riderId, "order_removed_from_batch", {
+      delivery_id: d.delivery_id,
+      order_id: d.order_id,
+    });
+
+    if (d.order?.customer_id) {
+      sseService.notifyMobile(d.order.customer_id, "delivery_update", {
+        order_id: d.order_id,
+        order_number: d.order.order_number,
+        delivery_status: "PENDING_ASSIGNMENT",
+      });
+    }
+  }
+
+  return {
+    batch_group_id: batchGroupId,
+    declined_count: pending.length,
+  };
+}
+

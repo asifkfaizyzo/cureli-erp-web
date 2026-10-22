@@ -1,18 +1,18 @@
 // pharmacy-web/src/pages/marketplace-orders/MarketplaceOrdersPage.jsx (do not remove this comment)
-import { useState, useEffect } from 'react';
-import { ShoppingBag } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useOrdersPage } from '../../hooks/marketplace/useOrdersPage';
-import OrdersTabBar, { PRESCRIPTION_TAB_ID } from './components/OrdersTabBar';
-import OrderListPanel    from './components/OrderListPanel';
-import OrderDetailPanel  from './components/OrderDetailPanel';
-import RejectModal       from './components/RejectModal';
-import PrescriptionRequestsTab from '../prescription-requests/PrescriptionRequestsTab';
-import usePrescriptionRequestAlertStore from '../../store/usePrescriptionRequestAlertStore';
-import { getInvoiceUrl, regenerateInvoice } from '../../api/marketplaceOrders';
-import BankingPendingBanner from '../../components/common/BankingPendingBanner';
-import { useMarketplaceStore } from '../../store/useMarketplaceStore';
-import { useAuthStore, selectIsSuperAdmin } from '../../store/useAuthStore';
+import { useState, useEffect } from "react";
+import { ShoppingBag } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useOrdersPage } from "../../hooks/marketplace/useOrdersPage";
+import OrdersTabBar, { PRESCRIPTION_TAB_ID } from "./components/OrdersTabBar";
+import OrderListPanel from "./components/OrderListPanel";
+import OrderDetailPanel from "./components/OrderDetailPanel";
+import RejectModal from "./components/RejectModal";
+import PrescriptionRequestsTab from "../prescription-requests/PrescriptionRequestsTab";
+import usePrescriptionRequestAlertStore from "../../store/usePrescriptionRequestAlertStore";
+import { getInvoiceUrl, regenerateInvoice } from "../../api/marketplaceOrders";
+import BankingPendingBanner from "../../components/common/BankingPendingBanner";
+import { useMarketplaceStore } from "../../store/useMarketplaceStore";
+import { useAuthStore, selectIsSuperAdmin } from "../../store/useAuthStore";
 
 const MarketplaceOrdersPage = () => {
   const page = useOrdersPage();
@@ -29,19 +29,24 @@ const MarketplaceOrdersPage = () => {
     if (!isStatusLoaded && !isStatusLoading) loadStatus();
   }, [isStatusLoaded, isStatusLoading, loadStatus]);
 
-  const initialTab = searchParams.get('tab') === 'prescriptions'
-    ? PRESCRIPTION_TAB_ID
-    : searchParams.get('tab') === 'active'
-      ? 'active'
-      : searchParams.get('tab') === 'new'
-        ? 'new'
-        : 'all';
+  const initialTab =
+    searchParams.get("tab") === "prescriptions"
+      ? PRESCRIPTION_TAB_ID
+      : searchParams.get("tab") === "active"
+        ? "active"
+        : searchParams.get("tab") === "new"
+          ? "new"
+          : "all";
 
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  const pendingRequestIds   = usePrescriptionRequestAlertStore((s) => s.pendingRequestIds);
-  const requestRefreshCount = usePrescriptionRequestAlertStore((s) => s.refreshCount);
-  const prescriptionCount   = Math.max(
+  const pendingRequestIds = usePrescriptionRequestAlertStore(
+    (s) => s.pendingRequestIds,
+  );
+  const requestRefreshCount = usePrescriptionRequestAlertStore(
+    (s) => s.refreshCount,
+  );
+  const prescriptionCount = Math.max(
     Object.keys(pendingRequestIds).length,
     requestRefreshCount > 0 ? requestRefreshCount : 0,
   );
@@ -51,23 +56,33 @@ const MarketplaceOrdersPage = () => {
     if (tabId !== PRESCRIPTION_TAB_ID) page.onTabChange(tabId);
   };
 
-  const newOrdersCount = page.activeTab === 'new' ? page.total : 0;
-  const tabCounts = { new: newOrdersCount, [PRESCRIPTION_TAB_ID]: prescriptionCount };
+  const newOrdersCount = page.activeTab === "new" ? page.total : 0;
+  const tabCounts = {
+    new: newOrdersCount,
+    [PRESCRIPTION_TAB_ID]: prescriptionCount,
+  };
   const isPrescriptionTab = activeTab === PRESCRIPTION_TAB_ID;
   const bankingPending = isSuperAdmin && !banking.bank_account_holder;
 
   const handleGetInvoiceUrl = async (orderId) => {
     try {
       const res = await getInvoiceUrl(orderId);
-      return { url: res.data?.url || null, pending: res.data?.pending || false };
-    } catch { return { url: null, pending: false }; }
+      return {
+        url: res.data?.url || null,
+        pending: res.data?.pending || false,
+      };
+    } catch {
+      return { url: null, pending: false };
+    }
   };
 
   const handleRegenerateInvoice = async (orderId) => {
     try {
       const res = await regenerateInvoice(orderId);
       return res.success;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   };
 
   return (
@@ -79,7 +94,9 @@ const MarketplaceOrdersPage = () => {
             <ShoppingBag size={16} className="text-white/80" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white tracking-tight">Marketplace Orders</h1>
+            <h1 className="text-lg font-bold text-white tracking-tight">
+              Marketplace Orders
+            </h1>
             <p className="text-[11px] text-white/50 mt-0.5">
               Review and manage customer orders and prescription requests
             </p>
@@ -89,16 +106,22 @@ const MarketplaceOrdersPage = () => {
 
       {bankingPending && (
         <div className="flex-shrink-0 px-5 pt-3">
-          <BankingPendingBanner onAction={() => navigate("/marketplace/storefront")} />
+          <BankingPendingBanner
+            onAction={() => navigate("/marketplace/storefront")}
+          />
         </div>
       )}
 
       {/* ── Sticky Tab Bar ── */}
       <div className="flex-shrink-0 bg-[#010015] z-10">
-        <OrdersTabBar activeTab={activeTab} onTabChange={handleTabChange} counts={tabCounts} />
+        <OrdersTabBar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          counts={tabCounts}
+        />
       </div>
 
-            {/* ── Main Content Area ── */}
+      {/* ── Main Content Area ── */}
       {isPrescriptionTab ? (
         <div className="flex-1 min-h-0 overflow-hidden">
           <PrescriptionRequestsTab />
@@ -136,6 +159,7 @@ const MarketplaceOrdersPage = () => {
               onOpenReject={page.onOpenReject}
               onMarkReady={page.onMarkReady}
               onComplete={page.onComplete}
+              onCompletePickup={page.onCompletePickup}
               onGetPrescriptionUrl={page.onGetPrescriptionUrl}
               onGetInvoiceUrl={handleGetInvoiceUrl}
               onRegenerateInvoice={handleRegenerateInvoice}

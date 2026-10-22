@@ -11,16 +11,18 @@ import OrdersFilters from "./comps/OrdersFilters";
 import OrdersTable from "./comps/OrdersTable";
 import OrderDetailModal from "./comps/OrderDetailModal";
 import PrescriptionRequestDetailModal from "./comps/PrescriptionRequestDetailModal";
+import SameDayTab from "./comps/SameDayTab";
+
+const VALID_VIEWS = ["all", "instant", "pickup", "sameday", "prescriptions"];
 
 const MarketplaceOrdersPage = () => {
   const toast = useToast();
   const rowsPerPage = useDynamicRowCount();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ── View Mode (orders | prescriptions) ──
   const [viewMode, setViewMode] = useState(() => {
     const v = searchParams.get("view");
-    return v === "prescriptions" ? "prescriptions" : "orders";
+    return VALID_VIEWS.includes(v) ? v : "all";
   });
 
   const [orders, setOrders] = useState([]);
@@ -37,16 +39,26 @@ const MarketplaceOrdersPage = () => {
 
   const debounceRef = useRef(null);
 
-  // ── Sync viewMode to URL ──
+  // Derive fulfillment filter from viewMode
+  // "all" → no fulfillment filter → returns Instant + Pickup + Same Day
+  const fulfillmentFilter =
+    viewMode === "instant"
+      ? "INSTANT_DELIVERY"
+      : viewMode === "pickup"
+        ? "PICKUP"
+        : viewMode === "sameday"
+          ? "SAME_DAY"
+          : "";
+
+  // Sync viewMode to URL
   useEffect(() => {
-    const current = searchParams.get("view") || "orders";
-    const target = viewMode === "prescriptions" ? "prescriptions" : "orders";
-    if (current !== target) {
-      setSearchParams({ view: target }, { replace: true });
+    const current = searchParams.get("view") || "all";
+    if (current !== viewMode) {
+      setSearchParams({ view: viewMode }, { replace: true });
     }
   }, [viewMode, searchParams, setSearchParams]);
 
-  // ── Reset state on viewMode change ──
+  // Reset state on viewMode change
   useEffect(() => {
     setOrders([]);
     setPage(1);
@@ -57,7 +69,7 @@ const MarketplaceOrdersPage = () => {
     setSelectedRequestId(null);
   }, [viewMode]);
 
-  // ── Search debounce ──
+  // Search debounce
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -71,25 +83,16 @@ const MarketplaceOrdersPage = () => {
     setPage(1);
   }, [statusFilter]);
 
-  // ── Core fetch ──
+  // Core fetch (for all / instant / pickup / prescriptions)
+  // Note: sameday uses its own SameDayTab component with batches UI
   const fetchData = useCallback(
     async ({ silent = false } = {}) => {
+      if (viewMode === "sameday") return;
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
       try {
-        if (viewMode === "orders") {
-          const res = await getMarketplaceOrders({
-            page,
-            limit: rowsPerPage,
-            search: debouncedSearch,
-            status: statusFilter,
-          });
-          const d = res.data?.data;
-          setOrders(d?.orders || []);
-          setTotalPages(d?.total_pages || 1);
-          setTotalCount(d?.total || 0);
-        } else {
+        if (viewMode === "prescriptions") {
           const res = await getPrescriptionRequests({
             page,
             limit: rowsPerPage,
@@ -98,6 +101,18 @@ const MarketplaceOrdersPage = () => {
           });
           const d = res.data?.data;
           setOrders(d?.requests || []);
+          setTotalPages(d?.total_pages || 1);
+          setTotalCount(d?.total || 0);
+        } else {
+          const res = await getMarketplaceOrders({
+            page,
+            limit: rowsPerPage,
+            search: debouncedSearch,
+            status: statusFilter,
+            fulfillment_type: fulfillmentFilter || undefined,
+          });
+          const d = res.data?.data;
+          setOrders(d?.orders || []);
           setTotalPages(d?.total_pages || 1);
           setTotalCount(d?.total || 0);
         }
@@ -112,16 +127,24 @@ const MarketplaceOrdersPage = () => {
         setRefreshing(false);
       }
     },
-    [page, rowsPerPage, debouncedSearch, statusFilter, toast, viewMode],
+    [
+      page,
+      rowsPerPage,
+      debouncedSearch,
+      statusFilter,
+      fulfillmentFilter,
+      toast,
+      viewMode,
+    ],
   );
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // ── SSE: Live updates ──
+  // SSE handlers
   const handleSSENewOrder = useCallback(() => {
-    if (viewMode !== "orders") return;
+    if (viewMode === "sameday" || viewMode === "prescriptions") return;
     if (page === 1 && !statusFilter) {
       fetchData({ silent: true });
     } else {
@@ -131,7 +154,12 @@ const MarketplaceOrdersPage = () => {
 
   const handleSSEStatusChanged = useCallback(
     (payload) => {
-      if (viewMode !== "orders" || !payload?.order_id) return;
+      if (
+        viewMode === "sameday" ||
+        viewMode === "prescriptions" ||
+        !payload?.order_id
+      )
+        return;
       setOrders((prev) =>
         prev.map((order) => {
           if (order.order_id !== payload.order_id) return order;
@@ -159,6 +187,9 @@ const MarketplaceOrdersPage = () => {
             ...(payload.branch_name && {
               branch: { ...order.branch, branch_name: payload.branch_name },
             }),
+            ...(payload.fulfillment_type != null && {
+              fulfillment_type: payload.fulfillment_type,
+            }),
             ...(payload.has_rider != null && { has_rider: payload.has_rider }),
             ...(payload.delivery_status != null && {
               delivery_status: payload.delivery_status,
@@ -172,7 +203,12 @@ const MarketplaceOrdersPage = () => {
 
   const handleSSEDeliveryChanged = useCallback(
     (payload) => {
-      if (viewMode !== "orders" || !payload?.order_id) return;
+      if (
+        viewMode === "sameday" ||
+        viewMode === "prescriptions" ||
+        !payload?.order_id
+      )
+        return;
       setOrders((prev) =>
         prev.map((order) => {
           if (order.order_id !== payload.order_id) return order;
@@ -199,10 +235,7 @@ const MarketplaceOrdersPage = () => {
   const handleSSEPrescriptionResponded = useCallback(
     (payload) => {
       if (viewMode !== "prescriptions" || !payload?.request_id) return;
-      // Refetch to get updated recipient counts
-      if (page === 1) {
-        fetchData({ silent: true });
-      }
+      if (page === 1) fetchData({ silent: true });
     },
     [page, fetchData, viewMode],
   );
@@ -215,8 +248,14 @@ const MarketplaceOrdersPage = () => {
     onPrescriptionRequestResponded: handleSSEPrescriptionResponded,
   });
 
+  const sameDayRefreshRef = useRef(null);
+
   const handleRefresh = () => {
     toast.info("Refreshing", "Fetching latest data...", 1500);
+    if (viewMode === "sameday") {
+      sameDayRefreshRef.current?.();
+      return;
+    }
     fetchData({ silent: true });
   };
 
@@ -231,27 +270,41 @@ const MarketplaceOrdersPage = () => {
         onRefresh={handleRefresh}
       />
 
-      <OrdersFilters
-        viewMode={viewMode}
-        search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-      />
-
-      <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-        <OrdersTable
-          viewMode={viewMode}
-          orders={orders}
-          loading={loading}
-          currentPage={page}
-          setCurrentPage={setPage}
-          totalItems={totalCount}
+      {viewMode === "sameday" ? (
+        <SameDayTab
+          toast={toast}
           rowsPerPage={rowsPerPage}
-          onSelectOrder={setSelectedOrderId}
-          onSelectRequest={setSelectedRequestId}
+          registerRefresh={(fn) => {
+            sameDayRefreshRef.current = fn;
+          }}
         />
-      </div>
+      ) : (
+        <>
+          <OrdersFilters
+            viewMode={viewMode}
+            search={search}
+            setSearch={setSearch}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+          />
+
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+            <OrdersTable
+              viewMode={
+                viewMode === "prescriptions" ? "prescriptions" : "orders"
+              }
+              orders={orders}
+              loading={loading}
+              currentPage={page}
+              setCurrentPage={setPage}
+              totalItems={totalCount}
+              rowsPerPage={rowsPerPage}
+              onSelectOrder={setSelectedOrderId}
+              onSelectRequest={setSelectedRequestId}
+            />
+          </div>
+        </>
+      )}
 
       {selectedOrderId && (
         <OrderDetailModal

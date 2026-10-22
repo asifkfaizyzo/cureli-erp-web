@@ -20,7 +20,7 @@ const NewOrderBanner = () => {
   const dismissRxAlert = usePrescriptionRequestAlertStore((s) => s.dismissAlert);
 
   // Hidden if on the orders view to prevent UI conflicts
-  const isHiddenRoute = location.pathname === '/marketplace/orders';
+  const isHiddenRoute = location.pathname === '/marketplace/ordersx';
   const isOrderVisible = isOrderAlertActive && !isHiddenRoute;
   const isRxVisible = isRxAlertActive && !isHiddenRoute;
 

@@ -86,3 +86,38 @@ export async function getDeliveryHistoryDetail(req, res) {
     return res.status(400).json({ success: false, message: err.message });
   }
 }
+
+// ── Same Day Batch Endpoints ─────────────────────────────────────────────
+
+export async function getActiveDeliveries(req, res) {
+  try {
+    const riderId = req.rider.rider_id;
+    const result = await service.getActiveDeliveries(riderId);
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
+
+export async function acceptBatch(req, res) {
+  try {
+    const riderId = req.rider.rider_id;
+    const { batchGroupId } = req.params;
+    const result = await service.acceptBatch(riderId, batchGroupId);
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
+
+export async function declineBatch(req, res) {
+  try {
+    const riderId = req.rider.rider_id;
+    const { batchGroupId } = req.params;
+    const { reason } = req.body || {};
+    const result = await service.declineBatch(riderId, batchGroupId, reason);
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}

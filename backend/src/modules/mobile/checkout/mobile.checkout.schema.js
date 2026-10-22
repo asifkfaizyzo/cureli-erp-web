@@ -16,6 +16,10 @@ export const quoteSchema = z.object({
     .max(20),
   distance_km: z.number().min(0).max(500),
   tip: z.number().min(0).max(1000).optional().default(0),
+  fulfillment_type: z
+    .enum(["INSTANT_DELIVERY", "PICKUP", "SAME_DAY", "NEXT_DAY"])
+    .optional()
+    .default("INSTANT_DELIVERY"),
 });
 
 // ── Patient schema (reusable) ─────────────────────────────────
@@ -27,54 +31,66 @@ export const patientSchema = z.object({
   sex: z.enum(["MALE", "FEMALE", "OTHER"]),
 });
 
-export const createSessionSchema = z.object({
-  branch_id: z.string().uuid(),
-  delivery_address_id: z.string().uuid(),
-  items: z
-    .array(
-      z.object({
-        variantId: z.string().uuid(),
-        quantity: z.number().int().min(1).max(100),
-      }),
-    )
-    .min(1)
-    .max(20),
-  distance_km: z.number().min(0).max(500),
-  tip: z.number().min(0).max(1000).optional().default(0),
-  prescription_files: z
-    .array(
-      z.object({
-        prescription_key: z.string(),
-        original_name: z.string(),
-        mime_type: z.enum([
-          "image/jpeg",
-          "image/jpg",
-          "image/png",
-          "application/pdf",
-        ]),
-        file_size: z.number().int().min(1),
-      }),
-    )
-    .max(5)
-    .optional()
-    .default([]),
-  // patient is required at checkout time
-  patient: patientSchema,
-
-  prescription_request_id: z
-    .string()
-    .uuid()
-    .optional()
-    .nullable()
-    .transform((v) => v ?? null),
-
-  prescription_recipient_id: z
-    .string()
-    .uuid()
-    .optional()
-    .nullable()
-    .transform((v) => v ?? null),
-});
+export const createSessionSchema = z
+  .object({
+    branch_id: z.string().uuid(),
+    delivery_address_id: z.string().uuid().optional().nullable(),
+    items: z
+      .array(
+        z.object({
+          variantId: z.string().uuid(),
+          quantity: z.number().int().min(1).max(100),
+        }),
+      )
+      .min(1)
+      .max(20),
+    distance_km: z.number().min(0).max(500).optional().default(0),
+    tip: z.number().min(0).max(1000).optional().default(0),
+    prescription_files: z
+      .array(
+        z.object({
+          prescription_key: z.string(),
+          original_name: z.string(),
+          mime_type: z.enum([
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "application/pdf",
+          ]),
+          file_size: z.number().int().min(1),
+        }),
+      )
+      .max(5)
+      .optional()
+      .default([]),
+    patient: patientSchema,
+    prescription_request_id: z
+      .string()
+      .uuid()
+      .optional()
+      .nullable()
+      .transform((v) => v ?? null),
+    prescription_recipient_id: z
+      .string()
+      .uuid()
+      .optional()
+      .nullable()
+      .transform((v) => v ?? null),
+    fulfillment_type: z
+      .enum(["INSTANT_DELIVERY", "PICKUP", "SAME_DAY", "NEXT_DAY"])
+      .optional()
+      .default("INSTANT_DELIVERY"),
+  })
+  .superRefine((data, ctx) => {
+    // delivery_address_id required for all non-pickup fulfillment types
+    if (data.fulfillment_type !== "PICKUP" && !data.delivery_address_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "delivery_address_id is required for this fulfillment type",
+        path: ["delivery_address_id"],
+      });
+    }
+  });
 
 export const confirmSchema = z.object({
   session_id: z.string().uuid(),

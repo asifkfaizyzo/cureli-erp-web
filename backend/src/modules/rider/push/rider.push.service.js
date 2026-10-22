@@ -153,7 +153,7 @@ function buildExpoMessage(token, {
     to: token,
     title,
     body,
-    data,
+    data: { ...data, category },
     sound,
     priority,
     // Android-specific
@@ -393,7 +393,7 @@ export const RiderPush = {
 
     return sendPushToRider({
       riderId,
-      title: "🛵 New Delivery Request",
+      title: "New Delivery Request",
       body: `Order #${orderNumber} from ${shopName}${earningText}`,
       category: "incoming_delivery",
       data: {
@@ -466,6 +466,42 @@ export const RiderPush = {
       body: "Your account has been reactivated. You can now go online.",
       category: "system_messages",
       data: { screen: "home" },
+      priority: "normal",
+      sticky: false,
+    }),
+
+  // ── Same Day batch assigned (sticky incoming alert) ──────
+
+  sameDayBatchAssigned: (riderId, { batch_group_id, order_count, pharmacy_name }) =>
+    sendPushToRider({
+      riderId,
+      title: "Same Day Batch Assigned",
+      body: `${order_count} orders from ${pharmacy_name} — tap to accept`,
+      category: "incoming_delivery",
+      data: {
+        screen: "incoming_batch",
+        batch_group_id,
+        order_count,
+      },
+      sound: "incoming_order.mp3",
+      channelId: "incoming_delivery",
+      priority: "max",
+      sticky: true,
+    }),
+
+  // ── Order added to existing batch (simple notification) ──
+
+  orderAddedToBatch: (riderId, { batch_group_id, order_id }) =>
+    sendPushToRider({
+      riderId,
+      title: "Order Added to Batch",
+      body: "A new order has been added to your Same Day batch.",
+      category: "delivery_updates",
+      data: {
+        screen: "active_batch",
+        batch_group_id,
+        order_id,
+      },
       priority: "normal",
       sticky: false,
     }),

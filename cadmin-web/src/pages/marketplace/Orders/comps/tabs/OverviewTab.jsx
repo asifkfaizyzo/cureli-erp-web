@@ -80,10 +80,32 @@ const Card = ({ children }) => (
   </div>
 );
 
+const FULFILLMENT_LABELS = {
+  INSTANT_DELIVERY: "Instant Delivery",
+  PICKUP: "Pickup",
+  SAME_DAY: "Same Day Delivery",
+  NEXT_DAY: "Next Day Delivery",
+};
+
 const OverviewTab = ({ order }) => {
+  const isPickup = order.fulfillment_type === "PICKUP";
+
+  // ── Correctness-check merge: delivery_fee + km_surcharge into one value ──
+  const combinedDelivery = isPickup
+    ? 0
+    : parseFloat(
+        ((Number(order.delivery_fee) || 0) + (Number(order.km_surcharge) || 0)).toFixed(2),
+      );
+  const deliveryLabel =
+    !isPickup && order.distance_km > 0
+      ? `Delivery Fee (${order.distance_km} km)`
+      : isPickup
+        ? "Delivery Fee (Pickup)"
+        : "Delivery Fee";
+
   return (
     <div className="space-y-4">
-      {/* Row 1: Shop, Customer, Delivery Address */}
+      {/* Row 1: Shop, Customer, Delivery/Pickup Address */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card>
           <SectionTitle
@@ -120,14 +142,28 @@ const OverviewTab = ({ order }) => {
         <Card>
           <SectionTitle
             icon={MapPin}
-            title="Delivery Address"
+            title={isPickup ? "Pickup Location" : "Delivery Address"}
             action={
-              <CopyLocationButton
-                latitude={order.delivery_address?.latitude}
-                longitude={order.delivery_address?.longitude}
-              />
+              !isPickup ? (
+                <CopyLocationButton
+                  latitude={order.delivery_address?.latitude}
+                  longitude={order.delivery_address?.longitude}
+                />
+              ) : null
             }
           />
+          {isPickup && (
+            <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-orange-50 border border-orange-200">
+              <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+                Customer Pickup — No delivery address
+              </p>
+              {order.customer_pickup_code && (
+                <p className="text-xs font-extrabold text-orange-800 font-mono mt-1 tracking-widest">
+                  Pickup Code: {order.customer_pickup_code}
+                </p>
+              )}
+            </div>
+          )}
           <div className="text-xs text-gray-700 leading-relaxed space-y-1 mt-1">
             {order.delivery_address?.recipient_name && (
               <p className="font-bold">
@@ -164,19 +200,56 @@ const OverviewTab = ({ order }) => {
         <Card>
           <SectionTitle icon={Receipt} title="Billing Breakdown" />
           <div className="space-y-0">
+            <DetailRow
+              label="Fulfillment"
+              value={FULFILLMENT_LABELS[order.fulfillment_type] || order.fulfillment_type}
+            />
             <DetailRow label="Subtotal" value={fmtAmount(order.subtotal)} />
             <DetailRow
               label="Service Charge"
               value={fmtAmount(order.service_charge)}
             />
             <DetailRow
-              label="Delivery Fee"
-              value={fmtAmount(order.delivery_fee)}
+              label={deliveryLabel}
+              value={isPickup || combinedDelivery === 0 ? "FREE" : fmtAmount(combinedDelivery)}
             />
-            {order.distance_km > 0 && (
-              <DetailRow label="Distance" value={`${order.distance_km} km`} />
+            {Number(order.packing_charge) > 0 && (
+              <DetailRow
+                label="Packing Charge"
+                value={fmtAmount(order.packing_charge)}
+              />
             )}
             <DetailRow label="Tip" value={fmtAmount(order.tip)} />
+            {order.gst_amount > 0 && (
+              <>
+                <div className="flex items-center justify-between gap-4 py-1.5 border-b border-gray-50">
+                  <span className="text-xs text-gray-500 w-36 flex-shrink-0">
+                    GST ({order.gst_rate}% · {order.gst_type === "IGST" ? "IGST" : "CGST+SGST"})
+                  </span>
+                  <span className="text-xs font-semibold text-gray-800 text-right">
+                    {fmtAmount(order.gst_amount)}
+                  </span>
+                </div>
+                {Array.isArray(order.gst_breakdown) && order.gst_breakdown.length > 0 && (
+                  <div className="ml-4 space-y-0.5 py-1 border-b border-gray-50">
+                    {order.gst_breakdown.map((g, i) => (
+                      <div key={i} className="flex items-center justify-between gap-4 py-0.5">
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">
+                          {g.component === "medicine_subtotal" ? "On Subtotal"
+                            : g.component === "service_charge" ? "On Service"
+                            : g.component === "delivery_charge" ? "On Delivery"
+                            : g.component === "packing_charge" ? "On Packing"
+                            : g.component}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          ₹{Number(g.base).toFixed(2)} × {order.gst_rate}% = ₹{Number(g.gst).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             {order.coupon_code && (
               <DetailRow
                 label={`Coupon (${order.coupon_code})`}

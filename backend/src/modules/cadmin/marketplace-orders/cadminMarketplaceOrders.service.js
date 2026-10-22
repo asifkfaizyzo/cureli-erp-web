@@ -36,6 +36,7 @@ export const listAllOrders = async ({
   limit = 20,
   search = "",
   status = "",
+  fulfillment_type = "",
 }) => {
   const skip = (page - 1) * limit;
 
@@ -50,6 +51,18 @@ export const listAllOrders = async ({
       where.status = statuses[0];
     } else if (statuses.length > 1) {
       where.status = { in: statuses };
+    }
+  }
+
+  if (fulfillment_type) {
+    const types = fulfillment_type
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (types.length === 1) {
+      where.fulfillment_type = types[0];
+    } else if (types.length > 1) {
+      where.fulfillment_type = { in: types };
     }
   }
 
@@ -71,6 +84,7 @@ export const listAllOrders = async ({
         order_id: true,
         order_number: true,
         status: true,
+        fulfillment_type: true,
         customer_name_snapshot: true,
         customer_phone_snapshot: true,
         total_amount: true,
@@ -103,7 +117,6 @@ export const listAllOrders = async ({
             city: true,
           },
         },
-        // ── NEW: Include delivery for rider assignment indicator ──
         delivery: {
           select: {
             delivery_id: true,
@@ -210,11 +223,12 @@ export const getOrderDetail = async (order_id) => {
           created_at: true,
         },
       },
-      // ── NEW: Include full delivery + rider data ──
       delivery: {
         select: {
           delivery_id: true,
           rider_id: true,
+          // ── FIX: batch_group_id was missing, breaking SameDayBatchPanel ──
+          batch_group_id: true,
           status: true,
           assigned_at: true,
           accepted_at: true,
@@ -323,7 +337,6 @@ export const updateOrderStatus = async ({
 
   const now = new Date();
 
-  // ── Prescription Expiry Settings ───────────────────────────────────────
   const PRESCRIPTION_EXPIRY_DAYS = {
     COMPLETED: 10,
     REJECTED: 10,
@@ -334,10 +347,8 @@ export const updateOrderStatus = async ({
     ? new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
     : null;
 
-  // ── Transaction ────────────────────────────────────────────────────────
   const { updated, previousDelivery } = await prisma.$transaction(
     async (tx) => {
-      // Fetch delivery details within transaction block
       const currentDelivery = await tx.delivery.findUnique({
         where: { order_id },
         select: { delivery_id: true, rider_id: true, status: true },
@@ -363,7 +374,6 @@ export const updateOrderStatus = async ({
         },
       });
 
-      // Write Status History log
       await tx.marketplaceOrderStatusHistory.create({
         data: {
           order_id,
@@ -374,7 +384,6 @@ export const updateOrderStatus = async ({
         },
       });
 
-      // ── Sync delivery record for ALL terminal order states ──────────
       if (
         ["COMPLETED", "CANCELLED", "REJECTED"].includes(new_status) &&
         currentDelivery
@@ -402,7 +411,6 @@ export const updateOrderStatus = async ({
         });
       }
 
-      // Set prescription expiry timestamp on S3 files
       if (expiresAt) {
         await tx.marketplaceOrderPrescription.updateMany({
           where: { order_id },
@@ -414,7 +422,6 @@ export const updateOrderStatus = async ({
     },
   );
 
-  // ── 1. If terminal state, clear rider active task & notify all systems ──
   if (
     ["COMPLETED", "CANCELLED", "REJECTED"].includes(new_status) &&
     previousDelivery?.rider_id
@@ -423,7 +430,6 @@ export const updateOrderStatus = async ({
       await import("../../rider/presence/rider.presence.service.js");
     unregisterActiveDelivery(previousDelivery.rider_id);
 
-    // Notify Rider
     if (new_status === "COMPLETED") {
       sseService.notifyRider(previousDelivery.rider_id, "delivery_completed", {
         delivery_id: previousDelivery.delivery_id,
@@ -439,7 +445,6 @@ export const updateOrderStatus = async ({
       });
     }
 
-    // Notify Mobile Customer of delivery status change
     if (order.customer_id) {
       const deliverySseStatus =
         new_status === "COMPLETED"
@@ -454,7 +459,6 @@ export const updateOrderStatus = async ({
       });
     }
 
-    // Broadcast delivery status change to all CAdmins (updates tracking panels)
     const deliverySseStatus =
       new_status === "COMPLETED"
         ? "DELIVERED"
@@ -470,7 +474,6 @@ export const updateOrderStatus = async ({
     });
   }
 
-  // ── 2. If READY_FOR_PICKUP, notify assigned rider ──────────────────────
   if (new_status === "READY_FOR_PICKUP" && previousDelivery?.rider_id) {
     sseService.notifyRider(
       previousDelivery.rider_id,
@@ -483,7 +486,6 @@ export const updateOrderStatus = async ({
     );
   }
 
-  // ── 3. Fire state event pipeline (SSE, Mobile Push notifications, ERP operators)
   await fireOrderStatusChangedEvents({
     order_id,
     order_number: order.order_number,
@@ -505,6 +507,7 @@ function formatOrderSummary(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     total_amount: Number(order.total_amount),
@@ -531,7 +534,6 @@ function formatOrderSummary(order) {
           city: order.branch.city,
         }
       : null,
-    // ── NEW: Delivery assignment indicator for table highlighting ──
     has_rider: !!order.delivery?.rider_id,
     delivery_status: order.delivery?.status || null,
     placed_at: order.placed_at,
@@ -548,6 +550,7 @@ function formatOrderDetail(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     delivery_address: order.delivery_address_snapshot,
@@ -564,7 +567,6 @@ function formatOrderDetail(order) {
     pickup_otp: order.pickup_otp ?? null,
     delivery_otp: order.delivery_otp ?? null,
 
-    // ── NEW: Full billing breakdown ──
     service_charge: Number(order.service_charge ?? 0),
     delivery_fee: parseFloat(
       (
@@ -572,10 +574,16 @@ function formatOrderDetail(order) {
       ).toFixed(2),
     ),
     km_surcharge: 0,
+    packing_charge: Number(order.packing_charge ?? 0),
     tip: Number(order.tip ?? 0),
     distance_km: Number(order.distance_km ?? 0),
 
-    // ── NEW: Coupon & loyalty details ──
+    // ── GST (platform tax on service/delivery/packing) ──
+    gst_rate: order.gst_rate != null ? Number(order.gst_rate) : null,
+    gst_type: order.gst_type ?? null,
+    gst_amount: order.gst_amount != null ? Number(order.gst_amount) : null,
+    gst_breakdown: order.gst_breakdown ?? null,
+
     coupon_code: order.coupon_code || null,
     coupon_discount_amount: order.coupon_discount_amount
       ? Number(order.coupon_discount_amount)
@@ -586,11 +594,9 @@ function formatOrderDetail(order) {
       : 0,
     loyalty_points_earned: order.loyalty_points_earned ?? 0,
 
-    // ── NEW: Razorpay references ──
     razorpay_order_id: order.razorpay_order_id || null,
     razorpay_payment_id: order.razorpay_payment_id || null,
 
-    // ── NEW: Patient info ──
     patient_is_self: order.patient_is_self,
     patient_name: order.patient_name_snapshot || null,
     patient_age: order.patient_age_snapshot ?? null,
@@ -666,11 +672,12 @@ function formatOrderDetail(order) {
       created_at: h.created_at,
     })),
 
-    // ── NEW: Full delivery + rider breakdown ──
     delivery: order.delivery
       ? {
           delivery_id: order.delivery.delivery_id,
           rider_id: order.delivery.rider_id,
+          // ── FIX: batch_group_id now flows through to SameDayBatchPanel ──
+          batch_group_id: order.delivery.batch_group_id,
           status: order.delivery.status,
           assigned_at: order.delivery.assigned_at,
           accepted_at: order.delivery.accepted_at,

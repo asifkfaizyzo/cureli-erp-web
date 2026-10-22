@@ -1,5 +1,5 @@
 // pharmacy-web/src/pages/marketplace-orders/components/OrderCard.jsx (do not remove this comment)
-import { Clock, FileText, ChevronRight, Bike } from "lucide-react";
+import { Clock, FileText, ChevronRight, Bike, Store, Truck } from "lucide-react";
 
 const STATUS_CONFIG = {
   PLACED: {
@@ -51,10 +51,20 @@ function formatDate(iso) {
   });
 }
 
+const FULFILLMENT_CONFIG = {
+  PICKUP: { label: "Pickup", icon: Store, color: "bg-orange-500/15 text-orange-300 border-orange-400/20" },
+  SAME_DAY: { label: "Same Day", icon: Truck, color: "bg-cyan-500/15 text-cyan-300 border-cyan-400/20" },
+  NEXT_DAY: { label: "Next Day", icon: Truck, color: "bg-cyan-500/15 text-cyan-300 border-cyan-400/20" },
+  INSTANT_DELIVERY: { label: "Delivery", icon: Bike, color: "bg-blue-500/15 text-blue-300 border-blue-400/20" },
+};
+
 const OrderCard = ({ order, isSelected, onSelect }) => {
   const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.PLACED;
   const hasRider = order.has_rider || order.delivery_status;
   const earning = Number(order.pharmacy_earning ?? order.total_amount ?? 0);
+  const fType = order.fulfillment_type || "INSTANT_DELIVERY";
+  const fCfg = FULFILLMENT_CONFIG[fType] || FULFILLMENT_CONFIG.INSTANT_DELIVERY;
+  const FulfillmentIcon = fCfg.icon;
 
   return (
     <button
@@ -83,7 +93,10 @@ const OrderCard = ({ order, isSelected, onSelect }) => {
                 <FileText size={8} /> Rx
               </span>
             )}
-            {hasRider && (
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border ${fCfg.color}`}>
+              <FulfillmentIcon size={8} /> {fCfg.label}
+            </span>
+            {hasRider && fType !== "PICKUP" && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-400/20">
                 <Bike size={8} /> Rider
               </span>

@@ -41,6 +41,7 @@ export async function quoteHandler(req, res) {
       coupon_code,
       loyalty_points_to_redeem,
       customer_id,
+      fulfillment_type: parsed.data.fulfillment_type,
     });
 
     return success(res, result, "Quote calculated");
@@ -70,7 +71,7 @@ export async function createSessionHandler(req, res) {
     const result = await createCheckoutSession({
       customer_id: req.mobileUser.id,
       branch_id: parsed.data.branch_id,
-      delivery_address_id: parsed.data.delivery_address_id,
+      delivery_address_id: parsed.data.delivery_address_id ?? null,
       items: parsed.data.items,
       distance_km: parsed.data.distance_km,
       tip: parsed.data.tip,
@@ -80,6 +81,7 @@ export async function createSessionHandler(req, res) {
       prescription_recipient_id: parsed.data.prescription_recipient_id ?? null,
       coupon_code,
       loyalty_points_to_redeem,
+      fulfillment_type: parsed.data.fulfillment_type,
     });
 
     return success(res, result, "Checkout session created", 201);

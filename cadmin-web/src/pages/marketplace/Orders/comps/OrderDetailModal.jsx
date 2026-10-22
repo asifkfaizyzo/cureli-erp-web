@@ -1,6 +1,6 @@
 // cadmin-web/src/pages/marketplace/Orders/comps/OrderDetailModal.jsx (do not remove this comment)
 import { useState, useEffect, useCallback } from "react";
-import { X, Receipt, Loader2, AlertCircle } from "lucide-react";
+import { X, Receipt, Loader2, AlertCircle, Store, Bike, Truck } from "lucide-react";
 import { getMarketplaceOrderById } from "../../../../api/cadminMarketplaceOrders";
 import useMarketplaceSSE from "./hooks/useMarketplaceSSE";
 import OverviewTab from "./tabs/OverviewTab";
@@ -94,6 +94,13 @@ const OrderDetailModal = ({ orderId, onClose, onStatusUpdated }) => {
     CANCELLED: "bg-gray-50 text-gray-600 border-gray-200",
   };
 
+  const FULFILLMENT_CFG = {
+    INSTANT_DELIVERY: { label: "Delivery", cls: "bg-blue-50 text-blue-700 border-blue-200", Icon: Bike },
+    PICKUP: { label: "Pickup", cls: "bg-orange-50 text-orange-700 border-orange-200", Icon: Store },
+    SAME_DAY: { label: "Same Day", cls: "bg-cyan-50 text-cyan-700 border-cyan-200", Icon: Truck },
+    NEXT_DAY: { label: "Next Day", cls: "bg-cyan-50 text-cyan-700 border-cyan-200", Icon: Truck },
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
@@ -126,9 +133,22 @@ const OrderDetailModal = ({ orderId, onClose, onStatusUpdated }) => {
 
           <div className="flex items-center gap-3">
             {order && (
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${statusCfg[order.status] || "bg-gray-50 text-gray-600 border-gray-200"}`}>
-                {order.status?.replace(/_/g, " ")}
-              </span>
+              <>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${statusCfg[order.status] || "bg-gray-50 text-gray-600 border-gray-200"}`}>
+                  {order.status?.replace(/_/g, " ")}
+                </span>
+                {(() => {
+                  const fType = order.fulfillment_type || "INSTANT_DELIVERY";
+                  const fCfg = FULFILLMENT_CFG[fType] || FULFILLMENT_CFG.INSTANT_DELIVERY;
+                  const FIcon = fCfg.Icon;
+                  return (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${fCfg.cls}`}>
+                      <FIcon size={12} />
+                      {fCfg.label}
+                    </span>
+                  );
+                })()}
+              </>
             )}
             <button
               onClick={onClose}

@@ -252,6 +252,31 @@ export function useOrdersPage() {
     }
   }, [activeTab, page, selectedOrderId, fetchOrders, handleCloseDetail]);
 
+  const handleCompletePickup = useCallback(
+    async (orderId, otp) => {
+      setActionLoading(true);
+      setActionError(null);
+      try {
+        const res = await ordersAPI.completePickup(orderId, otp);
+        if (res.success) {
+          await fetchOrders(activeTab, page);
+          if (selectedOrderId === orderId) {
+            await handleSelectOrder(orderId);
+          }
+        }
+        return res;
+      } catch (err) {
+        const msg =
+          err?.response?.data?.message || 'Failed to verify pickup code';
+        setActionError(msg);
+        throw err;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [activeTab, page, selectedOrderId, fetchOrders, handleSelectOrder]
+  );
+
   const handleGetPrescriptionUrl = useCallback(async (orderId, prescriptionId) => {
     try {
       const res = await ordersAPI.getPrescriptionUrl(orderId, prescriptionId);
@@ -292,6 +317,7 @@ export function useOrdersPage() {
     onAccept: handleAccept,
     onMarkReady: handleMarkReady,
     onComplete: handleComplete,
+    onCompletePickup: handleCompletePickup,
     onGetPrescriptionUrl: handleGetPrescriptionUrl,
 
     rejectModal,

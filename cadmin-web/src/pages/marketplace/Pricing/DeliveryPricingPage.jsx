@@ -17,6 +17,7 @@ import {
 
 import {
   getPricingConfig,
+  getAllPricingConfigs,
   updatePricingConfig,
   getSlashConfig,
   updateSlashConfig,
@@ -35,6 +36,12 @@ import {
 import SlashConfigSection from "./comps/delivery/SlashConfigSection";
 import LivePreview from "./comps/delivery/LivePreview";
 
+const FULFILLMENT_TYPES = [
+  { value: "INSTANT_DELIVERY", label: "Delivery", icon: Truck },
+  { value: "PICKUP", label: "Pickup", icon: Settings2 },
+  { value: "SAME_DAY", label: "Same Day", icon: Truck },
+];
+
 const DEFAULT_PRICING = {
   service_tier_1_max: 999.99,
   service_tier_1_charge: 20,
@@ -49,11 +56,33 @@ const DEFAULT_PRICING = {
   delivery_tier_3_charge: 40,
   delivery_tier_4_charge: 30,
   free_km_radius: 3,
+  free_km_mode: "EXCESS_ONLY",
   per_km_tier_1_max: 999.99,
   per_km_tier_1_rate: 15,
   per_km_tier_2_rate: 10,
   max_delivery_km: null,
   tip_enabled: true,
+  // ── New: Toggle fields ──
+  service_charge_enabled: true,
+  delivery_fee_enabled: true,
+  km_surcharge_enabled: true,
+  packing_enabled: false,
+  // ── New: Packing charge tiers ──
+  packing_tier_1_max: 999.99,
+  packing_tier_1_charge: 10,
+  packing_tier_2_max: 1999.99,
+  packing_tier_2_charge: 15,
+  packing_tier_3_charge: 20,
+  // ── Same Day Cutoff ──
+  same_day_cutoff_hour: 15,
+  // ── GST (Tax) ──
+  gst_enabled: false,
+  gst_rate: 0,
+  gst_type: "CGST_SGST",
+  gst_on_subtotal: false,
+  gst_on_delivery: false,
+  gst_on_service: false,
+  gst_on_packaging: false,
 };
 
 const DEFAULT_SLASH = {
@@ -72,6 +101,10 @@ export default function MarketplaceDeliveryPricingPage() {
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
 
+  // ── Fulfillment type tab state ──
+  const [activeFulfillment, setActiveFulfillment] =
+    useState("INSTANT_DELIVERY");
+
   // States for base pricing
   const [form, setForm] = useState(DEFAULT_PRICING);
   const [original, setOriginal] = useState(null);
@@ -88,7 +121,7 @@ export default function MarketplaceDeliveryPricingPage() {
         original && slashOriginal ? setLoading(false) : setLoading(true);
 
         const [pricingRes, slashRes] = await Promise.all([
-          getPricingConfig(),
+          getPricingConfig(activeFulfillment),
           getSlashConfig(),
         ]);
 
@@ -100,18 +133,25 @@ export default function MarketplaceDeliveryPricingPage() {
           Object.entries(pricingData).map(([k, v]) => [
             k,
             v !== null && typeof v === "string" ? parseFloat(v) : v,
-          ])
+          ]),
         );
 
         // Normalise Decimal slash config fields
         const normalizedSlash = {
           ...slashData,
-          service_pct: slashData.service_pct !== null ? parseFloat(slashData.service_pct) : 0,
+          service_pct:
+            slashData.service_pct !== null
+              ? parseFloat(slashData.service_pct)
+              : 0,
           delivery_tiers: Array.isArray(slashData.delivery_tiers)
             ? slashData.delivery_tiers.map((t) => ({
                 ...t,
-                min_subtotal: t.min_subtotal !== null ? parseFloat(t.min_subtotal) : null,
-                max_distance_km: t.max_distance_km !== null ? parseFloat(t.max_distance_km) : null,
+                min_subtotal:
+                  t.min_subtotal !== null ? parseFloat(t.min_subtotal) : null,
+                max_distance_km:
+                  t.max_distance_km !== null
+                    ? parseFloat(t.max_distance_km)
+                    : null,
                 pct: parseFloat(t.pct) || 0,
               }))
             : [],
@@ -123,21 +163,24 @@ export default function MarketplaceDeliveryPricingPage() {
         setSlashForm(normalizedSlash);
         setSlashOriginal(normalizedSlash);
 
-        if (showToast) toast.success("Refreshed", "Configurations reloaded from database");
+        if (showToast)
+          toast.success("Refreshed", "Configurations reloaded from database");
       } catch (err) {
-        const msg = err.response?.data?.message || "Failed to load pricing or slash config";
+        const msg =
+          err.response?.data?.message ||
+          "Failed to load pricing or slash config";
         setError(msg);
         if (showToast) toast.error("Load Failed", msg);
       } finally {
         setLoading(false);
       }
     },
-    [original, slashOriginal, toast]
+    [activeFulfillment, original, slashOriginal, toast],
   );
 
   useEffect(() => {
     fetchConfigs(false);
-  }, []); // eslint-disable-line
+  }, [activeFulfillment]); // eslint-disable-line
 
   // ── Handlers ──────────────────────────────────────────────
   const handlePricingChange = useCallback((key, value) => {
@@ -161,6 +204,13 @@ export default function MarketplaceDeliveryPricingPage() {
           form.max_delivery_km === 0 || form.max_delivery_km === ""
             ? null
             : toNum(form.max_delivery_km) || null,
+        same_day_cutoff_hour:
+          activeFulfillment === "SAME_DAY"
+            ? Math.min(
+                23,
+                Math.max(0, parseInt(form.same_day_cutoff_hour) || 15),
+              )
+            : undefined,
       };
 
       const slashPayload = {
@@ -169,21 +219,25 @@ export default function MarketplaceDeliveryPricingPage() {
         delivery_tiers: slashForm.delivery_tiers.map((t) => ({
           priority: Number(t.priority),
           min_subtotal: t.min_subtotal === "" ? null : Number(t.min_subtotal),
-          max_distance_km: t.max_distance_km === "" ? null : Number(t.max_distance_km),
+          max_distance_km:
+            t.max_distance_km === "" ? null : Number(t.max_distance_km),
           pct: Number(t.pct),
         })),
       };
 
       // Perform updates concurrently
       await Promise.all([
-        updatePricingConfig(pricingPayload),
+        updatePricingConfig(pricingPayload, activeFulfillment),
         updateSlashConfig(slashPayload),
       ]);
 
       setOriginal(form);
       setSlashOriginal(slashForm);
       setSaved(true);
-      toast.success("Saved", "Marketplace and Slash display configurations updated");
+      toast.success(
+        "Saved",
+        "Marketplace and Slash display configurations updated",
+      );
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to save configuration";
@@ -200,8 +254,17 @@ export default function MarketplaceDeliveryPricingPage() {
     setSaved(false);
   };
 
+  const handleFulfillmentTabChange = (type) => {
+    if (isPricingDirty) {
+      if (!window.confirm("You have unsaved changes. Switch anyway?")) return;
+    }
+    setActiveFulfillment(type);
+    setSaved(false);
+  };
+
   const isPricingDirty = JSON.stringify(form) !== JSON.stringify(original);
-  const isSlashDirty = JSON.stringify(slashForm) !== JSON.stringify(slashOriginal);
+  const isSlashDirty =
+    JSON.stringify(slashForm) !== JSON.stringify(slashOriginal);
   const isDirty = isPricingDirty || isSlashDirty;
 
   if (loading) {
@@ -236,7 +299,9 @@ export default function MarketplaceDeliveryPricingPage() {
             <AlertCircle size={32} className="text-red-500" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Failed to load configuration</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Failed to load configuration
+            </h3>
             <p className="text-gray-500 mt-1 text-sm">{error}</p>
           </div>
           <button
@@ -253,7 +318,6 @@ export default function MarketplaceDeliveryPricingPage() {
 
   return (
     <div className="w-full bg-gray-50/50">
-      
       {/* 
         Page Header - Stays Fixed/Sticky at the Top.
         Negative margins offset the main wrapper padding to look perfectly seamless.
@@ -265,9 +329,12 @@ export default function MarketplaceDeliveryPricingPage() {
               <Settings2 size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Delivery Pricing Config</h1>
+              <h1 className="text-xl font-bold text-gray-900">
+                Delivery Pricing Config
+              </h1>
               <p className="text-xs text-gray-500">
-                Manage service charges, base delivery tiers, surcharges, and visual slash displays
+                Manage service charges, base delivery tiers, surcharges, and
+                visual slash displays
               </p>
             </div>
           </div>
@@ -329,9 +396,145 @@ export default function MarketplaceDeliveryPricingPage() {
         </div>
       </div>
 
+      {/* ── Fulfillment Type Tab Bar ── */}
+      <div className="max-w-6xl mx-auto mb-4  ">
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 p-1.5 shadow-sm">
+          {FULFILLMENT_TYPES.map((ft) => {
+            const isActive = activeFulfillment === ft.value;
+            const Icon = ft.icon;
+            return (
+              <button
+                key={ft.value}
+                type="button"
+                onClick={() => handleFulfillmentTabChange(ft.value)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  isActive
+                    ? "bg-[#05015A] text-white shadow-sm"
+                    : "text-gray-600 hover:text-[#05015A] hover:bg-gray-100"
+                }`}
+              >
+                <Icon size={14} />
+                {ft.label}
+              </button>
+            );
+          })}
+        </div>
+        {activeFulfillment === "PICKUP" && (
+          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
+            <p className="text-[11px] text-[#05015A] font-medium">
+              Configuring charges for{" "}
+              <strong className="font-bold">Pickup</strong> orders. Toggle
+              individual charges on or off using the switch in each section
+              header.
+            </p>
+          </div>
+        )}
+        {activeFulfillment === "SAME_DAY" && (
+          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg flex items-center gap-2">
+            <Truck size={13} className="text-[#05015A] flex-shrink-0" />
+            <p className="text-[11px] text-[#05015A] font-medium">
+              <strong>Same Day Delivery</strong> — orders placed before the
+              cutoff hour are batch-assigned to team riders by end of day.
+            </p>
+          </div>
+        )}
+        {activeFulfillment === "NEXT_DAY" && (
+          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
+            <p className="text-[11px] text-[#05015A] font-medium">
+              Configuring charges for{" "}
+              <strong className="font-bold">Next Day</strong> orders. Scheduling
+              logic is not yet active — these currently behave like instant
+              delivery.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Same Day Cutoff — compact horizontal design */}
+      {activeFulfillment === "SAME_DAY" && (
+        <div className="max-w-6xl mx-auto mb-4">
+          <div className="relative overflow-hidden bg-gradient-to-r from-[#05015A]/5 via-white to-white rounded-xl border border-[#05015A]/15 shadow-sm">
+            {/* Decorative accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#05015A]/60 to-[#05015A]" />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 pl-6">
+              {/* Left: Title + Description */}
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-[#05015A]/10 flex items-center justify-center flex-shrink-0 ring-4 ring-[#05015A]/5">
+                  <Truck size={18} className="text-[#05015A]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Order Cutoff Time
+                    </h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#05015A] bg-[#05015A]/10 px-1.5 py-0.5 rounded">
+                      IST
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Same Day orders are blocked after this hour. Use 24h format
+                    <span className="text-gray-400">
+                      {" "}
+                      (e.g. 15 = 3 PM, 18 = 6 PM)
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Input + Live preview */}
+              <div className="flex items-center gap-4 flex-shrink-0">
+                {/* Unified time input — no Field suffix gap */}
+                <div className="flex items-center bg-white border border-[#05015A]/20 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-[#05015A]/20 focus-within:border-[#05015A]/40">
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={form.same_day_cutoff_hour ?? 15}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      handlePricingChange(
+                        "same_day_cutoff_hour",
+                        v === ""
+                          ? ""
+                          : Math.min(23, Math.max(0, parseInt(v) || 0)),
+                      );
+                    }}
+                    className="w-10 text-center text-base font-bold text-[#05015A] tabular-nums py-2 pl-3 pr-0 bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-base font-bold text-gray-400 tabular-nums select-none">
+                    :
+                  </span>
+                  <span className="text-base font-bold text-gray-400 tabular-nums select-none pr-1">
+                    00
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#05015A]/60  px-2 py-2 border-l border-[#05015A]/10 select-none">
+                    IST
+                  </span>
+                </div>
+
+                {/* Live 12h preview */}
+                <div className="hidden md:flex flex-col items-start px-3 py-1.5 bg-white rounded-lg border border-[#05015A]/15">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Cuts off at
+                  </span>
+                  <span className="text-sm font-bold text-[#05015A] tabular-nums">
+                    {(() => {
+                      const h = parseInt(form.same_day_cutoff_hour) || 0;
+                      const period = h >= 12 ? "PM" : "AM";
+                      const hr12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                      return `${hr12}:00 ${period}`;
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: items-start allows sticky elements to stop stretching and slide */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
-        
         {/* Left Side Editors - Scrolls naturally with Page Body */}
         <div className="xl:col-span-2 space-y-5 pb-12">
           {/* Service Charge */}
@@ -339,8 +542,14 @@ export default function MarketplaceDeliveryPricingPage() {
             title="Base Service Charge"
             icon={Settings2}
             description="Platform service charges on order baskets"
+            toggleField="service_charge_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.service_charge_enabled}
           >
-            <InfoBanner>Applied on every basket. Goes directly to platform revenue.</InfoBanner>
+            <InfoBanner>
+              Applied on every basket. Goes directly to platform revenue.
+            </InfoBanner>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
                 <span>Tier</span>
@@ -378,9 +587,14 @@ export default function MarketplaceDeliveryPricingPage() {
             title="Base Delivery Fee"
             icon={Truck}
             description="Fulfillment base delivery fee tiers"
+            toggleField="delivery_fee_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.delivery_fee_enabled}
           >
             <InfoBanner>
-              Flat baseline delivery cost before any distance surcharges are applied.
+              Flat baseline delivery cost before any distance surcharges are
+              applied.
             </InfoBanner>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
@@ -419,53 +633,273 @@ export default function MarketplaceDeliveryPricingPage() {
             </div>
           </Section>
 
-          {/* Surcharge limits */}
-          <Section
-            title="Distance Surcharge Rate"
-            icon={MapPin}
-            description="Per-km mileage rates beyond the free zone threshold"
+{/* Surcharge limits */}
+<Section
+  title="Distance Surcharge Rate"
+  icon={MapPin}
+  description="Per-km mileage rates beyond the free zone threshold"
+  toggleField="km_surcharge_enabled"
+  form={form}
+  onChange={handlePricingChange}
+  defaultOpen={form.km_surcharge_enabled}
+>
+  <div className="space-y-6">
+
+    {/* ── Free Zone Configuration ── */}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field
+          label="Free delivery radius"
+          hint="No distance fees applied inside this boundary"
+          fieldKey="free_km_radius"
+          form={form}
+          onChange={handlePricingChange}
+          suffix="km"
+        />
+      </div>
+
+      {/* Free KM Radius Mode */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+          Free radius behaviour
+        </label>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => handlePricingChange("free_km_mode", "EXCESS_ONLY")}
+            className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+              (form.free_km_mode || "EXCESS_ONLY") === "EXCESS_ONLY"
+                ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+            }`}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field
-                label="Free delivery radius"
-                hint="No distance fees applied inside this boundary"
-                fieldKey="free_km_radius"
+            <span className="font-bold block">Charge excess only</span>
+            <span className="text-[11px] opacity-70">
+              Per-km rate applies only beyond the free radius
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePricingChange("free_km_mode", "FULL_DISTANCE")}
+            className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+              form.free_km_mode === "FULL_DISTANCE"
+                ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+            }`}
+          >
+            <span className="font-bold block">Charge full distance</span>
+            <span className="text-[11px] opacity-70">
+              Free inside radius, full distance charge outside
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* ── Divider ── */}
+    <div className="relative">
+      <div className="absolute inset-0 flex items-center" aria-hidden="true">
+        <div className="w-full border-t border-gray-200" />
+      </div>
+      <div className="relative flex justify-start">
+        <span className="bg-white pr-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Rate tiers
+        </span>
+      </div>
+    </div>
+
+    {/* ── Per-KM Rate Tiers ── */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
+        <Field
+          label="Subtotal threshold"
+          hint="Higher rate applies below this order basket size"
+          fieldKey="per_km_tier_1_max"
+          form={form}
+          onChange={handlePricingChange}
+          prefix="₹"
+        />
+      </div>
+      <Field
+        label="Rate — Tier 1 (Below threshold)"
+        fieldKey="per_km_tier_1_rate"
+        form={form}
+        onChange={handlePricingChange}
+        prefix="₹"
+        suffix="/km"
+      />
+      <Field
+        label="Rate — Tier 2 (Above threshold)"
+        fieldKey="per_km_tier_2_rate"
+        form={form}
+        onChange={handlePricingChange}
+        prefix="₹"
+        suffix="/km"
+      />
+    </div>
+
+  </div>
+</Section>
+
+          {/* Packing Charge */}
+          <Section
+            title="Packing Charge"
+            icon={Settings2}
+            description="Packing and handling fee tiers based on order subtotal"
+            toggleField="packing_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.packing_enabled}
+          >
+            <InfoBanner>
+              Uses the same subtotal-based tier structure as service charge.
+            </InfoBanner>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
+                <span>Tier</span>
+                <span>Subtotal up to</span>
+                <span>Charge</span>
+              </div>
+              <TierRow
+                label="Tier 1"
+                thresholdLabel="Up to (₹)"
+                thresholdKey="packing_tier_1_max"
+                chargeKey="packing_tier_1_charge"
                 form={form}
                 onChange={handlePricingChange}
-                suffix="km"
               />
-              <Field
-                label="Subtotal threshold"
-                hint="Higher rate applies below this order basket size"
-                fieldKey="per_km_tier_1_max"
+              <TierRow
+                label="Tier 2"
+                thresholdLabel="Up to (₹)"
+                thresholdKey="packing_tier_2_max"
+                chargeKey="packing_tier_2_charge"
                 form={form}
                 onChange={handlePricingChange}
-                prefix="₹"
               />
-              <Field
-                label="Rate — Tier 1 (Below threshold)"
-                fieldKey="per_km_tier_1_rate"
+              <TierRow
+                label="Tier 3 (≥ Tier 2 max)"
+                chargeKey="packing_tier_3_charge"
                 form={form}
                 onChange={handlePricingChange}
-                prefix="₹"
-                suffix="/km"
+                hideThreshold
               />
+            </div>
+          </Section>
+
+          {/* Tax (GST) */}
+          <Section
+            title="Tax (GST)"
+            icon={Settings2}
+            description="Goods and Services Tax on platform charges"
+            toggleField="gst_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.gst_enabled}
+          >
+            <InfoBanner>
+              GST is charged on top of platform fees (service, delivery, packing). Medicine MRP already includes GST — enabling tax on subtotal will double-tax medicines.
+            </InfoBanner>
+            <div className="space-y-4">
+              {/* GST Rate */}
               <Field
-                label="Rate — Tier 2 (Above threshold)"
-                fieldKey="per_km_tier_2_rate"
+                label="GST Rate"
+                hint="Standard rate is 18% for platform services"
+                fieldKey="gst_rate"
                 form={form}
                 onChange={handlePricingChange}
-                prefix="₹"
-                suffix="/km"
+                suffix="%"
               />
+
+              {/* GST Type */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Tax Type
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePricingChange("gst_type", "CGST_SGST")}
+                    className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+                      (form.gst_type || "CGST_SGST") === "CGST_SGST"
+                        ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-bold block">CGST + SGST</span>
+                    <span className="text-[11px] opacity-70">
+                      Intra-state (within same state)
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePricingChange("gst_type", "IGST")}
+                    className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+                      form.gst_type === "IGST"
+                        ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-bold block">IGST</span>
+                    <span className="text-[11px] opacity-70">
+                      Inter-state (different states)
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Component Toggles */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  Apply GST on
+                </label>
+
+                {form.gst_on_subtotal && (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                    
+                    <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                      Medicine MRP already includes GST. Taxing subtotal will double-charge customers on medicines.
+                    </p>
+                  </div>
+                )}
+
+                <Toggle
+                  label="Service Charge"
+                  hint="Platform service fee"
+                  fieldKey="gst_on_service"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+                <Toggle
+                  label="Delivery Charge"
+                  hint="Delivery fee + distance surcharge (combined)"
+                  fieldKey="gst_on_delivery"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+                <Toggle
+                  label="Packing Charge"
+                  hint="Packing and handling fee"
+                  fieldKey="gst_on_packaging"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+                <Toggle
+                  label="Medicine Subtotal"
+                  hint="Not recommended — MRP already includes GST"
+                  fieldKey="gst_on_subtotal"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+              </div>
             </div>
           </Section>
 
           {/* Limits */}
           <Section
-            title="Delivery Limits"
+            title="Delivery Limits & Tips"
             icon={Heart}
             description="Delivery radius cap and customer tipping settings"
+            defaultOpen={false}
           >
             <Field
               label="Maximum delivery distance limit"
@@ -486,10 +920,7 @@ export default function MarketplaceDeliveryPricingPage() {
           </Section>
 
           {/* Price slash configuration section */}
-          <SlashConfigSection
-            form={slashForm}
-            onChange={handleSlashChange}
-          />
+          <SlashConfigSection form={slashForm} onChange={handleSlashChange} />
         </div>
 
         {/* 
@@ -500,17 +931,18 @@ export default function MarketplaceDeliveryPricingPage() {
           <LivePreview
             pricingConfig={form}
             slashConfig={slashForm}
+            fulfillmentType={activeFulfillment}
           />
 
           <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl flex-shrink-0">
             <Info size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
             <p className="text-[11px] text-amber-700 leading-relaxed">
               Settings update instantly across active customer channels. Pending
-              orders/sessions initialized prior retain calculations locked at start time.
+              orders/sessions initialized prior retain calculations locked at
+              start time.
             </p>
           </div>
         </div>
-
       </div>
     </div>
   );

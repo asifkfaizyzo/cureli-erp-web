@@ -1,9 +1,9 @@
 // backend/src/modules/cadmin/pricing/cadminPricing.routes.js (do not remove this comment)
-
 import { Router } from 'express';
 import { requireCAdmin } from '../../../middleware/requireCAdmin.js';
 import { 
-  getConfigHandler, 
+  getConfigHandler,
+  getAllConfigsHandler,
   updateConfigHandler,
   getSlashConfigHandler,
   updateSlashConfigHandler
@@ -11,6 +11,7 @@ import {
 
 const router = Router();
 
+router.get('/marketplace/pricing-config/all', requireCAdmin, getAllConfigsHandler);
 router.get('/marketplace/pricing-config',  requireCAdmin, getConfigHandler);
 router.put('/marketplace/pricing-config',  requireCAdmin, updateConfigHandler);
 

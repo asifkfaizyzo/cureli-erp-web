@@ -8,9 +8,14 @@ const router = Router();
 router.use(riderAuth);
 
 router.get("/active", controller.getActiveDelivery);
+router.get("/active-all", controller.getActiveDeliveries);
 
 router.get("/history", controller.getDeliveryHistory);
 router.get("/history/:deliveryId", controller.getDeliveryHistoryDetail);
+
+// Same Day batch (before /:deliveryId param routes)
+router.post("/batch/:batchGroupId/accept", controller.acceptBatch);
+router.post("/batch/:batchGroupId/decline", controller.declineBatch);
 
 router.post("/:deliveryId/accept", controller.acceptDelivery);
 router.post("/:deliveryId/decline", controller.declineDelivery);

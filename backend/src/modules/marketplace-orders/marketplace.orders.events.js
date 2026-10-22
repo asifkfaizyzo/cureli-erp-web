@@ -33,6 +33,7 @@ export async function fireOrderPlacedEvents(order) {
     status,
     payment_method,
     payment_status,
+    fulfillment_type,
   } = order;
 
   const item_count = items?.length ?? 0;
@@ -80,6 +81,7 @@ export async function fireOrderPlacedEvents(order) {
     requires_prescription,
     placed_at,
     status: status || "PLACED",
+    fulfillment_type: fulfillment_type || "INSTANT_DELIVERY",
     payment_method: payment_method || "COD",
     payment_status: payment_status || "PENDING",
     shop_name: shopName,
@@ -130,6 +132,7 @@ export async function fireOrderStatusChangedEvents({
   customer_id,
   new_status,
   customer_name,
+  fulfillment_type,
 }) {
   // ── Enrich payload with full order data for CAdmin optimistic patching ──
   let enrichedData = {};
@@ -142,6 +145,7 @@ export async function fireOrderStatusChangedEvents({
         payment_method: true,
         customer_phone_snapshot: true,
         requires_prescription: true,
+        fulfillment_type: true,
         _count: { select: { items: true } },
         shop: { select: { business_name: true } },
         branch: { select: { branch_name: true } },
@@ -156,6 +160,7 @@ export async function fireOrderStatusChangedEvents({
         payment_method: order.payment_method,
         customer_phone: order.customer_phone_snapshot,
         requires_prescription: order.requires_prescription,
+        fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
         shop_name: order.shop?.business_name || null,
         branch_name: order.branch?.branch_name || null,
         has_rider: !!order.delivery?.rider_id,
@@ -166,11 +171,15 @@ export async function fireOrderStatusChangedEvents({
     // Non-critical — proceed with basic payload
   }
 
+  const resolvedFulfillmentType =
+    fulfillment_type || enrichedData.fulfillment_type || "INSTANT_DELIVERY";
+
   const payload = {
     order_id,
     order_number,
     new_status,
     customer_name,
+    fulfillment_type: resolvedFulfillmentType,
     ...enrichedData,
   };
 
@@ -214,6 +223,7 @@ export async function fireOrderStatusChangedEvents({
         order_id,
         order_number,
         new_status,
+        fulfillment_type: resolvedFulfillmentType,
       });
       console.log(
         `[OrderEvents] Fired order_status_changed (${new_status}) SSE to mobile customer ${customer_id}`,
@@ -235,14 +245,47 @@ export async function fireOrderStatusChangedEvents({
   ];
 
   if (customer_id && pushStatuses.includes(new_status)) {
-    MobilePush.orderStatusChanged(
-      customer_id,
-      order_id,
-      order_number,
-      new_status,
-    ).catch((err) =>
-      console.error(`[OrderEvents] Push (${new_status}) failed:`, err.message),
-    );
+    // ── Differentiate push messages for PICKUP vs DELIVERY ──
+    if (
+      new_status === "READY_FOR_PICKUP" &&
+      resolvedFulfillmentType === "PICKUP"
+    ) {
+      MobilePush.orderStatusChanged(
+        customer_id,
+        order_id,
+        order_number,
+        "ORDER_READY_FOR_PICKUP",
+      ).catch((err) =>
+        console.error(
+          `[OrderEvents] Push (READY_FOR_PICKUP) failed:`,
+          err.message,
+        ),
+      );
+    } else if (
+      new_status === "COMPLETED" &&
+      resolvedFulfillmentType === "PICKUP"
+    ) {
+      MobilePush.orderStatusChanged(
+        customer_id,
+        order_id,
+        order_number,
+        "ORDER_PICKED_UP",
+      ).catch((err) =>
+        console.error(`[OrderEvents] Push (PICKED_UP) failed:`, err.message),
+      );
+    } else {
+      MobilePush.orderStatusChanged(
+        customer_id,
+        order_id,
+        order_number,
+        new_status,
+      ).catch((err) =>
+        console.error(
+          `[OrderEvents] Push (${new_status}) failed:`,
+          err.message,
+        ),
+      );
+    }
   }
 
   if (new_status === "COMPLETED") {

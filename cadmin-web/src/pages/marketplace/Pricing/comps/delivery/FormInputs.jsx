@@ -1,6 +1,7 @@
 // cadmin-web/src/pages/marketplace/Pricing/comps/delivery/FormInputs.jsx (do not remove this comment)
 
-import { Info } from "lucide-react";
+import { useState } from "react";
+import { Info, ChevronDown } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -17,25 +18,127 @@ export function fmt(val) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section wrapper — matches ProfileCard's Section pattern
+// Section wrapper — collapsible, with optional inline toggle switch in header
+//
+// Props:
+//   - title, icon, description, children      (same as before)
+//   - defaultOpen (bool, default: true)       initial collapse state
+//   - collapsible (bool, default: true)       whether header is clickable to collapse
+//   - toggleField (string, optional)          field key for inline enable/disable toggle
+//   - form, onChange                          only needed when toggleField is provided
+//   - disabled (bool, optional)               when true, body is dimmed + inputs disabled visually
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const Section = ({ title, icon: Icon, description, children }) => (
-  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-    <div className="flex items-center gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100">
-      <div className="w-8 h-8 rounded-lg bg-[#05015A]/8 flex items-center justify-center flex-shrink-0">
-        <Icon size={16} className="text-[#05015A]" />
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-        {description && (
-          <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+export const Section = ({
+  title,
+  icon: Icon,
+  description,
+  children,
+  defaultOpen = true,
+  collapsible = true,
+  toggleField = null,
+  form = null,
+  onChange = null,
+  disabled = false,
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const toggleOn = toggleField && form ? !!form[toggleField] : null;
+  const bodyDisabled = disabled || (toggleField && !toggleOn);
+
+  const handleHeaderClick = () => {
+    if (collapsible) setOpen((o) => !o);
+  };
+
+  const handleToggleClick = (e) => {
+    e.stopPropagation();
+    if (toggleField && onChange) {
+      onChange(toggleField, !toggleOn);
+      // Auto-expand when enabling, auto-collapse when disabling
+      setOpen(!toggleOn);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div
+        onClick={handleHeaderClick}
+        className={`flex items-center gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 ${
+          collapsible ? "cursor-pointer hover:bg-gray-100 transition-colors" : ""
+        } ${!open ? "border-b-0" : ""}`}
+      >
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            bodyDisabled ? "bg-gray-200" : "bg-[#05015A]/8"
+          }`}
+        >
+          <Icon
+            size={16}
+            className={bodyDisabled ? "text-gray-400" : "text-[#05015A]"}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3
+              className={`text-sm font-semibold ${
+                bodyDisabled ? "text-gray-400" : "text-gray-700"
+              }`}
+            >
+              {title}
+            </h3>
+            {toggleField && !toggleOn && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-gray-200 text-gray-500 rounded">
+                Disabled
+              </span>
+            )}
+          </div>
+          {description && (
+            <p className="text-xs text-gray-400 mt-0.5 truncate">
+              {description}
+            </p>
+          )}
+        </div>
+
+        {/* Inline toggle switch */}
+        {toggleField && (
+          <button
+            type="button"
+            onClick={handleToggleClick}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0
+                        focus:outline-none focus:ring-2 focus:ring-[#05015A]/20
+                        ${toggleOn ? "bg-[#05015A]" : "bg-gray-300"}`}
+            title={toggleOn ? "Disable this charge" : "Enable this charge"}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm
+                          transition-transform ${toggleOn ? "translate-x-6" : "translate-x-1"}`}
+            />
+          </button>
+        )}
+
+        {/* Collapse chevron */}
+        {collapsible && (
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
         )}
       </div>
+
+      {open && (
+        <div
+          className={`p-5 space-y-4 transition-opacity ${
+            bodyDisabled ? "opacity-50 pointer-events-none select-none" : ""
+          }`}
+        >
+          {children}
+        </div>
+      )}
     </div>
-    <div className="p-5 space-y-4">{children}</div>
-  </div>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tier row — label + two inputs (threshold + charge)
@@ -149,7 +252,7 @@ export const Field = ({
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Toggle switch
+// Toggle switch (standalone — for things like tip_enabled)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const Toggle = ({ label, hint, fieldKey, form, onChange }) => (

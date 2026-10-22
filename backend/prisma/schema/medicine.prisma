@@ -160,6 +160,7 @@ model Medicine {
   @@index([shop_id, branch_id, is_active])
   @@index([shop_id, is_active])
   @@index([shop_id, name])
+  @@index([name, manufacturer])  
   @@index([hsn_code])
   @@index([manufacturer])
   @@index([master_medicine_id, link_status])

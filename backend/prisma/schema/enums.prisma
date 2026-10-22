@@ -417,6 +417,13 @@ enum DeliveryMode {
   SELF
 }
 
+enum FulfillmentType {
+  INSTANT_DELIVERY
+  PICKUP
+  SAME_DAY
+  NEXT_DAY
+}
+
 enum CustomerTicketStatus {
   OPEN
   IN_PROGRESS
@@ -486,4 +493,9 @@ enum SlashMode {
   NONE
   NEW
   OLD
+}
+
+enum FreeKmMode {
+  EXCESS_ONLY    
+  FULL_DISTANCE  
 }

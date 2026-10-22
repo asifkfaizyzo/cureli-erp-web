@@ -18,8 +18,9 @@ export async function listOrders(req, res) {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const search = (req.query.search || "").trim();
     const status = (req.query.status || "").trim();
+    const fulfillment_type = (req.query.fulfillment_type || "").trim();
 
-    const result = await listAllOrders({ page, limit, search, status });
+    const result = await listAllOrders({ page, limit, search, status, fulfillment_type });
     return success(res, result, "Orders fetched");
   } catch (err) {
     console.error("[CAdmin Orders] listOrders error:", err.message);

@@ -175,7 +175,7 @@ export async function generateMarketplaceInvoice(
         context: {
           orderNumber: order.order_number,
           pharmacyName: order.shop?.business_name || "Cureli Partner Pharmacy",
-          grandTotal: Number(invoice.grand_total || 0),
+          grandTotal: Number(order.total_amount || 0),
           orderDate: order.created_at,
           invoiceUrl: signedDownloadUrl,
           attachments: [

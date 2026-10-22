@@ -11,7 +11,11 @@ import { staleRiderWorker } from "./staleRiderWorker.js";
 import { staleAssignmentWorker } from "./staleAssignmentWorker.js";
 import { checkCommissionSuspensionExpiry } from "./commissionSuspensionWorker.js";
 import { riderAssignmentTimeoutWorker } from "./riderAssignmentTimeoutWorker.js";
-
+import { processStalePickupOrders } from "./stalePickupWorker.js";
+import {
+  sameDayCutoffAlert,
+  sameDayEndOfDayCleanup,
+} from "./sameDayCutoffWorker.js";
 import {
   cleanupOldPendingUsers,
   cleanupIncompleteUsers,
@@ -680,6 +684,13 @@ function initializeRiderAssignmentTimeoutJob() {
   );
 }
 
+function initializeStalePickupJob() {
+  cron.schedule("*/30 * * * *", () =>
+    withCronLock("stale-pickup-sweep", 15, processStalePickupOrders),
+  );
+  cronLogger.info("Stale pickup sweep scheduled (every 30 minutes)");
+}
+
 function initializeCommissionSuspensionJob() {
   cron.schedule("*/15 * * * *", () =>
     withCronLock("commission-suspension", 5, checkCommissionSuspensionExpiry),
@@ -753,6 +764,22 @@ export function initializeCronJobs() {
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
   initializeRiderAssignmentTimeoutJob();
+    initializeStalePickupJob();
+
+  // ── Same Day Delivery Crons ──────────────────────────────
+  // Cutoff alert: 3:05 PM IST (9:35 UTC) — default cutoff is 3 PM
+  cron.schedule("35 9 * * *", () =>
+    withCronLock("same-day-cutoff-alert", 5, sameDayCutoffAlert),
+  );
+  cronLogger.info("Same Day cutoff alert scheduled (daily at 3:05 PM IST)");
+
+  // End-of-day cleanup: 11:05 PM IST (17:35 UTC)
+  cron.schedule("35 17 * * *", () =>
+    withCronLock("same-day-eod-cleanup", 15, sameDayEndOfDayCleanup),
+  );
+  cronLogger.info(
+    "Same Day end-of-day cleanup scheduled (daily at 11:05 PM IST)",
+  );
 
   cron.schedule("0 3 * * *", () =>
     withCronLock("cleanup-pending-users", 15, async () => {
@@ -838,7 +865,10 @@ export function initializeCronJobs() {
   cronLogger.info(
     "  - Rider assignment auto-decline: Every 30 seconds (90s timeout)",
   );
-  cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
+  cronLogger.info("  - Stale pickup sweep: Every 30 minutes");
+    cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
+  cronLogger.info("  - Same Day cutoff alert: Daily at 3:05 PM IST");
+  cronLogger.info("  - Same Day EOD cleanup: Daily at 11:05 PM IST");
   cronLogger.info(
     "  - Mobile notification cleanup: Daily at 4:15 AM (90-day retention)",
   );

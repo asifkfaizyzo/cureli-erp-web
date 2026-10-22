@@ -18,6 +18,17 @@
       "dependsOrder": "parallel"
     },
     {
+      "label": "cureli-tree",
+      "dependsOn": [
+        "Root tree",
+        "Backend tree",
+        "ERP tree",
+        "cAdmin tree",
+        "Landing tree",
+      ],
+      "dependsOrder": "parallel"
+    },
+    {
       "label": "Backend",
       "type": "shell",
       "command": "npm start",
@@ -36,6 +47,18 @@
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Root tree",
+      "type": "shell",
+      "command": "ls;",
+      "isBackground": true,
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "presentation": {
         "panel": "new"

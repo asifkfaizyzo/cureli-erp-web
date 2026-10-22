@@ -25,12 +25,24 @@ const PRESCRIPTION_FOLDER = "order_prescriptions";
  */
 const VALID_TRANSITIONS = {
   PLACED: ["ACCEPTED", "REJECTED", "CANCELLED"],
-  ACCEPTED: ["READY_FOR_PICKUP"],
-  READY_FOR_PICKUP: ["COMPLETED"],
+  ACCEPTED: ["READY_FOR_PICKUP", "CANCELLED"],
+  READY_FOR_PICKUP: ["COMPLETED", "CANCELLED"],
   COMPLETED: [],
   REJECTED: [],
   CANCELLED: [],
 };
+
+
+/**
+ * Fulfillment types that do NOT auto-create a Delivery record on ACCEPTED.
+ *
+ * - PICKUP: Customer collects from pharmacy. No rider, no delivery ever.
+ * - SAME_DAY: Delivery is deferred until CAdmin performs batch assignment.
+ *             Orders sit at READY_FOR_PICKUP until a team rider is
+ *             batch-assigned, at which point the Delivery record is
+ *             created by cadmin.delivery.service.batchAssignOrders().
+ */
+const NON_DELIVERY_FULFILLMENT_TYPES = ["PICKUP", "SAME_DAY"];
 
 /**
  * How many days until prescriptions expire after order resolution.
@@ -267,6 +279,7 @@ export async function placeOrder({
   let service_charge = 0;
   let delivery_fee = 0;
   let km_surcharge = 0;
+  let gst = null;
 
   if (pricingConfigRow) {
     const config = normaliseConfig(pricingConfigRow);
@@ -285,6 +298,11 @@ export async function placeOrder({
     delivery_fee = pricing.delivery_fee;
     km_surcharge = pricing.km_surcharge;
     total_amount = pricing.grand_total;
+
+    // ── GST ──────────────────────────────────────
+    const { computeGST } = await import("../mobile/checkout/pricing.engine.js");
+    gst = computeGST(pricing, config);
+    total_amount = parseFloat((total_amount + gst.gst_amount).toFixed(2));
   }
 
   // ── 7. Snapshot delivery address ──────────────────────────────────────────
@@ -328,6 +346,10 @@ export async function placeOrder({
         delivery_fee,
         km_surcharge,
         tip: 0,
+        gst_rate: gst?.gst_rate ?? null,
+        gst_type: gst?.gst_type ?? null,
+        gst_amount: gst?.gst_amount ?? null,
+        gst_breakdown: gst?.gst_breakdown?.length ? gst.gst_breakdown : null,
         total_amount,
         distance_km: distanceKm,
         requires_prescription: requiresPrescription,
@@ -434,6 +456,7 @@ export async function transitionOrderStatus({
       customer_id: true,
       status: true,
       customer_name_snapshot: true,
+      fulfillment_type: true,
     },
   });
 
@@ -525,8 +548,11 @@ export async function transitionOrderStatus({
       },
     });
 
-    // 3. AUTO-CREATE DELIVERY on ACCEPTED
-    if (target_status === "ACCEPTED" && !current.delivery) {
+    // 3. AUTO-CREATE DELIVERY on ACCEPTED (only for delivery-based fulfillment)
+    const requiresDelivery = !NON_DELIVERY_FULFILLMENT_TYPES.includes(
+      current.fulfillment_type || "INSTANT_DELIVERY",
+    );
+    if (target_status === "ACCEPTED" && !current.delivery && requiresDelivery) {
       const pickupLat = current.branch?.marketplaceSettings?.latitude ?? null;
       const pickupLng = current.branch?.marketplaceSettings?.longitude ?? null;
       const addressSnapshot = current.delivery_address_snapshot || {};
@@ -568,7 +594,6 @@ export async function transitionOrderStatus({
   });
 
   // ── Post-commit: Notify rider about critical transitions ──────────────────
-    // ── Post-commit: Notify rider about critical transitions ──────────────────
   const delivery = await prisma.delivery.findUnique({
     where: { order_id },
     select: {
@@ -594,8 +619,7 @@ export async function transitionOrderStatus({
       });
 
       // Push: background/lockscreen notification (failsafe)
-      const shopName =
-        delivery.order?.shop?.business_name || "Pharmacy";
+      const shopName = delivery.order?.shop?.business_name || "Pharmacy";
       RiderPush.orderReadyForPickup(
         delivery.rider_id,
         delivery.delivery_id,
@@ -644,6 +668,7 @@ export async function transitionOrderStatus({
     customer_id: order.customer_id,
     new_status: target_status,
     customer_name: order.customer_name_snapshot,
+    fulfillment_type: order.fulfillment_type,
   });
 
   return {
@@ -674,6 +699,96 @@ export async function cancelOrder(order_id, customer_id) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// COMPLETE PICKUP ORDER
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Complete a pickup order.
+ * - Pharmacy actor: must provide and verify the customer's delivery_otp.
+ * - Customer actor: self-confirms pickup, no OTP needed.
+ * Idempotent: if order is already COMPLETED, returns success.
+ *
+ * @param {Object} options
+ * @param {string} options.order_id
+ * @param {string} options.actor_type   - 'pharmacy' | 'customer'
+ * @param {string} options.actor_id     - user_id for pharmacy, customer_id for customer
+ * @param {string} [options.shop_id]    - required for pharmacy scope check
+ * @param {string} [options.otp]        - required when actor_type = 'pharmacy'
+ */
+export async function completePickupOrder({
+  order_id,
+  actor_type,
+  actor_id,
+  shop_id = null,
+  otp = null,
+}) {
+  const order = await prisma.marketplaceOrder.findUnique({
+    where: { order_id },
+    select: {
+      order_id: true,
+      order_number: true,
+      shop_id: true,
+      customer_id: true,
+      status: true,
+      fulfillment_type: true,
+      delivery_otp: true,
+      customer_name_snapshot: true,
+    },
+  });
+
+  if (!order) throw new Error("Order not found");
+
+  // Scope checks
+  if (actor_type === "pharmacy" && shop_id && order.shop_id !== shop_id) {
+    throw new Error("Order not found");
+  }
+  if (actor_type === "customer" && actor_id && order.customer_id !== actor_id) {
+    throw new Error("Order not found");
+  }
+
+  // Fulfillment type guard
+  if (order.fulfillment_type !== "PICKUP") {
+    throw new Error("This endpoint is only for pickup orders");
+  }
+
+  // Idempotency: already completed
+  if (order.status === "COMPLETED") {
+    return {
+      order_id: order.order_id,
+      order_number: order.order_number,
+      status: "COMPLETED",
+      already_completed: true,
+    };
+  }
+
+  // Status guard
+  if (order.status !== "READY_FOR_PICKUP") {
+    throw new Error(
+      `Cannot complete pickup — order is in ${order.status} status`,
+    );
+  }
+
+  // OTP verification for pharmacy actor
+  if (actor_type === "pharmacy") {
+    if (!otp || typeof otp !== "string") {
+      throw new Error("Pickup code is required");
+    }
+    if (otp.trim() !== order.delivery_otp) {
+      throw new Error("Invalid pickup code. Please verify with the customer.");
+    }
+  }
+
+  // Delegate to standard transition
+  return transitionOrderStatus({
+    order_id,
+    target_status: "COMPLETED",
+    actor_type,
+    actor_id,
+    shop_id: actor_type === "pharmacy" ? shop_id : null,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET ORDER LIST (ERP)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -699,6 +814,7 @@ export async function getErpOrders(shop_id, query = {}) {
         order_id: true,
         order_number: true,
         status: true,
+        fulfillment_type: true,
         customer_name_snapshot: true,
         customer_phone_snapshot: true,
         total_amount: true,
@@ -832,6 +948,7 @@ export async function getMobileOrders(customer_id, query = {}) {
         order_id: true,
         order_number: true,
         status: true,
+        fulfillment_type: true,
         total_amount: true,
         requires_prescription: true,
         placed_at: true,
@@ -1350,6 +1467,7 @@ function formatErpOrderSummary(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     total_amount: Number(order.total_amount),
@@ -1398,11 +1516,20 @@ function formatErpOrderDetail(order) {
       ? Number((subtotal - commissionAmount).toFixed(2))
       : subtotal;
 
+  // ── Expose delivery_otp to pharmacy ERP for pickup orders ──
+  // Pharmacy needs to enter the customer's pickup code to complete the order.
+  const isPickup = order.fulfillment_type === "PICKUP";
+  const pickupCustomerOtp =
+    isPickup && order.status === "READY_FOR_PICKUP"
+      ? (order.delivery_otp ?? null)
+      : null;
+
   return {
     order_id: order.order_id,
     order_number: order.order_number,
     branch_id: order.branch_id,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     customer_name: order.customer_name_snapshot,
     customer_phone: order.customer_phone_snapshot,
     delivery_address: order.delivery_address_snapshot,
@@ -1412,8 +1539,6 @@ function formatErpOrderDetail(order) {
     commission_amount: commissionAmount,
     pharmacy_earning: pharmacyEarning,
     // ── Platform fees ───────────────────────────────────────────
-    // ERP sees actual charges only. No slash anchors exposed.
-    // delivery_fee merged with km_surcharge for consistency.
     service_charge: Number(order.service_charge ?? 0),
     delivery_fee: parseFloat(
       (
@@ -1421,12 +1546,19 @@ function formatErpOrderDetail(order) {
       ).toFixed(2),
     ),
     km_surcharge: 0,
+    packing_charge: Number(order.packing_charge ?? 0),
     tip: Number(order.tip ?? 0),
+    // ── GST (platform tax on service/delivery/packing) ──
+    gst_rate: order.gst_rate != null ? Number(order.gst_rate) : null,
+    gst_type: order.gst_type ?? null,
+    gst_amount: order.gst_amount != null ? Number(order.gst_amount) : null,
+    gst_breakdown: order.gst_breakdown ?? null,
     requires_prescription: order.requires_prescription,
     payment_method: order.payment_method,
     payment_status: order.payment_status,
     notes: order.notes,
     pickup_otp: order.pickup_otp ?? null,
+    customer_pickup_code: pickupCustomerOtp,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
     placed_at: order.placed_at,
@@ -1493,6 +1625,7 @@ function formatMobileOrderSummary(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     delivery_status: order.delivery?.status ?? null,
     shop_name: order.shop?.business_name ?? null,
     total_amount: Number(order.total_amount),
@@ -1590,6 +1723,7 @@ function formatMobileOrderDetail(order) {
     order_id: order.order_id,
     order_number: order.order_number,
     status: order.status,
+    fulfillment_type: order.fulfillment_type || "INSTANT_DELIVERY",
     shop_name: order.shop?.business_name ?? null,
     shop_phone: pharmacyPhone,
     branch_name: order.branch?.branch_name ?? null,
@@ -1618,6 +1752,7 @@ function formatMobileOrderDetail(order) {
       ).toFixed(2),
     ),
     km_surcharge: 0,
+    packing_charge: Number(order.packing_charge ?? 0),
     tip: Number(order.tip ?? 0),
     grand_total: Number(order.total_amount),
 
@@ -1632,6 +1767,12 @@ function formatMobileOrderDetail(order) {
         : null,
     platform_savings:
       order.platform_savings != null ? Number(order.platform_savings) : 0,
+
+    // ── GST (platform tax on service/delivery/packing) ──
+    gst_rate: order.gst_rate != null ? Number(order.gst_rate) : null,
+    gst_type: order.gst_type ?? null,
+    gst_amount: order.gst_amount != null ? Number(order.gst_amount) : null,
+    gst_breakdown: order.gst_breakdown ?? null,
 
     // ── Coupon & Loyalty breakdown for expanded tracking sheet ──
     coupon_code: order.coupon_code ?? null,
@@ -1652,8 +1793,12 @@ function formatMobileOrderDetail(order) {
     notes: order.notes,
     rejection_reason: order.rejection_reason,
     rejection_reason_other: order.rejection_reason_other,
-    // ── OTP security: only expose when rider has arrived ────────────────
+    // ── OTP exposure logic ──────────────────────────────────────────────
+    // Instant delivery: show when rider arrives at customer
+    // Pickup: show when pharmacy marks order ready
     delivery_otp:
+      (order.fulfillment_type === "PICKUP" &&
+        order.status === "READY_FOR_PICKUP") ||
       delivery?.status === "ARRIVED_AT_CUSTOMER"
         ? (order.delivery_otp ?? null)
         : null,

@@ -20,26 +20,66 @@ const NUMERIC_FIELDS = [
   "per_km_tier_1_max",
   "per_km_tier_1_rate",
   "per_km_tier_2_rate",
+  "packing_tier_1_max",
+  "packing_tier_1_charge",
+  "packing_tier_2_max",
+  "packing_tier_2_charge",
+  "packing_tier_3_charge",
+  "same_day_cutoff_hour",
+  "gst_rate",
+];
+
+const TOGGLE_FIELDS = [
+  "service_charge_enabled",
+  "delivery_fee_enabled",
+  "km_surcharge_enabled",
+  "packing_enabled",
+  "tip_enabled",
+  "gst_enabled",
+  "gst_on_subtotal",
+  "gst_on_delivery",
+  "gst_on_service",
+  "gst_on_packaging",
+];
+
+const STRING_FIELDS = [
+  "gst_type",
 ];
 
 // ── Whitelist of editable slash fields ──
 const SLASH_MODES = ["NONE", "NEW", "OLD"];
 
-export async function getPricingConfig() {
-  let config = await prisma.deliveryPricingConfig.findFirst();
+export async function getAllPricingConfigs() {
+  return await prisma.deliveryPricingConfig.findMany({
+    orderBy: { fulfillment_type: "asc" },
+  });
+}
+
+export async function getPricingConfig(fulfillment_type = "INSTANT_DELIVERY") {
+  let config = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type },
+  });
 
   if (!config) {
-    config = await prisma.deliveryPricingConfig.create({ data: {} });
+    config = await prisma.deliveryPricingConfig.create({
+      data: { fulfillment_type },
+    });
   }
 
   return config;
 }
 
-export async function updatePricingConfig(data, cadmin_id) {
-  let existing = await prisma.deliveryPricingConfig.findFirst();
+export async function updatePricingConfig(data, cadmin_id, fulfillment_type = "INSTANT_DELIVERY") {
+  const targetType = data.fulfillment_type || fulfillment_type;
+
+  let existing = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type: targetType },
+  });
 
   if (!existing) {
-    existing = await prisma.deliveryPricingConfig.create({ data: {} });
+    existing = await prisma.deliveryPricingConfig.create({
+      data: { fulfillment_type: targetType },
+    });
   }
 
   // ── Build clean update payload from whitelist only ──
@@ -49,6 +89,20 @@ export async function updatePricingConfig(data, cadmin_id) {
   for (const key of NUMERIC_FIELDS) {
     if (data[key] !== undefined && data[key] !== null && data[key] !== "") {
       updateData[key] = Number(data[key]);
+    }
+  }
+
+  // Toggle booleans
+  for (const key of TOGGLE_FIELDS) {
+    if (key in data) {
+      updateData[key] = Boolean(data[key]);
+    }
+  }
+
+  // String fields
+  for (const key of STRING_FIELDS) {
+    if (key in data) {
+      updateData[key] = String(data[key]).trim();
     }
   }
 
@@ -62,9 +116,15 @@ export async function updatePricingConfig(data, cadmin_id) {
     }
   }
 
-  // tip_enabled: boolean
-  if ("tip_enabled" in data) {
-    updateData.tip_enabled = Boolean(data.tip_enabled);
+  // free_km_mode: enum — must be EXCESS_ONLY or FULL_DISTANCE
+  const VALID_FREE_KM_MODES = ["EXCESS_ONLY", "FULL_DISTANCE"];
+  if ("free_km_mode" in data) {
+    const raw = data.free_km_mode;
+    if (VALID_FREE_KM_MODES.includes(raw)) {
+      updateData.free_km_mode = raw;
+    } else {
+      updateData.free_km_mode = "EXCESS_ONLY";
+    }
   }
 
   // Version bump + audit
