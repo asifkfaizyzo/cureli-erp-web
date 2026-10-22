@@ -26,6 +26,7 @@ const NUMERIC_FIELDS = [
   "packing_tier_2_charge",
   "packing_tier_3_charge",
   "same_day_cutoff_hour",
+  "gst_rate",
 ];
 
 const TOGGLE_FIELDS = [
@@ -34,6 +35,15 @@ const TOGGLE_FIELDS = [
   "km_surcharge_enabled",
   "packing_enabled",
   "tip_enabled",
+  "gst_enabled",
+  "gst_on_subtotal",
+  "gst_on_delivery",
+  "gst_on_service",
+  "gst_on_packaging",
+];
+
+const STRING_FIELDS = [
+  "gst_type",
 ];
 
 // ── Whitelist of editable slash fields ──
@@ -89,6 +99,13 @@ export async function updatePricingConfig(data, cadmin_id, fulfillment_type = "I
     }
   }
 
+  // String fields
+  for (const key of STRING_FIELDS) {
+    if (key in data) {
+      updateData[key] = String(data[key]).trim();
+    }
+  }
+
   // max_delivery_km: nullable — empty string / 0 / null → null
   if ("max_delivery_km" in data) {
     const raw = data.max_delivery_km;
@@ -96,6 +113,17 @@ export async function updatePricingConfig(data, cadmin_id, fulfillment_type = "I
       updateData.max_delivery_km = null;
     } else {
       updateData.max_delivery_km = Number(raw);
+    }
+  }
+
+  // free_km_mode: enum — must be EXCESS_ONLY or FULL_DISTANCE
+  const VALID_FREE_KM_MODES = ["EXCESS_ONLY", "FULL_DISTANCE"];
+  if ("free_km_mode" in data) {
+    const raw = data.free_km_mode;
+    if (VALID_FREE_KM_MODES.includes(raw)) {
+      updateData.free_km_mode = raw;
+    } else {
+      updateData.free_km_mode = "EXCESS_ONLY";
     }
   }
 

@@ -279,6 +279,7 @@ export async function placeOrder({
   let service_charge = 0;
   let delivery_fee = 0;
   let km_surcharge = 0;
+  let gst = null;
 
   if (pricingConfigRow) {
     const config = normaliseConfig(pricingConfigRow);
@@ -297,6 +298,11 @@ export async function placeOrder({
     delivery_fee = pricing.delivery_fee;
     km_surcharge = pricing.km_surcharge;
     total_amount = pricing.grand_total;
+
+    // ── GST ──────────────────────────────────────
+    const { computeGST } = await import("../mobile/checkout/pricing.engine.js");
+    gst = computeGST(pricing, config);
+    total_amount = parseFloat((total_amount + gst.gst_amount).toFixed(2));
   }
 
   // ── 7. Snapshot delivery address ──────────────────────────────────────────
@@ -340,6 +346,10 @@ export async function placeOrder({
         delivery_fee,
         km_surcharge,
         tip: 0,
+        gst_rate: gst?.gst_rate ?? null,
+        gst_type: gst?.gst_type ?? null,
+        gst_amount: gst?.gst_amount ?? null,
+        gst_breakdown: gst?.gst_breakdown?.length ? gst.gst_breakdown : null,
         total_amount,
         distance_km: distanceKm,
         requires_prescription: requiresPrescription,
@@ -1538,6 +1548,11 @@ function formatErpOrderDetail(order) {
     km_surcharge: 0,
     packing_charge: Number(order.packing_charge ?? 0),
     tip: Number(order.tip ?? 0),
+    // ── GST (platform tax on service/delivery/packing) ──
+    gst_rate: order.gst_rate != null ? Number(order.gst_rate) : null,
+    gst_type: order.gst_type ?? null,
+    gst_amount: order.gst_amount != null ? Number(order.gst_amount) : null,
+    gst_breakdown: order.gst_breakdown ?? null,
     requires_prescription: order.requires_prescription,
     payment_method: order.payment_method,
     payment_status: order.payment_status,
@@ -1752,6 +1767,12 @@ function formatMobileOrderDetail(order) {
         : null,
     platform_savings:
       order.platform_savings != null ? Number(order.platform_savings) : 0,
+
+    // ── GST (platform tax on service/delivery/packing) ──
+    gst_rate: order.gst_rate != null ? Number(order.gst_rate) : null,
+    gst_type: order.gst_type ?? null,
+    gst_amount: order.gst_amount != null ? Number(order.gst_amount) : null,
+    gst_breakdown: order.gst_breakdown ?? null,
 
     // ── Coupon & Loyalty breakdown for expanded tracking sheet ──
     coupon_code: order.coupon_code ?? null,

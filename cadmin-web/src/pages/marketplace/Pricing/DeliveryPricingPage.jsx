@@ -56,6 +56,7 @@ const DEFAULT_PRICING = {
   delivery_tier_3_charge: 40,
   delivery_tier_4_charge: 30,
   free_km_radius: 3,
+  free_km_mode: "EXCESS_ONLY",
   per_km_tier_1_max: 999.99,
   per_km_tier_1_rate: 15,
   per_km_tier_2_rate: 10,
@@ -74,6 +75,14 @@ const DEFAULT_PRICING = {
   packing_tier_3_charge: 20,
   // ── Same Day Cutoff ──
   same_day_cutoff_hour: 15,
+  // ── GST (Tax) ──
+  gst_enabled: false,
+  gst_rate: 0,
+  gst_type: "CGST_SGST",
+  gst_on_subtotal: false,
+  gst_on_delivery: false,
+  gst_on_service: false,
+  gst_on_packaging: false,
 };
 
 const DEFAULT_SLASH = {
@@ -624,51 +633,113 @@ export default function MarketplaceDeliveryPricingPage() {
             </div>
           </Section>
 
-          {/* Surcharge limits */}
-          <Section
-            title="Distance Surcharge Rate"
-            icon={MapPin}
-            description="Per-km mileage rates beyond the free zone threshold"
-            toggleField="km_surcharge_enabled"
-            form={form}
-            onChange={handlePricingChange}
-            defaultOpen={form.km_surcharge_enabled}
+{/* Surcharge limits */}
+<Section
+  title="Distance Surcharge Rate"
+  icon={MapPin}
+  description="Per-km mileage rates beyond the free zone threshold"
+  toggleField="km_surcharge_enabled"
+  form={form}
+  onChange={handlePricingChange}
+  defaultOpen={form.km_surcharge_enabled}
+>
+  <div className="space-y-6">
+
+    {/* ── Free Zone Configuration ── */}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field
+          label="Free delivery radius"
+          hint="No distance fees applied inside this boundary"
+          fieldKey="free_km_radius"
+          form={form}
+          onChange={handlePricingChange}
+          suffix="km"
+        />
+      </div>
+
+      {/* Free KM Radius Mode */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+          Free radius behaviour
+        </label>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => handlePricingChange("free_km_mode", "EXCESS_ONLY")}
+            className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+              (form.free_km_mode || "EXCESS_ONLY") === "EXCESS_ONLY"
+                ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+            }`}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field
-                label="Free delivery radius"
-                hint="No distance fees applied inside this boundary"
-                fieldKey="free_km_radius"
-                form={form}
-                onChange={handlePricingChange}
-                suffix="km"
-              />
-              <Field
-                label="Subtotal threshold"
-                hint="Higher rate applies below this order basket size"
-                fieldKey="per_km_tier_1_max"
-                form={form}
-                onChange={handlePricingChange}
-                prefix="₹"
-              />
-              <Field
-                label="Rate — Tier 1 (Below threshold)"
-                fieldKey="per_km_tier_1_rate"
-                form={form}
-                onChange={handlePricingChange}
-                prefix="₹"
-                suffix="/km"
-              />
-              <Field
-                label="Rate — Tier 2 (Above threshold)"
-                fieldKey="per_km_tier_2_rate"
-                form={form}
-                onChange={handlePricingChange}
-                prefix="₹"
-                suffix="/km"
-              />
-            </div>
-          </Section>
+            <span className="font-bold block">Charge excess only</span>
+            <span className="text-[11px] opacity-70">
+              Per-km rate applies only beyond the free radius
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePricingChange("free_km_mode", "FULL_DISTANCE")}
+            className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+              form.free_km_mode === "FULL_DISTANCE"
+                ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+            }`}
+          >
+            <span className="font-bold block">Charge full distance</span>
+            <span className="text-[11px] opacity-70">
+              Free inside radius, full distance charge outside
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* ── Divider ── */}
+    <div className="relative">
+      <div className="absolute inset-0 flex items-center" aria-hidden="true">
+        <div className="w-full border-t border-gray-200" />
+      </div>
+      <div className="relative flex justify-start">
+        <span className="bg-white pr-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Rate tiers
+        </span>
+      </div>
+    </div>
+
+    {/* ── Per-KM Rate Tiers ── */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
+        <Field
+          label="Subtotal threshold"
+          hint="Higher rate applies below this order basket size"
+          fieldKey="per_km_tier_1_max"
+          form={form}
+          onChange={handlePricingChange}
+          prefix="₹"
+        />
+      </div>
+      <Field
+        label="Rate — Tier 1 (Below threshold)"
+        fieldKey="per_km_tier_1_rate"
+        form={form}
+        onChange={handlePricingChange}
+        prefix="₹"
+        suffix="/km"
+      />
+      <Field
+        label="Rate — Tier 2 (Above threshold)"
+        fieldKey="per_km_tier_2_rate"
+        form={form}
+        onChange={handlePricingChange}
+        prefix="₹"
+        suffix="/km"
+      />
+    </div>
+
+  </div>
+</Section>
 
           {/* Packing Charge */}
           <Section
@@ -712,6 +783,114 @@ export default function MarketplaceDeliveryPricingPage() {
                 onChange={handlePricingChange}
                 hideThreshold
               />
+            </div>
+          </Section>
+
+          {/* Tax (GST) */}
+          <Section
+            title="Tax (GST)"
+            icon={Settings2}
+            description="Goods and Services Tax on platform charges"
+            toggleField="gst_enabled"
+            form={form}
+            onChange={handlePricingChange}
+            defaultOpen={form.gst_enabled}
+          >
+            <InfoBanner>
+              GST is charged on top of platform fees (service, delivery, packing). Medicine MRP already includes GST — enabling tax on subtotal will double-tax medicines.
+            </InfoBanner>
+            <div className="space-y-4">
+              {/* GST Rate */}
+              <Field
+                label="GST Rate"
+                hint="Standard rate is 18% for platform services"
+                fieldKey="gst_rate"
+                form={form}
+                onChange={handlePricingChange}
+                suffix="%"
+              />
+
+              {/* GST Type */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Tax Type
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePricingChange("gst_type", "CGST_SGST")}
+                    className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+                      (form.gst_type || "CGST_SGST") === "CGST_SGST"
+                        ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-bold block">CGST + SGST</span>
+                    <span className="text-[11px] opacity-70">
+                      Intra-state (within same state)
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePricingChange("gst_type", "IGST")}
+                    className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
+                      form.gst_type === "IGST"
+                        ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-bold block">IGST</span>
+                    <span className="text-[11px] opacity-70">
+                      Inter-state (different states)
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Component Toggles */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  Apply GST on
+                </label>
+
+                {form.gst_on_subtotal && (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                    
+                    <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                      Medicine MRP already includes GST. Taxing subtotal will double-charge customers on medicines.
+                    </p>
+                  </div>
+                )}
+
+                <Toggle
+                  label="Service Charge"
+                  hint="Platform service fee"
+                  fieldKey="gst_on_service"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+                <Toggle
+                  label="Delivery Charge"
+                  hint="Delivery fee + distance surcharge (combined)"
+                  fieldKey="gst_on_delivery"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+                <Toggle
+                  label="Packing Charge"
+                  hint="Packing and handling fee"
+                  fieldKey="gst_on_packaging"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+                <Toggle
+                  label="Medicine Subtotal"
+                  hint="Not recommended — MRP already includes GST"
+                  fieldKey="gst_on_subtotal"
+                  form={form}
+                  onChange={handlePricingChange}
+                />
+              </div>
             </div>
           </Section>
 

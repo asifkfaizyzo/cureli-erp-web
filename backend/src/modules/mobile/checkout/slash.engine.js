@@ -137,6 +137,7 @@ export function applySlash({
   service_charge,
   delivery_fee,
   km_surcharge,
+  packing_charge,
   tip,
   grand_total,
   delivery_available,
@@ -217,7 +218,7 @@ export function applySlash({
   // grand_total = subtotal + actual_service + actual_delivery + tip
   // Coupon and loyalty discounts are applied AFTER this in getQuote().
   const newGrandTotal = parseFloat(
-    (subtotal + serviceResult.actual + deliveryActual + tip).toFixed(2),
+    (subtotal + serviceResult.actual + deliveryActual + (packing_charge ?? 0) + tip).toFixed(2),
   );
 
   return {

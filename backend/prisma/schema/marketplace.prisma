@@ -220,6 +220,12 @@ model CheckoutSession {
 
   order_id                   String?   @unique @db.Uuid
 
+    // ── GST Snapshot ───────────────────────────────
+  gst_rate          Decimal?  @db.Decimal(5, 2)
+  gst_type          String?
+  gst_amount        Decimal?  @db.Decimal(10, 2)
+  gst_breakdown     Json?
+
   customer                   CureliMobileUser   @relation("CustomerCheckoutSessions", fields: [customer_id], references: [id], onDelete: Restrict)
   branch                     Branch             @relation("BranchCheckoutSessions", fields: [branch_id], references: [branch_id], onDelete: Restrict)
   order                      MarketplaceOrder?  @relation("SessionOrder", fields: [order_id], references: [order_id], onDelete: SetNull)
@@ -265,10 +271,20 @@ model DeliveryPricingConfig {
   packing_tier_3_charge Decimal  @default(5)       @db.Decimal(10, 2)
 
   // ── Distance Surcharge ──────────────────────────────────
-  free_km_radius      Decimal  @default(3.0)    @db.Decimal(10, 2)
-  per_km_tier_1_max   Decimal  @default(999.99) @db.Decimal(10, 2)
+  free_km_radius      Decimal    @default(3.0)    @db.Decimal(10, 2)
+  free_km_mode        FreeKmMode @default(EXCESS_ONLY)
+  per_km_tier_1_max   Decimal    @default(999.99) @db.Decimal(10, 2)
   per_km_tier_1_rate  Decimal  @default(15)     @db.Decimal(10, 2)
   per_km_tier_2_rate  Decimal  @default(10)     @db.Decimal(10, 2)
+
+  // ── GST Configuration (per fulfillment type) ───
+  gst_enabled       Boolean   @default(false)
+  gst_rate          Decimal   @default(0) @db.Decimal(5, 2)
+  gst_type          String    @default("CGST_SGST")
+  gst_on_subtotal   Boolean   @default(false)
+  gst_on_delivery   Boolean   @default(false)
+  gst_on_service    Boolean   @default(false)
+  gst_on_packaging  Boolean   @default(false)
 
   // ── Limits ──────────────────────────────────────────────
   max_delivery_km     Decimal? @db.Decimal(10, 2)

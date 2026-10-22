@@ -90,6 +90,19 @@ const FULFILLMENT_LABELS = {
 const OverviewTab = ({ order }) => {
   const isPickup = order.fulfillment_type === "PICKUP";
 
+  // ── Correctness-check merge: delivery_fee + km_surcharge into one value ──
+  const combinedDelivery = isPickup
+    ? 0
+    : parseFloat(
+        ((Number(order.delivery_fee) || 0) + (Number(order.km_surcharge) || 0)).toFixed(2),
+      );
+  const deliveryLabel =
+    !isPickup && order.distance_km > 0
+      ? `Delivery Fee (${order.distance_km} km)`
+      : isPickup
+        ? "Delivery Fee (Pickup)"
+        : "Delivery Fee";
+
   return (
     <div className="space-y-4">
       {/* Row 1: Shop, Customer, Delivery/Pickup Address */}
@@ -197,8 +210,8 @@ const OverviewTab = ({ order }) => {
               value={fmtAmount(order.service_charge)}
             />
             <DetailRow
-              label={isPickup ? "Delivery Fee (Pickup)" : "Delivery Fee"}
-              value={isPickup ? "FREE" : fmtAmount(order.delivery_fee)}
+              label={deliveryLabel}
+              value={isPickup || combinedDelivery === 0 ? "FREE" : fmtAmount(combinedDelivery)}
             />
             {Number(order.packing_charge) > 0 && (
               <DetailRow
@@ -206,10 +219,37 @@ const OverviewTab = ({ order }) => {
                 value={fmtAmount(order.packing_charge)}
               />
             )}
-            {!isPickup && order.distance_km > 0 && (
-              <DetailRow label="Distance" value={`${order.distance_km} km`} />
-            )}
             <DetailRow label="Tip" value={fmtAmount(order.tip)} />
+            {order.gst_amount > 0 && (
+              <>
+                <div className="flex items-center justify-between gap-4 py-1.5 border-b border-gray-50">
+                  <span className="text-xs text-gray-500 w-36 flex-shrink-0">
+                    GST ({order.gst_rate}% · {order.gst_type === "IGST" ? "IGST" : "CGST+SGST"})
+                  </span>
+                  <span className="text-xs font-semibold text-gray-800 text-right">
+                    {fmtAmount(order.gst_amount)}
+                  </span>
+                </div>
+                {Array.isArray(order.gst_breakdown) && order.gst_breakdown.length > 0 && (
+                  <div className="ml-4 space-y-0.5 py-1 border-b border-gray-50">
+                    {order.gst_breakdown.map((g, i) => (
+                      <div key={i} className="flex items-center justify-between gap-4 py-0.5">
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">
+                          {g.component === "medicine_subtotal" ? "On Subtotal"
+                            : g.component === "service_charge" ? "On Service"
+                            : g.component === "delivery_charge" ? "On Delivery"
+                            : g.component === "packing_charge" ? "On Packing"
+                            : g.component}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          ₹{Number(g.base).toFixed(2)} × {order.gst_rate}% = ₹{Number(g.gst).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             {order.coupon_code && (
               <DetailRow
                 label={`Coupon (${order.coupon_code})`}

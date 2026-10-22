@@ -294,6 +294,10 @@ function renderPage2({ order, invoice }) {
     (Number(order.delivery_fee || 0) + Number(order.km_surcharge || 0)).toFixed(2),
   );
   const tip            = Number(order.tip || 0);
+  const packingCharge  = Number(order.packing_charge || 0);
+  const gstAmount      = Number(order.gst_amount || 0);
+  const gstRate        = Number(order.gst_rate || 0);
+  const gstType        = order.gst_type || '';
   const grandTotal     = Number(order.total_amount || 0);
 
   const deliveryAddr = order.delivery_address_snapshot;
@@ -338,7 +342,15 @@ function renderPage2({ order, invoice }) {
           <tr><td class="label">Medicine Total (see Page 1)</td><td class="value">₹ ${fmt(shopNetAmount)}</td></tr>
           ${serviceCharge > 0 ? `<tr><td class="label">Service Charge</td><td class="value">₹ ${fmt(serviceCharge)}</td></tr>` : ''}
           ${deliveryFee > 0 ? `<tr><td class="label">Delivery Fee</td><td class="value">₹ ${fmt(deliveryFee)}</td></tr>` : ''}
+          ${packingCharge > 0 ? `<tr><td class="label">Packing Charge</td><td class="value">₹ ${fmt(packingCharge)}</td></tr>` : ''}
           ${tip > 0 ? `<tr><td class="label">Tip</td><td class="value">₹ ${fmt(tip)}</td></tr>` : ''}
+          ${gstAmount > 0 && gstType === 'CGST_SGST' ? `
+            <tr><td class="label">CGST (${gstRate / 2}%)</td><td class="value">₹ ${fmt(gstAmount / 2)}</td></tr>
+            <tr><td class="label">SGST (${gstRate / 2}%)</td><td class="value">₹ ${fmt(gstAmount / 2)}</td></tr>
+          ` : ''}
+          ${gstAmount > 0 && gstType === 'IGST' ? `
+            <tr><td class="label">IGST (${gstRate}%)</td><td class="value">₹ ${fmt(gstAmount)}</td></tr>
+          ` : ''}
           <tr class="grand"><td>Grand Total</td><td class="value">₹ ${fmt(grandTotal)}</td></tr>
         </tbody>
       </table>

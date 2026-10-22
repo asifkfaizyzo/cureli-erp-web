@@ -578,6 +578,12 @@ function formatOrderDetail(order) {
     tip: Number(order.tip ?? 0),
     distance_km: Number(order.distance_km ?? 0),
 
+    // ── GST (platform tax on service/delivery/packing) ──
+    gst_rate: order.gst_rate != null ? Number(order.gst_rate) : null,
+    gst_type: order.gst_type ?? null,
+    gst_amount: order.gst_amount != null ? Number(order.gst_amount) : null,
+    gst_breakdown: order.gst_breakdown ?? null,
+
     coupon_code: order.coupon_code || null,
     coupon_discount_amount: order.coupon_discount_amount
       ? Number(order.coupon_discount_amount)

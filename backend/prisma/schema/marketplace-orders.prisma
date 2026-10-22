@@ -62,6 +62,12 @@ model MarketplaceOrder {
   loyalty_discount_amount   Decimal?                        @default(0) @db.Decimal(10, 2)
   loyalty_points_earned     Int?
 
+  // ── GST Snapshot (immutable after creation) ────
+  gst_rate          Decimal?  @db.Decimal(5, 2)
+  gst_type          String?
+  gst_amount        Decimal?  @db.Decimal(10, 2)
+  gst_breakdown     Json?
+
   // ── Commission Snapshot (set at order creation for payout audit) ──
   commission_rate_snapshot      Decimal?  @default(0) @db.Decimal(5, 2)
   commission_rule_id_snapshot   String?   @db.Uuid

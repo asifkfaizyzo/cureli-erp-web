@@ -5,7 +5,7 @@ import {
   RAZORPAY_MOBILE_CURRENCY,
   verifyMobilePaymentSignature,
 } from "../../../config/razorpay.js";
-import { computePricing, normaliseConfig } from "./pricing.engine.js";
+import { computePricing, normaliseConfig, computeTierAnchor, computeFreeRadiusAnchor, computeNudges, computeGST } from "./pricing.engine.js";
 import { applySlash, normaliseSlashConfig } from "./slash.engine.js";
 import { getDrivingDistance } from "../../../services/distance.service.js";
 import { fireOrderPlacedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
@@ -126,6 +126,7 @@ export async function getQuote({
   customer_id = null,
   fulfillment_type = "INSTANT_DELIVERY",
 }) {
+  const isPickup = fulfillment_type === "PICKUP";
   const subtotal = await resolveSubtotal(items, branch_id);
   const config = await getConfig(fulfillment_type);
 
@@ -138,6 +139,7 @@ export async function getQuote({
         service_charge: 0,
         delivery_fee: 0,
         km_surcharge: 0,
+        distance_km,
         packing_charge: 0,
         tip: 0,
         grand_total: 0,
@@ -167,6 +169,7 @@ export async function getQuote({
   if (!basePricing.delivery_available) {
     return {
       ...basePricing,
+      distance_km,
       delivery_charge: 0,
       service_charge_anchor: null,
       delivery_charge_anchor: null,
@@ -187,6 +190,60 @@ export async function getQuote({
     distance_km,
     config: slashConfig,
   });
+
+  // ── 0b. Auto-anchor from tier-based free charges ──────────────
+  // Only applies when slash engine didn't already set an anchor.
+  if (
+    slashed.service_charge === 0 &&
+    !slashed.service_charge_anchor &&
+    config.service_charge_enabled !== false
+  ) {
+    const anchor = computeTierAnchor(config, "service", subtotal);
+    if (anchor) slashed.service_charge_anchor = anchor;
+  }
+  if (
+    slashed.delivery_charge === 0 &&
+    !slashed.delivery_charge_anchor &&
+    config.delivery_fee_enabled !== false &&
+    basePricing.km_surcharge === 0
+  ) {
+    const anchor = computeTierAnchor(config, "delivery", subtotal);
+    if (anchor) slashed.delivery_charge_anchor = anchor;
+  }
+
+  // ── 0b2. Free-radius auto-anchor (distance-surcharge "slashed km") ────
+  // Independent of promo slash config — purely derived from the free
+  // delivery radius setting. Merges with any existing anchor (promo or
+  // tier-based) via Math.max — whichever anchor is higher wins the
+  // strikethrough display.
+  if (!isPickup) {
+    const freeRadiusAnchor = computeFreeRadiusAnchor(basePricing);
+    if (freeRadiusAnchor != null) {
+      const merged = slashed.delivery_charge_anchor
+        ? Math.max(slashed.delivery_charge_anchor, freeRadiusAnchor)
+        : freeRadiusAnchor;
+      slashed.delivery_charge_anchor =
+        merged > slashed.delivery_charge ? merged : null;
+    }
+  }
+
+  // Recompute platform_savings to include auto-anchors
+  if (slashed.service_charge_anchor || slashed.delivery_charge_anchor) {
+    const sSavings = slashed.service_charge_anchor
+      ? slashed.service_charge_anchor - slashed.service_charge
+      : 0;
+    const dSavings = slashed.delivery_charge_anchor
+      ? slashed.delivery_charge_anchor - slashed.delivery_charge
+      : 0;
+    slashed.platform_savings = parseFloat(
+      Math.max(0, sSavings + dSavings).toFixed(2),
+    );
+  }
+
+  // ── 0c. Tier-based nudges ─────────────────────────────────────
+  const nudges = isPickup
+    ? { free_delivery: null, free_service_charge: null }
+    : computeNudges(config, subtotal, distance_km);
 
   // ── 1. Coupon Discount Calculation ─────────────────────────
   let coupon_discount = 0;
@@ -239,8 +296,11 @@ export async function getQuote({
   }
 
   // Combined discounts cannot reduce payable total below ₹1.00 (Razorpay minimum)
+  // ── GST (post-slash, pre-discount) ──────────────
+  const gst = computeGST(slashed, config);
+
   const combinedDiscounts = coupon_discount + loyalty_discount;
-  const rawGrandTotal = slashed.grand_total - combinedDiscounts;
+  const rawGrandTotal = slashed.grand_total + gst.gst_amount - combinedDiscounts;
   const grand_total = parseFloat(Math.max(1, rawGrandTotal).toFixed(2));
 
   // ── Same Day availability (always included for the selector) ──
@@ -265,6 +325,7 @@ export async function getQuote({
     delivery_fee: slashed.delivery_charge,
     delivery_charge_anchor: slashed.delivery_charge_anchor,
     km_surcharge: 0,
+    distance_km: isPickup ? 0 : distance_km,
     packing_charge: basePricing.packing_charge ?? 0,
     tip: slashed.tip ?? tip,
     platform_savings: slashed.platform_savings,
@@ -276,9 +337,14 @@ export async function getQuote({
     loyalty_points_redeemed: points_redeemed,
     loyalty_discount,
     loyalty_reason,
+    gst_rate: gst.gst_rate,
+    gst_type: gst.gst_type,
+    gst_amount: gst.gst_amount,
+    gst_breakdown: gst.gst_breakdown,
     grand_total,
     same_day_available,
     same_day_cutoff_hour,
+    nudges,
   };
 }
 
@@ -422,6 +488,49 @@ export async function createCheckoutSession({
     config: slashConfig,
   });
 
+  // ── 6c. Auto-anchor from tier-based free charges ──────────────
+  if (
+    slashed.service_charge === 0 &&
+    !slashed.service_charge_anchor &&
+    config.service_charge_enabled !== false
+  ) {
+    const anchor = computeTierAnchor(config, "service", subtotal);
+    if (anchor) slashed.service_charge_anchor = anchor;
+  }
+  if (
+    slashed.delivery_charge === 0 &&
+    !slashed.delivery_charge_anchor &&
+    config.delivery_fee_enabled !== false &&
+    pricing.km_surcharge === 0
+  ) {
+    const anchor = computeTierAnchor(config, "delivery", subtotal);
+    if (anchor) slashed.delivery_charge_anchor = anchor;
+  }
+
+  // ── 6d. Free-radius auto-anchor (distance-surcharge "slashed km") ────
+  if (!isPickup) {
+    const freeRadiusAnchor = computeFreeRadiusAnchor(pricing);
+    if (freeRadiusAnchor != null) {
+      const merged = slashed.delivery_charge_anchor
+        ? Math.max(slashed.delivery_charge_anchor, freeRadiusAnchor)
+        : freeRadiusAnchor;
+      slashed.delivery_charge_anchor =
+        merged > slashed.delivery_charge ? merged : null;
+    }
+  }
+
+  if (slashed.service_charge_anchor || slashed.delivery_charge_anchor) {
+    const sSavings = slashed.service_charge_anchor
+      ? slashed.service_charge_anchor - slashed.service_charge
+      : 0;
+    const dSavings = slashed.delivery_charge_anchor
+      ? slashed.delivery_charge_anchor - slashed.delivery_charge
+      : 0;
+    slashed.platform_savings = parseFloat(
+      Math.max(0, sSavings + dSavings).toFixed(2),
+    );
+  }
+
   // ── 7. Validate & Calculate Coupon Discount ──────────────
   let coupon_discount_amount = 0;
   let applied_coupon_code = null;
@@ -470,9 +579,12 @@ export async function createCheckoutSession({
   }
 
   // Final grand total after all discounts (min payable ₹1.00)
+  // ── GST (post-slash, pre-discount) ──────────────
+  const gst = computeGST(slashed, config);
+
   const totalDiscount = coupon_discount_amount + loyalty_discount_amount;
   const grand_total = parseFloat(
-    Math.max(1, slashed.grand_total - totalDiscount).toFixed(2),
+    Math.max(1, slashed.grand_total + gst.gst_amount - totalDiscount).toFixed(2),
   );
 
   // ── 9. Snapshot address (branch address for pickup) ──────
@@ -557,6 +669,10 @@ export async function createCheckoutSession({
       coupon_discount_amount,
       loyalty_points_redeemed: points_to_redeem,
       loyalty_discount_amount,
+      gst_rate: gst.gst_rate || null,
+      gst_type: gst.gst_type || null,
+      gst_amount: gst.gst_amount || null,
+      gst_breakdown: gst.gst_breakdown?.length ? gst.gst_breakdown : null,
       grand_total,
       fulfillment_type,
       packing_charge: pricing.packing_charge ?? 0,
@@ -587,12 +703,17 @@ export async function createCheckoutSession({
       delivery_fee: slashed.delivery_charge,
       delivery_charge_anchor: slashed.delivery_charge_anchor,
       km_surcharge: 0,
+      distance_km: validatedDistanceKm,
       tip: slashed.tip ?? pricing.tip,
       platform_savings: slashed.platform_savings,
       coupon_code: applied_coupon_code,
       coupon_discount: coupon_discount_amount,
       loyalty_points_redeemed: points_to_redeem,
       loyalty_discount: loyalty_discount_amount,
+      gst_rate: gst.gst_rate,
+      gst_type: gst.gst_type,
+      gst_amount: gst.gst_amount,
+      gst_breakdown: gst.gst_breakdown,
       grand_total,
     },
     expires_at,
@@ -851,6 +972,10 @@ async function _createOrderFromSession({
         commission_rate_snapshot: commissionRateSnapshot,
         commission_rule_id_snapshot: commissionRuleIdSnapshot,
         commission_amount_snapshot: commissionAmountSnapshot,
+        gst_rate: session.gst_rate,
+        gst_type: session.gst_type,
+        gst_amount: session.gst_amount,
+        gst_breakdown: session.gst_breakdown ?? undefined,
         total_amount: session.grand_total,
         distance_km: session.distance_km,
         requires_prescription: requiresPrescription,
