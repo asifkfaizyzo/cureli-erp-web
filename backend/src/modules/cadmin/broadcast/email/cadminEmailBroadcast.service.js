@@ -106,6 +106,52 @@ async function getEmailAttachmentUrl(filename) {
   }
 }
 
+/**
+ * Convert a Readable stream (from S3) into a Buffer
+ */
+async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
+ * Fetch inline image buffer from S3 and generate a CID.
+ * Returns { resolvedInlineImage, inlineImageBuffer } or nulls on failure.
+ */
+async function resolveInlineImageForEmail(inlineImage) {
+  if (!inlineImage?.filename) {
+    return { resolvedInlineImage: inlineImage || null, inlineImageBuffer: null };
+  }
+
+  try {
+    const { stream } = await fileStorage.getFileStream({
+      folder: FOLDER,
+      filename: inlineImage.filename,
+    });
+    const buffer = await streamToBuffer(stream);
+    const cid = `inline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    return {
+      resolvedInlineImage: { ...inlineImage, cid },
+      inlineImageBuffer: buffer,
+    };
+  } catch (err) {
+    console.warn(
+      `[Email Broadcast] Failed to fetch inline image buffer for ${inlineImage.filename}:`,
+      err.message,
+    );
+    // Fallback: use signed URL (image may break after 1h, but at least it tries)
+    const url = await getEmailAttachmentUrl(inlineImage.filename);
+    return {
+      resolvedInlineImage: { ...inlineImage, url: url || inlineImage.url },
+      inlineImageBuffer: null,
+    };
+  }
+}
+
 async function deleteEmailCampaignFiles(campaignId) {
   const campaign = await prisma.emailBroadcastCampaign.findUnique({
     where: { campaign_id: campaignId },
@@ -443,15 +489,12 @@ export async function sendTestEmail(data, context) {
 
   const body_html = convertPlainTextToHtml(message_text);
 
-  // Resolve signed URLs for attachments
-  let resolvedInlineImage = inline_image;
+  // Resolve inline image buffer + CID from S3
+  const { resolvedInlineImage, inlineImageBuffer } =
+    await resolveInlineImageForEmail(inline_image);
+
+  // Resolve signed URLs for file attachments
   let resolvedAttachments = attachments || [];
-
-  if (inline_image?.filename) {
-    const url = await getEmailAttachmentUrl(inline_image.filename);
-    resolvedInlineImage = { ...inline_image, url: url || inline_image.url };
-  }
-
   if (resolvedAttachments.length > 0) {
     resolvedAttachments = await Promise.all(
       resolvedAttachments.map(async (att) => {
@@ -478,6 +521,7 @@ export async function sendTestEmail(data, context) {
 
   const nodemailerAttachments = formatAttachmentsForNodemailer(
     resolvedInlineImage,
+    inlineImageBuffer,
     resolvedAttachments,
   );
 
@@ -707,10 +751,23 @@ export async function getCampaignById(campaignId) {
     );
   }
 
+  // Build the full composed email HTML for preview (not just the raw body)
+  const previewHtml = buildEmailHtml({
+    subject: campaign.subject,
+    messageHtml: campaign.body_html,
+    recipientName: "Recipient",
+    inlineImage: resolvedInlineImage,
+    attachments: resolvedAttachments,
+    actionUrl: campaign.action_url,
+    actionLabel: campaign.action_label,
+    unsubscribeUrl: null,
+    isTest: false,
+  });
+
   return {
     ...campaign,
     message_text: campaign.body_text,
-    message_html: campaign.body_html,
+    message_html: previewHtml,
     inline_image: resolvedInlineImage,
     attachments: resolvedAttachments,
   };
@@ -901,18 +958,12 @@ async function sendBatch(campaign, recipients) {
   let delivered = 0;
   let failed = 0;
 
-  // Resolve attachment URLs once per batch (signed URLs, 1-hour expiry)
-  let resolvedInlineImage = campaign.inline_image;
+  // Resolve inline image: fetch buffer from S3 once, generate CID
+  const { resolvedInlineImage, inlineImageBuffer } =
+    await resolveInlineImageForEmail(campaign.inline_image);
+
+  // Resolve signed URLs for file attachments (download links)
   let resolvedAttachments = campaign.attachments || [];
-
-  if (campaign.inline_image?.filename) {
-    const url = await getEmailAttachmentUrl(campaign.inline_image.filename);
-    resolvedInlineImage = {
-      ...campaign.inline_image,
-      url: url || campaign.inline_image.url,
-    };
-  }
-
   if (resolvedAttachments.length > 0) {
     resolvedAttachments = await Promise.all(
       resolvedAttachments.map(async (att) => {
@@ -930,7 +981,7 @@ async function sendBatch(campaign, recipients) {
       try {
         const unsubscribeUrl = buildUnsubscribeUrl(recipient.email);
 
-        // Build fresh CID for each email so images embed correctly per-recipient
+        // Shallow copy so each recipient gets their own object
         const inlineImageForRecipient = resolvedInlineImage
           ? { ...resolvedInlineImage }
           : null;
@@ -949,6 +1000,7 @@ async function sendBatch(campaign, recipients) {
 
         const nodemailerAttachments = formatAttachmentsForNodemailer(
           inlineImageForRecipient,
+          inlineImageBuffer,
           resolvedAttachments,
         );
 

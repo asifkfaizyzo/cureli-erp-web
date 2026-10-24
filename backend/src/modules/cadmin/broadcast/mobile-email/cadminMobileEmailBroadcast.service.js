@@ -2,13 +2,64 @@
 // backend/src/modules/cadmin/broadcast/mobile-email/cadminMobileEmailBroadcast.service.js
 
 import prisma from "../../../../config/prisma.js";
-import { sendMail } from "../../../../utils/email.js"; // ◄ FIXED: Import sendMail instead of sendEmail
+import { mailer } from "../../../../utils/email.js";
 import * as audit from "../../../audit/index.js";
+import * as fileStorage from "../../../../services/fileStorage.service.js";
 
-// Helper to wrap plain text with basic Cureli responsive email HTML
+const FOLDER = "email_attachments";
+const DEFAULT_FROM_NAME = "Cureli Support";
+const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || "no-reply@cureli.in";
+
+// ── S3 image helpers ──────────────────────────────────────────────────────────
+
+async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
+ * Fetch inline image buffer from S3 and generate a CID.
+ * Returns { resolvedInlineImage, inlineImageBuffer }.
+ */
+async function resolveInlineImageForEmail(inlineImage) {
+  if (!inlineImage?.filename) {
+    return { resolvedInlineImage: inlineImage || null, inlineImageBuffer: null };
+  }
+
+  try {
+    const { stream } = await fileStorage.getFileStream({
+      folder: FOLDER,
+      filename: inlineImage.filename,
+    });
+    const buffer = await streamToBuffer(stream);
+    const cid = `inline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    return {
+      resolvedInlineImage: { ...inlineImage, cid },
+      inlineImageBuffer: buffer,
+    };
+  } catch (err) {
+    console.warn(
+      `[Customer Email] Failed to fetch inline image ${inlineImage.filename}:`,
+      err.message,
+    );
+    return { resolvedInlineImage: inlineImage, inlineImageBuffer: null };
+  }
+}
+
+// ── Email HTML builder ────────────────────────────────────────────────────────
+
 function buildCustomerEmailHtml({ subject, messageText, actionUrl, actionLabel, inlineImage }) {
   const formattedBody = messageText.replace(/\n/g, "<br/>");
-  
+
+  // Use CID if available (embedded), otherwise fall back to URL
+  const imgSrc = inlineImage?.cid
+    ? `cid:${inlineImage.cid}`
+    : inlineImage?.url || null;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -31,7 +82,7 @@ function buildCustomerEmailHtml({ subject, messageText, actionUrl, actionLabel, 
           </div>
           <div class="content">
             <h2 style="margin-top:0; font-size:18px; color:#0f172a;">${subject}</h2>
-            ${inlineImage?.url ? `<img src="${inlineImage.url}" alt="Attachment" style="max-width:100%; border-radius:8px; margin:16px 0;" />` : ""}
+            ${imgSrc ? `<img src="${imgSrc}" alt="Attachment" style="max-width:100%; border-radius:8px; margin:16px 0;" />` : ""}
             <p>${formattedBody}</p>
             ${actionUrl && actionLabel ? `
               <div class="button-wrap">
@@ -137,16 +188,58 @@ export async function previewCustomerAudience(filters = {}) {
 export async function sendTestEmailToAdmin(data, adminEmail) {
   if (!adminEmail) throw new Error("Admin email not found");
 
+  // Fetch image buffer from S3 + generate CID
+  const { resolvedInlineImage, inlineImageBuffer } =
+    await resolveInlineImageForEmail(data.inline_image);
+
   const html = buildCustomerEmailHtml({
     subject: data.subject,
     messageText: data.message_text,
     actionUrl: data.action_url,
     actionLabel: data.action_label,
-    inlineImage: data.inline_image,
+    inlineImage: resolvedInlineImage,
   });
 
-  // ◄ FIXED: Pass as positional parameters: to, subject, html
-  await sendMail(adminEmail, `[TEST] ${data.subject}`, html);
+  // Build nodemailer attachments
+  const attachments = [];
+
+  // 1. Inline image (embedded via buffer + CID)
+  if (resolvedInlineImage?.cid && inlineImageBuffer) {
+    attachments.push({
+      filename: resolvedInlineImage.original_name || "image.jpg",
+      content: inlineImageBuffer,
+      cid: resolvedInlineImage.cid,
+    });
+  }
+
+  // 2. File attachments (downloadable via signed S3 URLs)
+  if (Array.isArray(data.attachments) && data.attachments.length > 0) {
+    for (const att of data.attachments) {
+      if (att?.filename) {
+        try {
+          const url = await fileStorage.getSignedUrl({
+            folder: FOLDER,
+            filename: att.filename,
+            expiresIn: 3600,
+          });
+          attachments.push({
+            filename: att.original_name || att.filename,
+            path: url,
+          });
+        } catch (err) {
+          console.warn(`[Customer Email] Failed to resolve attachment ${att.filename}:`, err.message);
+        }
+      }
+    }
+  }
+
+  await mailer.sendMail({
+    from: `"${DEFAULT_FROM_NAME}" <${DEFAULT_FROM_EMAIL}>`,
+    to: adminEmail,
+    subject: `[TEST] ${data.subject}`,
+    html,
+    attachments,
+  });
 
   return { sent_to: adminEmail };
 }
@@ -158,13 +251,50 @@ export async function sendCustomerEmailBroadcastNow(data, auditContext = {}) {
     throw new Error("No eligible customer recipients found for selected audience");
   }
 
+  // Fetch image buffer from S3 + generate CID (once for all recipients)
+  const { resolvedInlineImage, inlineImageBuffer } =
+    await resolveInlineImageForEmail(data.inline_image);
+
   const html = buildCustomerEmailHtml({
     subject: data.subject,
     messageText: data.message_text,
     actionUrl: data.action_url,
     actionLabel: data.action_label,
-    inlineImage: data.inline_image,
+    inlineImage: resolvedInlineImage,
   });
+
+  // Build nodemailer attachments
+  const attachments = [];
+
+  // 1. Inline image (embedded via buffer + CID)
+  if (resolvedInlineImage?.cid && inlineImageBuffer) {
+    attachments.push({
+      filename: resolvedInlineImage.original_name || "image.jpg",
+      content: inlineImageBuffer,
+      cid: resolvedInlineImage.cid,
+    });
+  }
+
+  // 2. File attachments (downloadable via signed S3 URLs)
+  if (Array.isArray(data.attachments) && data.attachments.length > 0) {
+    for (const att of data.attachments) {
+      if (att?.filename) {
+        try {
+          const url = await fileStorage.getSignedUrl({
+            folder: FOLDER,
+            filename: att.filename,
+            expiresIn: 3600,
+          });
+          attachments.push({
+            filename: att.original_name || att.filename,
+            path: url,
+          });
+        } catch (err) {
+          console.warn(`[Customer Email] Failed to resolve attachment ${att.filename}:`, err.message);
+        }
+      }
+    }
+  }
 
   // Create Campaign Record in existing EmailBroadcastCampaign table
   const campaign = await prisma.emailBroadcastCampaign.create({
@@ -172,8 +302,8 @@ export async function sendCustomerEmailBroadcastNow(data, auditContext = {}) {
       subject: data.subject.trim(),
       body_html: html,
       body_text: data.message_text.trim(),
-      from_name: "Cureli Support",
-      from_email: process.env.EMAIL_FROM || "no-reply@cureli.in",
+      from_name: DEFAULT_FROM_NAME,
+      from_email: DEFAULT_FROM_EMAIL,
       target_filters: {
         ...data.target_filters,
         target_mobile_customers: true,
@@ -211,8 +341,13 @@ export async function sendCustomerEmailBroadcastNow(data, auditContext = {}) {
     let failed = 0;
     for (const recipient of audience.users) {
       try {
-        // ◄ FIXED: Pass as positional parameters: to, subject, html
-        await sendMail(recipient.email, data.subject, html);
+        await mailer.sendMail({
+          from: `"${DEFAULT_FROM_NAME}" <${DEFAULT_FROM_EMAIL}>`,
+          to: recipient.email,
+          subject: data.subject,
+          html,
+          attachments,
+        });
         delivered++;
       } catch (e) {
         failed++;

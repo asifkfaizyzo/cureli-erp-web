@@ -94,7 +94,7 @@ function buildGreeting(recipientName) {
  * Build inline image section (embedded in email)
  */
 function buildInlineImage(inlineImage) {
-  if (!inlineImage || !inlineImage.url) {
+  if (!inlineImage || (!inlineImage.url && !inlineImage.cid)) {
     return "";
   }
 
@@ -477,29 +477,28 @@ function getPreheaderText(messageHtml) {
 /**
  * Format attachments for Nodemailer
  *
- * @param {Object} inlineImage - Single inline image
+ * @param {Object} inlineImage - Single inline image (must have .cid pre-set)
+ * @param {Buffer|null} inlineImageBuffer - Raw image buffer from S3
  * @param {Array} fileAttachments - File attachments array
  * @returns {Array} - Nodemailer attachments array
  */
 export function formatAttachmentsForNodemailer(
   inlineImage,
+  inlineImageBuffer,
   fileAttachments = [],
 ) {
   const nodemailerAttachments = [];
 
-  // Add inline image (embedded with CID)
-  if (inlineImage && inlineImage.url) {
-    const cid = `inline-image-${Date.now()}`;
+  // Add inline image (embedded with CID + buffer — permanently in MIME)
+  if (inlineImage && inlineImage.cid && inlineImageBuffer) {
     nodemailerAttachments.push({
       filename: inlineImage.original_name || "image.jpg",
-      path: inlineImage.url,
-      cid: cid,
+      content: inlineImageBuffer,
+      cid: inlineImage.cid,
     });
-    // Return CID for use in template
-    inlineImage.cid = cid;
   }
 
-  // Add file attachments
+  // Add file attachments (download links, not embedded)
   if (fileAttachments && Array.isArray(fileAttachments)) {
     for (const att of fileAttachments) {
       if (att.url) {
