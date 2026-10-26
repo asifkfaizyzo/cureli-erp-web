@@ -30,6 +30,7 @@ const NUMERIC_FIELDS = [
 ];
 
 const TOGGLE_FIELDS = [
+  "is_active",
   "service_charge_enabled",
   "delivery_fee_enabled",
   "km_surcharge_enabled",
@@ -103,6 +104,98 @@ export async function updatePricingConfig(data, cadmin_id, fulfillment_type = "I
   for (const key of STRING_FIELDS) {
     if (key in data) {
       updateData[key] = String(data[key]).trim();
+    }
+  }
+
+   // ── delivery_tiers_json: dynamic unlimited-tier JSON ─────────
+  if ("delivery_tiers_json" in data) {
+    const raw = data.delivery_tiers_json;
+    if (raw === null || raw === undefined || raw === "") {
+      updateData.delivery_tiers_json = null;
+    } else {
+      let tiers;
+      if (typeof raw === "string") {
+        try {
+          tiers = JSON.parse(raw);
+        } catch {
+          throw new Error("delivery_tiers_json must be valid JSON");
+        }
+      } else {
+        tiers = raw;
+      }
+
+      if (!Array.isArray(tiers))
+        throw new Error("delivery_tiers_json must be an array");
+      if (tiers.length === 0)
+        throw new Error("At least one delivery tier is required");
+
+      const validated = [];
+      const seenMins = new Set();
+
+      for (const [i, t] of tiers.entries()) {
+        const min = Number(t.min_order_value);
+        const flat = Number(t.flat_charge);
+        const radius = Number(t.free_radius_km);
+        const rate = Number(t.per_km_rate);
+
+        if (isNaN(min) || min < 0)
+          throw new Error(`Tier ${i + 1}: min_order_value must be ≥ 0`);
+        if (isNaN(flat) || flat < 0)
+          throw new Error(`Tier ${i + 1}: flat_charge must be ≥ 0`);
+        if (isNaN(radius) || radius < 0)
+          throw new Error(`Tier ${i + 1}: free_radius_km must be ≥ 0`);
+        if (isNaN(rate) || rate < 0)
+          throw new Error(`Tier ${i + 1}: per_km_rate must be ≥ 0`);
+
+        if (seenMins.has(min))
+          throw new Error(`Tier ${i + 1}: duplicate min_order_value ₹${min}`);
+        seenMins.add(min);
+
+        validated.push({
+          min_order_value: min,
+          flat_charge: flat,
+          free_radius_km: radius,
+          per_km_rate: rate,
+        });
+      }
+
+      // Sort by min_order_value ASC
+      validated.sort((a, b) => a.min_order_value - b.min_order_value);
+
+      // First tier must start at ₹0
+      if (validated[0].min_order_value !== 0) {
+        throw new Error(
+          "The first delivery tier must have min_order_value = 0",
+        );
+      }
+
+      // ── Monotonicity hard block (3 constraints) ──────────────
+      // As min_order_value increases:
+      //   flat_charge   → non-increasing  (higher order = lower/equal flat)
+      //   free_radius_km → non-decreasing  (higher order = more/equal free km)
+      //   per_km_rate   → non-increasing  (higher order = lower/equal rate)
+      for (let i = 1; i < validated.length; i++) {
+        const prev = validated[i - 1];
+        const curr = validated[i];
+
+        if (curr.flat_charge > prev.flat_charge) {
+          throw new Error(
+            `Tier ${i + 1} (≥₹${curr.min_order_value}): flat_charge ₹${curr.flat_charge} cannot be higher than previous tier ₹${prev.flat_charge}. Higher order value must have lower or equal flat fee.`,
+          );
+        }
+        if (curr.free_radius_km < prev.free_radius_km) {
+          throw new Error(
+            `Tier ${i + 1} (≥₹${curr.min_order_value}): free_radius_km ${curr.free_radius_km}km cannot be less than previous tier ${prev.free_radius_km}km. Higher order value must have more or equal free km.`,
+          );
+        }
+        if (curr.per_km_rate > prev.per_km_rate) {
+          throw new Error(
+            `Tier ${i + 1} (≥₹${curr.min_order_value}): per_km_rate ₹${curr.per_km_rate}/km cannot be higher than previous tier ₹${prev.per_km_rate}/km. Higher order value must have lower or equal per-km rate.`,
+          );
+        }
+      }
+
+      updateData.delivery_tiers_json = validated;
     }
   }
 
@@ -325,17 +418,31 @@ export async function updateSlashConfig(data, cadmin_id) {
           );
         }
 
+         // Per-tier formula mode: FULL (whole-bill) or EXCESS (distance-only)
+        const tierMode = t.mode === 'EXCESS' ? 'EXCESS' : 'FULL';
+
         validatedTiers.push({
           priority,
           min_subtotal,
           max_distance_km,
           pct: finalPct,
+          mode: tierMode,
         });
       }
 
       validatedTiers.sort((a, b) => a.priority - b.priority);
-      updateData.delivery_tiers = validatedTiers;
-    }
+
+      // Mode-flip warning (dismissible, not hard block)
+      for (let i = 1; i < validatedTiers.length; i++) {
+        if (validatedTiers[i].mode !== validatedTiers[i - 1].mode) {
+          console.warn(
+            `[SlashConfig] Mode flip between tier priority ${validatedTiers[i - 1].priority} (${validatedTiers[i - 1].mode}) → ${validatedTiers[i].priority} (${validatedTiers[i].mode}). Allowed but may confuse customers.`,
+          );
+          break; // one warning is enough
+        }
+      }
+
+      updateData.delivery_tiers = validatedTiers;    }
   }
 
   // ── 6. Save update data, increment config version ──

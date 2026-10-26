@@ -1,20 +1,23 @@
 // pharmacy-web/src/pages/inventory/components/InventoryImportModal.jsx (do not remove this comment)
 import React, { useCallback, useState, useEffect } from "react";
 import { X, Database, Package, ArrowDownToLine } from "lucide-react";
-import { useInventoryImport, STEPS } from "../../../hooks/inventory/useInventoryImport";
-import ImportUploadStep     from "./import/ImportUploadStep";
+import {
+  useInventoryImport,
+  STEPS,
+} from "../../../hooks/inventory/useInventoryImport";
+import ImportUploadStep from "./import/ImportUploadStep";
 import ImportProcessingStep from "./import/ImportProcessingStep";
-import ImportConflictStep   from "./import/ImportConflictStep";
-import ImportConfirmStep    from "./import/ImportConfirmStep";
-import ImportResultStep     from "./import/ImportResultStep";
+import ImportConflictStep from "./import/ImportConflictStep";
+import ImportConfirmStep from "./import/ImportConfirmStep";
+import ImportResultStep from "./import/ImportResultStep";
 
 const STEP_TITLES = {
-  [STEPS.UPLOAD]:     "Import Inventory",
+  [STEPS.UPLOAD]: "Import Inventory",
   [STEPS.PROCESSING]: "Processing File",
-  [STEPS.CONFLICTS]:  "Resolve Batch Conflicts",
-  [STEPS.CONFIRM]:    "Confirm Import",
-  [STEPS.WRITING]:    "Importing...",
-  [STEPS.RESULT]:     "Import Complete",
+  [STEPS.CONFLICTS]: "Resolve Batch Conflicts",
+  [STEPS.CONFIRM]: "Confirm Import",
+  [STEPS.WRITING]: "Importing...",
+  [STEPS.RESULT]: "Import Complete",
 };
 
 /* ─────────────────────────────────────────────────────
@@ -30,13 +33,13 @@ const WRITING_MESSAGES = [
 
 const ImportWritingStep = ({ totalRows, fileName }) => {
   const [msgIdx, setMsgIdx] = useState(0);
-  const [dots, setDots]     = useState("");
+  const [dots, setDots] = useState("");
 
   // Cycle through status messages every 2.5 s
   useEffect(() => {
     const t = setInterval(
       () => setMsgIdx((p) => (p + 1) % WRITING_MESSAGES.length),
-      2500
+      2500,
     );
     return () => clearInterval(t);
   }, []);
@@ -45,19 +48,20 @@ const ImportWritingStep = ({ totalRows, fileName }) => {
   useEffect(() => {
     const t = setInterval(
       () => setDots((p) => (p.length >= 3 ? "" : p + ".")),
-      500
+      500,
     );
     return () => clearInterval(t);
   }, []);
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-8">
-
       {/* ── Animated icon cluster ── */}
       <div className="relative w-28 h-28 mb-8">
         {/* Pulsing rings */}
-        <div className="absolute inset-0 rounded-full bg-indigo-200
-                        animate-ping opacity-20" />
+        <div
+          className="absolute inset-0 rounded-full bg-indigo-200
+                        animate-ping opacity-20"
+        />
         <div
           className="absolute inset-3 rounded-full bg-indigo-200
                      animate-ping opacity-25"
@@ -65,10 +69,12 @@ const ImportWritingStep = ({ totalRows, fileName }) => {
         />
 
         {/* Core circle */}
-        <div className="relative w-full h-full rounded-full
+        <div
+          className="relative w-full h-full rounded-full
                         bg-gradient-to-br from-[#000060] to-indigo-600
                         flex items-center justify-center
-                        shadow-xl shadow-indigo-900/30">
+                        shadow-xl shadow-indigo-900/30"
+        >
           <Database size={38} className="text-white" />
         </div>
 
@@ -104,25 +110,29 @@ const ImportWritingStep = ({ totalRows, fileName }) => {
       </p>
 
       {/* ── File context pill ── */}
-      <div className="mt-8 flex items-center gap-3 px-5 py-3 bg-gray-50
-                      border border-gray-200 rounded-xl">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse
-                         shrink-0" />
+      <div
+        className="mt-8 flex items-center gap-3 px-5 py-3 bg-gray-50
+                      border border-gray-200 rounded-xl"
+      >
+        <span
+          className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse
+                         shrink-0"
+        />
         <p className="text-sm text-gray-600">
           {fileName && (
             <span className="font-semibold text-gray-800">{fileName} </span>
           )}
-          {totalRows > 0 && (
-            <span>— {totalRows.toLocaleString()} rows</span>
-          )}
+          {totalRows > 0 && <span>— {totalRows.toLocaleString()} rows</span>}
         </p>
       </div>
 
       {/* ── Indeterminate progress bar ── */}
       <div className="w-full max-w-xs mt-6 overflow-hidden">
         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full w-1/3 bg-gradient-to-r from-indigo-400
-                          to-indigo-600 rounded-full animate-indeterminate" />
+          <div
+            className="h-full w-1/3 bg-gradient-to-r from-indigo-400
+                          to-indigo-600 rounded-full animate-indeterminate"
+          />
         </div>
       </div>
 
@@ -144,7 +154,7 @@ const ImportWritingStep = ({ totalRows, fileName }) => {
 };
 
 /* ─────────────────────────────────────────────────────
-   Main modal — unchanged except uses new WritingStep
+   Main modal
 ───────────────────────────────────────────────────── */
 const InventoryImportModal = ({ open, onClose, onSuccess }) => {
   const hook = useInventoryImport();
@@ -185,8 +195,10 @@ const InventoryImportModal = ({ open, onClose, onSuccess }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4
-                        bg-gradient-to-r from-[#000060] to-indigo-800">
+        <div
+          className="shrink-0 flex items-center justify-between px-6 py-4
+                        bg-gradient-to-r from-[#000060] to-indigo-800"
+        >
           <h2 className="text-white text-lg font-semibold">
             {STEP_TITLES[hook.step] || "Import Inventory"}
           </h2>
@@ -203,7 +215,6 @@ const InventoryImportModal = ({ open, onClose, onSuccess }) => {
 
         {/* Step content */}
         <div className="flex-1 overflow-y-auto">
-
           {hook.step === STEPS.UPLOAD && (
             <ImportUploadStep
               onUpload={hook.uploadFile}
@@ -276,7 +287,6 @@ const InventoryImportModal = ({ open, onClose, onSuccess }) => {
               onDone={handleSuccess}
             />
           )}
-
         </div>
       </div>
     </div>

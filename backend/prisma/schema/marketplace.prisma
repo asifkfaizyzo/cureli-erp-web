@@ -240,6 +240,7 @@ model DeliveryPricingConfig {
   config_id        String          @id @default(uuid()) @db.Uuid
   version          Int             @default(1)
   fulfillment_type FulfillmentType @default(INSTANT_DELIVERY) @unique
+  is_active        Boolean         @default(true)
 
   // ── Charge Toggles ──────────────────────────────────────
   service_charge_enabled  Boolean  @default(true)
@@ -270,12 +271,18 @@ model DeliveryPricingConfig {
   packing_tier_2_charge Decimal  @default(8)       @db.Decimal(10, 2)
   packing_tier_3_charge Decimal  @default(5)       @db.Decimal(10, 2)
 
-  // ── Distance Surcharge ──────────────────────────────────
+  // ── Distance Surcharge (LEGACY — kept for rollback, no longer read by engine) ──
   free_km_radius      Decimal    @default(3.0)    @db.Decimal(10, 2)
   free_km_mode        FreeKmMode @default(EXCESS_ONLY)
   per_km_tier_1_max   Decimal    @default(999.99) @db.Decimal(10, 2)
   per_km_tier_1_rate  Decimal  @default(15)     @db.Decimal(10, 2)
   per_km_tier_2_rate  Decimal  @default(10)     @db.Decimal(10, 2)
+
+  // ── Dynamic Delivery Tiers (NEW — unlimited tiers with per-tier free radius + rate) ──
+  // Each tier: { min_order_value, flat_charge, free_radius_km, per_km_rate }
+  // Matching: highest min_order_value <= subtotal
+  // Final charge: flat_charge + max(0, distance_km - free_radius_km) * per_km_rate
+  delivery_tiers_json Json?
 
   // ── GST Configuration (per fulfillment type) ───
   gst_enabled       Boolean   @default(false)

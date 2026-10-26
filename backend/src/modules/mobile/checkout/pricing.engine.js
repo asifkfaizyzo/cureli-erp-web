@@ -71,6 +71,7 @@ export function computePricing({
       grand_total: 0,
       delivery_available: false,
       unavailable_reason: `Delivery not available beyond ${config.max_delivery_km} km`,
+      matchedDeliveryTier: null,
     };
   }
 
@@ -86,9 +87,41 @@ export function computePricing({
     }
   }
 
-  // ── Delivery fee ──────────────────────────────────────────
+  // ── Delivery fee (merged distance-tiered) ─────────────────
+  // New system: a single tier object owns flat_charge + free_radius + per_km_rate.
+  // km_surcharge is permanently 0 (distance is baked into delivery_fee).
   let delivery_fee = 0;
-  if (config.delivery_fee_enabled !== false) {
+  let km_surcharge = 0;
+  let distance_rate = 0;
+  let full_distance_charge = 0;
+  let matchedDeliveryTier = null;
+
+  if (
+    config.delivery_fee_enabled !== false &&
+    config.deliveryTiers &&
+    config.deliveryTiers.length > 0
+  ) {
+    // ── NEW PATH: dynamic JSON tiers ─────────────────────
+    // Match: highest min_order_value that does not exceed subtotal
+    matchedDeliveryTier = config.deliveryTiers[0];
+    for (const tier of config.deliveryTiers) {
+      if (subtotal >= tier.min_order_value) matchedDeliveryTier = tier;
+    }
+
+    distance_rate = matchedDeliveryTier.per_km_rate;
+    const excessKm = Math.max(0, distance_km - matchedDeliveryTier.free_radius_km);
+    const distanceCharge = parseFloat((excessKm * distance_rate).toFixed(2));
+
+    delivery_fee = parseFloat(
+      (matchedDeliveryTier.flat_charge + distanceCharge).toFixed(2),
+    );
+    km_surcharge = 0; // always 0 — distance is already inside delivery_fee
+
+    // Theoretical full-distance cost (no free radius) — used for anchor strikethrough.
+    full_distance_charge = parseFloat((distance_km * distance_rate).toFixed(2));
+
+  } else if (config.delivery_fee_enabled !== false) {
+    // ── LEGACY FALLBACK: flat columns (unmigrated config only) ─────────
     if (subtotal < config.delivery_tier_1_max) {
       delivery_fee = config.delivery_tier_1_charge;
     } else if (subtotal < config.delivery_tier_2_max) {
@@ -98,38 +131,16 @@ export function computePricing({
     } else {
       delivery_fee = config.delivery_tier_4_charge;
     }
-  }
-
-  // ── Per-km surcharge (only beyond free_km_radius) ─────────
-  let km_surcharge = 0;
-  let distance_rate = 0;
-  let full_distance_charge = 0;
-  if (config.km_surcharge_enabled !== false) {
-    let extra_km = 0;
-    if (config.free_km_mode === "FULL_DISTANCE") {
-      // Cliff: inside radius = free, outside = charge full distance
-      extra_km = distance_km > config.free_km_radius ? distance_km : 0;
-    } else {
-      // EXCESS_ONLY (default): charge only for km beyond the free radius
-      extra_km = Math.max(0, distance_km - config.free_km_radius);
-    }
-
-    // Rate lookup — identical tier logic regardless of free_km_mode
-    distance_rate =
-      subtotal < config.per_km_tier_1_max
-        ? config.per_km_tier_1_rate
-        : config.per_km_tier_2_rate;
-
-    // Theoretical full-distance cost (distance_km × rate), computed
-    // ALWAYS when the surcharge feature is on — independent of free_km_mode.
-    // Used downstream as the "slashed km" strikethrough reference:
-    // when this is greater than km_surcharge, there's a genuine saving
-    // to display (free-radius benefit). When equal (FULL_DISTANCE mode,
-    // outside radius), there's no saving and no strikethrough is shown.
-    full_distance_charge = parseFloat((distance_km * distance_rate).toFixed(2));
-
-    if (extra_km > 0) {
-      km_surcharge = parseFloat((extra_km * distance_rate).toFixed(2));
+    if (config.km_surcharge_enabled !== false) {
+      const extra_km = Math.max(0, distance_km - config.free_km_radius);
+      distance_rate =
+        subtotal < config.per_km_tier_1_max
+          ? config.per_km_tier_1_rate
+          : config.per_km_tier_2_rate;
+      full_distance_charge = parseFloat((distance_km * distance_rate).toFixed(2));
+      if (extra_km > 0) {
+        km_surcharge = parseFloat((extra_km * distance_rate).toFixed(2));
+      }
     }
   }
 
@@ -165,7 +176,24 @@ export function computePricing({
     grand_total,
     delivery_available: true,
     unavailable_reason: null,
+    matchedDeliveryTier,
   };
+}
+
+/**
+ * Parse the delivery_tiers_json column into a sorted array of plain numbers.
+ * Returns [] when the column is null / empty (triggers legacy flat-column fallback).
+ */
+function normaliseDeliveryTiers(raw) {
+  if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
+  return raw
+    .map((t) => ({
+      min_order_value: Number(t.min_order_value ?? 0),
+      flat_charge:     Number(t.flat_charge ?? 0),
+      free_radius_km:  Number(t.free_radius_km ?? 0),
+      per_km_rate:     Number(t.per_km_rate ?? 0),
+    }))
+    .sort((a, b) => a.min_order_value - b.min_order_value);
 }
 
 /**
@@ -206,12 +234,15 @@ export function normaliseConfig(dbRow) {
     packing_tier_2_charge: Number(dbRow.packing_tier_2_charge ?? 0),
     packing_tier_3_charge: Number(dbRow.packing_tier_3_charge ?? 0),
 
-    // ── Distance Surcharge ─────────────────────────────────
+    // ── Distance Surcharge (LEGACY — unmigrated fallback only) ─────────────
     free_km_radius:     Number(dbRow.free_km_radius),
     free_km_mode:       dbRow.free_km_mode ?? "EXCESS_ONLY",
     per_km_tier_1_max:  Number(dbRow.per_km_tier_1_max),
     per_km_tier_1_rate: Number(dbRow.per_km_tier_1_rate),
     per_km_tier_2_rate: Number(dbRow.per_km_tier_2_rate),
+
+    // ── Dynamic Delivery Tiers (NEW — primary source of truth) ─────────────
+    deliveryTiers: normaliseDeliveryTiers(dbRow.delivery_tiers_json),
 
     max_delivery_km: dbRow.max_delivery_km !== null
       ? Number(dbRow.max_delivery_km)
@@ -273,6 +304,33 @@ export function computeTierAnchor(config, feeType, subtotal) {
   }
 
   if (feeType === "delivery") {
+    const tiers = config.deliveryTiers;
+
+    // ── NEW PATH: dynamic tiers ───────────────────────────
+    if (tiers && tiers.length > 0) {
+      // Find current tier index
+      let currentIdx = 0;
+      for (let i = 0; i < tiers.length; i++) {
+        if (subtotal >= tiers[i].min_order_value) currentIdx = i;
+      }
+
+      const ct = tiers[currentIdx];
+      // NOTE: distance-aware anchor requires distance_km. This function was
+      // originally subtotal-only. For the new system, "0 charge" only truly
+      // means free when distance is within free_radius. Without distance here,
+      // we fall back to flat_charge comparison — the service layer should
+      // prefer computeFreeRadiusAnchor for distance-aware anchoring.
+      if (ct.flat_charge > 0) return null;
+
+      for (let i = currentIdx - 1; i >= 0; i--) {
+        if (tiers[i].flat_charge > 0) {
+          return parseFloat(tiers[i].flat_charge.toFixed(2));
+        }
+      }
+      return null;
+    }
+
+    // ── LEGACY FALLBACK: flat columns ─────────────────────
     let currentCharge;
     let lowerCharges = [];
 
@@ -304,29 +362,64 @@ export function computeTierAnchor(config, feeType, subtotal) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DYNAMIC TIER MATCHER (exported for slash engine + service layer)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Find the matching delivery tier for a given subtotal.
+ * Returns the tier with the highest min_order_value that does not exceed subtotal.
+ *
+ * @param {number} subtotal
+ * @param {Array}  tiers - sorted deliveryTiers from normaliseConfig
+ * @returns {Object|null} matched tier or null if tiers empty
+ */
+export function findMatchingDeliveryTier(subtotal, tiers) {
+  if (!tiers || tiers.length === 0) return null;
+  let matched = tiers[0];
+  for (const t of tiers) {
+    if (subtotal >= t.min_order_value) matched = t;
+  }
+  return matched;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FREE-RADIUS AUTO-ANCHOR (for distance-surcharge "slashed km" strikethrough)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Compute the anchor (strikethrough) value for the free-delivery-radius
- * visual. Compares the theoretical full-distance cost against the actual
- * km_surcharge being charged — if the theoretical cost is higher, that's
- * a genuine saving worth displaying.
- *
- * Self-cancels correctly in all 3 cases:
- *   - EXCESS_ONLY, beyond radius: full_distance_charge > km_surcharge → anchor shown
- *   - Within free radius (either mode): km_surcharge = 0 → anchor shown, "free delivery"
- *   - FULL_DISTANCE, beyond radius: full_distance_charge === km_surcharge → null (no benefit)
- *
- * Returns the candidate anchor as the FULL delivery row value
- * (delivery_fee + full_distance_charge) so the caller can merge/compare
- * it against any promo-slash anchor using Math.max. Returns null when
+ * Compute the anchor (strikethrough) value for the free-delivery-radius visual.
+ * Returns the "what-if you had no free radius" delivery total, or null when
  * there is no benefit to display.
  *
- * @param {{ delivery_fee: number, km_surcharge: number, full_distance_charge: number }} basePricing
+ * NEW signature uses the matched tier directly. LEGACY callers still work
+ * via the fallback branch (checks for presence of full_distance_charge).
+ *
+ * @param {Object} opts
+ * @param {number}  opts.delivery_fee              - actual merged delivery charge
+ * @param {number}  opts.km_surcharge              - always 0 in new system (legacy)
+ * @param {number}  opts.full_distance_charge      - distance_km × rate (legacy)
+ * @param {Object}  [opts.matchedDeliveryTier]     - new: the matched tier
+ * @param {number}  [opts.distance_km]             - new: raw distance
  * @returns {number|null}
  */
-export function computeFreeRadiusAnchor({ delivery_fee, km_surcharge, full_distance_charge }) {
+export function computeFreeRadiusAnchor({
+  delivery_fee,
+  km_surcharge,
+  full_distance_charge,
+  matchedDeliveryTier,
+  distance_km,
+}) {
+  // ── NEW PATH: use matched tier directly ──────────────────
+  if (matchedDeliveryTier && distance_km !== undefined && distance_km !== null) {
+    const { flat_charge, free_radius_km, per_km_rate } = matchedDeliveryTier;
+    const actualDistCharge = Math.max(0, distance_km - free_radius_km) * per_km_rate;
+    const fullDistCharge   = distance_km * per_km_rate;
+
+    if (fullDistCharge <= actualDistCharge) return null; // no free-radius benefit
+    return parseFloat((flat_charge + fullDistCharge).toFixed(2));
+  }
+
+  // ── LEGACY FALLBACK (unmigrated config) ──────────────────
   if (!full_distance_charge || full_distance_charge <= km_surcharge) return null;
   return parseFloat((delivery_fee + full_distance_charge).toFixed(2));
 }
@@ -388,9 +481,45 @@ export function computeNudges(config, subtotal, distanceKm) {
   }
 
   // ── Delivery fee nudge ──────────────────────────────────
-  if (config.delivery_fee_enabled !== false) {
-    // Only nudge if km_surcharge would be 0 (within free radius).
-    // Both EXCESS_ONLY and FULL_DISTANCE yield 0 when distance <= radius.
+  if (
+    config.delivery_fee_enabled !== false &&
+    config.deliveryTiers &&
+    config.deliveryTiers.length > 1
+  ) {
+    // ── NEW PATH: dynamic tiers ───────────────────────────
+    // Find current tier
+    let currentIdx = 0;
+    for (let i = 0; i < config.deliveryTiers.length; i++) {
+      if (subtotal >= config.deliveryTiers[i].min_order_value) currentIdx = i;
+    }
+
+    const ct = config.deliveryTiers[currentIdx];
+    const currentDelivery =
+      ct.flat_charge + Math.max(0, distanceKm - ct.free_radius_km) * ct.per_km_rate;
+
+    if (currentDelivery > 0) {
+      // Scan higher tiers for the nearest one with a cheaper total delivery
+      for (let i = currentIdx + 1; i < config.deliveryTiers.length; i++) {
+        const nt = config.deliveryTiers[i];
+        const nextDelivery =
+          nt.flat_charge + Math.max(0, distanceKm - nt.free_radius_km) * nt.per_km_rate;
+
+        if (nextDelivery < currentDelivery) {
+          const gap = Math.ceil(nt.min_order_value - subtotal);
+          if (gap > 0) {
+            result.free_delivery = {
+              gap,
+              threshold: nt.min_order_value,
+              targetDelivery: parseFloat(nextDelivery.toFixed(2)),
+              isFreeDelivery: nextDelivery === 0,
+            };
+          }
+          break; // only the nearest beneficial tier
+        }
+      }
+    }
+  } else if (config.delivery_fee_enabled !== false) {
+    // ── LEGACY FALLBACK: flat columns ─────────────────────
     const withinFreeRadius = distanceKm <= config.free_km_radius;
 
     if (withinFreeRadius) {

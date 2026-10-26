@@ -10,6 +10,7 @@ import {
   createSessionHandler,
   confirmHandler,
   webhookHandler,
+  activeFulfillmentTypesHandler,
 } from './mobile.checkout.controller.js';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.post('/webhook', webhookHandler);
 
 // Auth-required routes
 router.use(mobileAuth);
+router.get('/active-fulfillment-types', activeFulfillmentTypesHandler);
 router.use(requireProfileComplete); 
 router.post('/quote',          quoteHandler);
 router.post('/create-session', createSessionHandler);

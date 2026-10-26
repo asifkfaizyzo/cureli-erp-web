@@ -34,7 +34,7 @@ git push origin prod
 
 ssh cureli@187.127.139.168
 # enter password when prompted
-
+AWS- 138720667523
 
 # ============================================================
 # STEP 3 — Pull latest prod on VPS

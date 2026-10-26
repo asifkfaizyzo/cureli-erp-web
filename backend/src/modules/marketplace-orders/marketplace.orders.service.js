@@ -10,7 +10,9 @@ import { getDrivingDistance } from "../../services/distance.service.js";
 import {
   computePricing,
   normaliseConfig,
+  computeGST,
 } from "../mobile/checkout/pricing.engine.js";
+import { applySlash, normaliseSlashConfig } from "../mobile/checkout/slash.engine.js";
 import { RiderPush } from "../rider/push/rider.push.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,13 +275,19 @@ export async function placeOrder({
     distanceKm = dist.distanceKm;
   }
 
-  // Load pricing config and compute delivery fees
-  const pricingConfigRow = await prisma.deliveryPricingConfig.findFirst();
+   // Load pricing config and compute delivery fees
+  const fulfillment_type = "INSTANT_DELIVERY"; // legacy COD path, always instant
+  const pricingConfigRow = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type },
+  });
   let total_amount = subtotal;
   let service_charge = 0;
   let delivery_fee = 0;
   let km_surcharge = 0;
   let gst = null;
+  let service_charge_anchor = null;
+  let delivery_charge_anchor = null;
+  let platform_savings = 0;
 
   if (pricingConfigRow) {
     const config = normaliseConfig(pricingConfigRow);
@@ -288,23 +296,35 @@ export async function placeOrder({
       distance_km: distanceKm,
       tip: 0,
       config,
+      fulfillment_type,
     });
 
     if (!pricing.delivery_available) {
       throw new Error(pricing.unavailable_reason);
     }
 
-    service_charge = pricing.service_charge;
-    delivery_fee = pricing.delivery_fee;
-    km_surcharge = pricing.km_surcharge;
-    total_amount = pricing.grand_total;
+    // ── Apply Slash Display ──────────────────────
+    const slashConfigRow = await prisma.slashDisplayConfig.findFirst();
+    const slashConfig = normaliseSlashConfig(slashConfigRow);
+    const slashed = applySlash({
+      ...pricing,
+      distance_km: distanceKm,
+      config: slashConfig,
+      baseMatchedTier: pricing.matchedDeliveryTier ?? null,
+    });
+
+    service_charge = slashed.service_charge;
+    delivery_fee = slashed.delivery_charge;
+    km_surcharge = 0;
+    service_charge_anchor = slashed.service_charge_anchor;
+    delivery_charge_anchor = slashed.delivery_charge_anchor;
+    platform_savings = slashed.platform_savings;
+    total_amount = slashed.grand_total;
 
     // ── GST ──────────────────────────────────────
-    const { computeGST } = await import("../mobile/checkout/pricing.engine.js");
-    gst = computeGST(pricing, config);
+    gst = computeGST(slashed, config);
     total_amount = parseFloat((total_amount + gst.gst_amount).toFixed(2));
   }
-
   // ── 7. Snapshot delivery address ──────────────────────────────────────────
   const delivery_address_snapshot = {
     label: address.label,
@@ -342,10 +362,13 @@ export async function placeOrder({
         payment_method: "COD",
         payment_status: "PENDING",
         subtotal,
-        service_charge,
+         service_charge,
         delivery_fee,
         km_surcharge,
         tip: 0,
+        service_charge_anchor,
+        delivery_charge_anchor,
+        platform_savings,
         gst_rate: gst?.gst_rate ?? null,
         gst_type: gst?.gst_type ?? null,
         gst_amount: gst?.gst_amount ?? null,

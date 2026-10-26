@@ -1,6 +1,6 @@
 // cadmin-web/src/pages/marketplace/Pricing/comps/delivery/SlashConfigSection.jsx
-import React, { useCallback } from "react";
-import { Sparkles, Trash2, Plus, ArrowRight } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { Sparkles, Trash2, Plus, ArrowRight, AlertTriangle } from "lucide-react";
 import { Section, Toggle, InfoBanner } from "./FormInputs";
 
 const MODES = [
@@ -11,6 +11,13 @@ const MODES = [
 
 export default function SlashConfigSection({ form, onChange }) {
   const { is_enabled, service_mode, service_pct, delivery_mode, delivery_tiers } = form;
+
+  // ── Mode-flip warning (dismissible, not a hard block) ─────
+  const [modeFlipDismissed, setModeFlipDismissed] = useState(false);
+  const hasMixedModes =
+    delivery_tiers.some((t) => (t.mode || "FULL") === "EXCESS") &&
+    delivery_tiers.some((t) => (t.mode || "FULL") === "FULL");
+
 
   // ── Service handlers ─────────────────────────────────────
   const handleServiceModeChange = (mode) => {
@@ -42,10 +49,13 @@ export default function SlashConfigSection({ form, onChange }) {
           min_subtotal: null,
           max_distance_km: null,
           pct: mode === "NEW" ? 50 : -50,
+          mode: "FULL",
         },
       ]);
     } else {
-      // Force change polarity of existing tiers to fit new mode
+      // Force change polarity of existing tiers to fit new mode.
+      // Note: per-tier FULL/EXCESS formula is a separate axis from
+      // NEW/OLD direction and is preserved as-is.
       const updated = delivery_tiers.map((t) => ({
         ...t,
         pct: mode === "NEW" ? Math.abs(t.pct) : -Math.abs(t.pct),
@@ -61,10 +71,10 @@ export default function SlashConfigSection({ form, onChange }) {
       min_subtotal: null,
       max_distance_km: null,
       pct: delivery_mode === "NEW" ? 50 : -50,
+      mode: "FULL",
     };
     onChange("delivery_tiers", [...delivery_tiers, newTier]);
   };
-
   const handleRemoveTier = (index) => {
     const updated = delivery_tiers.filter((_, i) => i !== index);
     onChange("delivery_tiers", updated);
@@ -179,17 +189,28 @@ export default function SlashConfigSection({ form, onChange }) {
               {/* Delivery Tiers Editor */}
               {delivery_mode !== "NONE" && (
                 <div className="space-y-3">
-                  <InfoBanner>
+                   <InfoBanner>
                     Tiers evaluate deterministically from priority 1 downwards. The first tier where all non-null conditions (Min Subtotal, Max Distance) are satisfied applies to the order. An all-null tier acts as the default fallback.
+                    <br />
+                    <br />
+                    Each tier uses one <strong>Formula</strong>:{" "}
+                    <strong>Whole-Bill Discount</strong> cuts the entire
+                    delivery charge, but only applies when the customer's
+                    distance is within Max Distance.{" "}
+                    <strong>Distance-Only</strong> completely waives the flat
+                    delivery fee and discounts only the distance charged
+                    beyond Max Distance (here, Max Distance acts as a
+                    free-km line, not a limit that blocks the discount).
                   </InfoBanner>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse border border-gray-100 rounded-lg">
                       <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                         <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                           <th className="p-3 w-16 text-center">Priority</th>
                           <th className="p-3">Min Subtotal</th>
                           <th className="p-3">Max Distance</th>
+                          <th className="p-3 w-40">Formula</th>
                           <th className="p-3 w-28">Rate (%)</th>
                           <th className="p-3 w-12 text-center"></th>
                         </tr>
@@ -236,6 +257,23 @@ export default function SlashConfigSection({ form, onChange }) {
                                 />
                                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400">km</span>
                               </div>
+                              <p className="text-[9px] text-gray-400 mt-1 leading-tight">
+                                {(t.mode || "FULL") === "EXCESS"
+                                  ? "Free-km line — distance beyond this is discounted"
+                                  : "Order must be within this distance to qualify"}
+                              </p>
+                            </td>
+
+                            {/* Formula: Whole-Bill (FULL) vs Distance-Only (EXCESS) */}
+                            <td className="p-2">
+                              <select
+                                value={t.mode || "FULL"}
+                                onChange={(e) => handleTierFieldChange(index, "mode", e.target.value)}
+                                className="w-full py-1.5 px-2 border border-gray-200 rounded text-gray-700 font-semibold focus:outline-none bg-white"
+                              >
+                                <option value="FULL">Whole-Bill Discount</option>
+                                <option value="EXCESS">Distance-Only (waive flat fee)</option>
+                              </select>
                             </td>
 
                             {/* Tier rate (%) */}
@@ -270,7 +308,28 @@ export default function SlashConfigSection({ form, onChange }) {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                 </div>
+
+                  {hasMixedModes && !modeFlipDismissed && (
+                    <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                      <AlertTriangle size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-[11px] text-amber-700 leading-relaxed flex-1">
+                        You're mixing <strong>Whole-Bill</strong> and{" "}
+                        <strong>Distance-Only</strong> tiers in the same list.
+                        This is allowed, but customers may see very different
+                        discount behaviour as their order grows — double
+                        check this is intentional.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setModeFlipDismissed(true)}
+                        className="text-amber-400 hover:text-amber-600 text-xs font-bold flex-shrink-0"
+                        title="Dismiss this warning"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
 
                   <button
                     type="button"

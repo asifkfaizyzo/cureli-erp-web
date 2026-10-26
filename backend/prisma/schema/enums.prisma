@@ -497,5 +497,5 @@ enum SlashMode {
 
 enum FreeKmMode {
   EXCESS_ONLY    
-  FULL_DISTANCE  
+  FULL_DISTANCE  // DEPRECATED — retained for existing rows only; pricing engine no longer reads this
 }

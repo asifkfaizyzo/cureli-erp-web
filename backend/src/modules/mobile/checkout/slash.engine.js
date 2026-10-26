@@ -9,8 +9,9 @@
  * @typedef {Object} SlashTier
  * @property {number}       priority        - Lower number = higher priority
  * @property {number|null}  min_subtotal    - Order subtotal must be >= this (null = no check)
- * @property {number|null}  max_distance_km - Order distance must be <= this (null = no check)
+ * @property {number|null}  max_distance_km - FULL: eligibility gate (distance ≤). EXCESS: free-km threshold.
  * @property {number}       pct             - Percentage: positive for NEW mode, negative for OLD mode
+ * @property {'FULL'|'EXCESS'} mode         - FULL = whole-bill discount. EXCESS = distance-only, flat waived.
  */
 
 /**
@@ -61,7 +62,10 @@ function findMatchingTier(tiers, subtotal, distance_km) {
       if (subtotal < tier.min_subtotal) matches = false;
     }
 
-    if (tier.max_distance_km != null) {
+    // FULL mode: max_distance_km is an eligibility gate (distance must be ≤)
+    // EXCESS mode: max_distance_km is a free-km threshold, NOT an eligibility gate
+    const tierMode = tier.mode || 'FULL';
+    if (tierMode !== 'EXCESS' && tier.max_distance_km != null) {
       if (distance_km > tier.max_distance_km) matches = false;
     }
 
@@ -130,6 +134,7 @@ function applyPercentage(value, mode, pct) {
  * @param {string|null}  params.unavailable_reason  - From computePricing()
  * @param {number}       params.distance_km         - Branch-to-customer distance
  * @param {SlashConfig}  params.config              - Normalised slash config
+ * @param {Object|null}  params.baseMatchedTier      - Matched base delivery tier from pricing engine
  * @returns {SlashResult}
  */
 export function applySlash({
@@ -144,6 +149,7 @@ export function applySlash({
   unavailable_reason,
   distance_km,
   config,
+  baseMatchedTier = null,
 }) {
   // ── 1. Disabled or missing config → pass through ──────────────
   if (!config || !config.is_enabled) {
@@ -180,7 +186,7 @@ export function applySlash({
     config.service_pct,
   );
 
-  // ── 4. Delivery charge slash (combined delivery + km) ─────────
+   // ── 4. Delivery charge slash (combined delivery + km) ─────────
   const combinedDelivery = parseFloat((delivery_fee + km_surcharge).toFixed(2));
   let deliveryActual = combinedDelivery;
   let deliveryAnchor = null;
@@ -193,16 +199,44 @@ export function applySlash({
     );
 
     if (matchedTier) {
-      const deliveryResult = applyPercentage(
-        combinedDelivery,
-        config.delivery_mode,
-        matchedTier.pct,
-      );
-      deliveryActual = deliveryResult.actual;
-      deliveryAnchor = deliveryResult.anchor;
+      const tierMode = matchedTier.mode || 'FULL';
+
+      if (tierMode === 'EXCESS') {
+        // ── EXCESS: flat fee completely waived, only charge excess distance ──
+        // max_distance_km = free-km threshold (not eligibility gate)
+        const freeKm = matchedTier.max_distance_km || 0;
+        const excessKm = Math.max(0, distance_km - freeKm);
+        const baseRate = baseMatchedTier?.per_km_rate ?? 0;
+        const excessCharge = parseFloat((excessKm * baseRate).toFixed(2));
+        const baseFullCharge = combinedDelivery;
+
+        if (config.delivery_mode === 'OLD') {
+          // Anchor = full base charge (strikethrough), Actual = discounted excess
+          deliveryAnchor = baseFullCharge;
+          deliveryActual = Math.max(
+            0,
+            parseFloat((excessCharge * (1 + matchedTier.pct / 100)).toFixed(2)),
+          );
+        } else {
+          // NEW: Actual = excess charge, Anchor = inflated excess
+          deliveryActual = excessCharge;
+          deliveryAnchor = parseFloat(
+            (excessCharge * (1 + matchedTier.pct / 100)).toFixed(2),
+          );
+        }
+      } else {
+        // ── FULL: discount on entire combined delivery charge ──
+        // Eligibility (distance ≤ max) already checked in findMatchingTier
+        const deliveryResult = applyPercentage(
+          combinedDelivery,
+          config.delivery_mode,
+          matchedTier.pct,
+        );
+        deliveryActual = deliveryResult.actual;
+        deliveryAnchor = deliveryResult.anchor;
+      }
     }
   }
-
   // ── 5. Platform savings (always >= 0) ─────────────────────────
   const serviceSavings = serviceResult.anchor != null
     ? serviceResult.anchor - serviceResult.actual
@@ -274,6 +308,7 @@ export function normaliseSlashConfig(dbRow) {
     min_subtotal: t.min_subtotal != null ? Number(t.min_subtotal) : null,
     max_distance_km: t.max_distance_km != null ? Number(t.max_distance_km) : null,
     pct: Number(t.pct) || 0,
+    mode: t.mode === 'EXCESS' ? 'EXCESS' : 'FULL',
   }));
 
   return {
@@ -283,4 +318,45 @@ export function normaliseSlashConfig(dbRow) {
     delivery_mode: dbRow.delivery_mode || 'NONE',
     delivery_tiers: normalisedTiers,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SLASH NUDGE — find next reachable slash tier for upsell messaging
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Compute a nudge toward the next slash delivery tier.
+ * Returns null if no higher tier is reachable or slash is disabled.
+ *
+ * @param {SlashConfig} slashConfig
+ * @param {number} subtotal
+ * @param {number} distance_km
+ * @returns {{ gap: number, threshold: number, tier_pct: number, tier_mode: string }|null}
+ */
+export function computeSlashNudge(slashConfig, subtotal, distance_km) {
+  if (!slashConfig?.is_enabled || slashConfig.delivery_mode === 'NONE')
+    return null;
+
+  const tiers = slashConfig.delivery_tiers;
+  if (!Array.isArray(tiers) || tiers.length === 0) return null;
+
+  const sorted = [...tiers].sort((a, b) => a.priority - b.priority);
+  const matched = findMatchingTier(sorted, subtotal, distance_km);
+  if (!matched) return null;
+
+  const matchedIdx = sorted.findIndex((t) => t.priority === matched.priority);
+
+  for (let i = matchedIdx + 1; i < sorted.length; i++) {
+    const next = sorted[i];
+    if (next.min_subtotal != null && next.min_subtotal > subtotal) {
+      return {
+        gap: parseFloat((next.min_subtotal - subtotal).toFixed(2)),
+        threshold: next.min_subtotal,
+        tier_pct: next.pct,
+        tier_mode: next.mode || 'FULL',
+      };
+    }
+  }
+
+  return null;
 }
