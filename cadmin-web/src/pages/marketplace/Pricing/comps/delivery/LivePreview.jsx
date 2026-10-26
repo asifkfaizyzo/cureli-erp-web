@@ -74,48 +74,48 @@ function computePreview(pricingConfig, slashConfig, subtotal, distanceKm) {
     else service = f(pricingConfig.service_tier_3_charge);
   }
 
-  // ── 2. Calculate Base Delivery Fee ──
+  // ── 2+3. Calculate Delivery Fee (dynamic unlimited tiers) ──
+  // matchedTier = highest min_order_value ≤ subtotal. Each tier bundles
+  // flat_charge + free_radius_km + per_km_rate — the old separate
+  // "Base Delivery Fee" and "Distance Surcharge Rate" sections are merged.
   let delivery = 0;
-  if (isEnabled("delivery_fee_enabled")) {
-    if (subtotal < f(pricingConfig.delivery_tier_1_max))
-      delivery = f(pricingConfig.delivery_tier_1_charge);
-    else if (subtotal < f(pricingConfig.delivery_tier_2_max))
-      delivery = f(pricingConfig.delivery_tier_2_charge);
-    else if (subtotal < f(pricingConfig.delivery_tier_3_max))
-      delivery = f(pricingConfig.delivery_tier_3_charge);
-    else delivery = f(pricingConfig.delivery_tier_4_charge);
-  }
-
-  // ── 3. Calculate Base Distance Surcharge ──
   let kmSurcharge = 0;
   let fullDistanceCharge = 0;
-  if (isEnabled("km_surcharge_enabled")) {
-    const freeKmMode = pricingConfig.free_km_mode || "EXCESS_ONLY";
-    let extraKm = 0;
-    if (freeKmMode === "FULL_DISTANCE") {
-      extraKm = distanceKm > f(pricingConfig.free_km_radius) ? distanceKm : 0;
-    } else {
-      extraKm = Math.max(0, distanceKm - f(pricingConfig.free_km_radius));
+  let freeRadiusAnchor = null;
+
+  if (isEnabled("delivery_fee_enabled")) {
+    const tiers = Array.isArray(pricingConfig.delivery_tiers_json)
+      ? pricingConfig.delivery_tiers_json
+      : [];
+    const sorted = [...tiers].sort(
+      (a, b) => f(a.min_order_value) - f(b.min_order_value),
+    );
+
+    let matchedTier = null;
+    for (const t of sorted) {
+      if (f(t.min_order_value) <= subtotal) matchedTier = t;
     }
-    const kmRate =
-      subtotal < f(pricingConfig.per_km_tier_1_max)
-        ? f(pricingConfig.per_km_tier_1_rate)
-        : f(pricingConfig.per_km_tier_2_rate);
-    kmSurcharge = parseFloat((extraKm * kmRate).toFixed(2));
-    // Always computed (independent of free_km_mode) — mirrors
-    // backend pricing.engine.js full_distance_charge for the
-    // "slashed km" free-radius anchor.
-    fullDistanceCharge = parseFloat((distanceKm * kmRate).toFixed(2));
+
+    if (matchedTier) {
+      const freeRadius = f(matchedTier.free_radius_km);
+      const rate = f(matchedTier.per_km_rate);
+      const excessKm = Math.max(0, distanceKm - freeRadius);
+
+      delivery = f(matchedTier.flat_charge);
+      kmSurcharge = parseFloat((excessKm * rate).toFixed(2));
+      // Full distance at this tier's rate — used for the free-radius
+      // "slashed km" anchor display (mirrors backend full_distance_charge).
+      fullDistanceCharge = parseFloat((distanceKm * rate).toFixed(2));
+
+      if (fullDistanceCharge > kmSurcharge) {
+        freeRadiusAnchor = parseFloat(
+          (delivery + fullDistanceCharge).toFixed(2),
+        );
+      }
+    }
   }
 
   const rawDeliveryCharge = parseFloat((delivery + kmSurcharge).toFixed(2));
-
-  // ── 3c. Free-radius auto-anchor (distance-surcharge "slashed km") ──
-  const freeRadiusAnchor =
-    fullDistanceCharge > kmSurcharge
-      ? parseFloat((delivery + fullDistanceCharge).toFixed(2))
-      : null;
-
   // ── 3b. Calculate Packing Charge ──
   let packing = 0;
   if (isEnabled("packing_enabled")) {

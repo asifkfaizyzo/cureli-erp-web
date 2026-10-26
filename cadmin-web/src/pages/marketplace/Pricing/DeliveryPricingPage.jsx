@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings2,
   Truck,
-  MapPin,
   Heart,
   Save,
   RefreshCw,
@@ -32,6 +31,7 @@ import {
   Toggle,
   InfoBanner,
   SkeletonSection,
+  DeliveryTierEditor,
 } from "./comps/delivery/FormInputs";
 import SlashConfigSection from "./comps/delivery/SlashConfigSection";
 import LivePreview from "./comps/delivery/LivePreview";
@@ -48,24 +48,20 @@ const DEFAULT_PRICING = {
   service_tier_2_max: 1999.99,
   service_tier_2_charge: 15,
   service_tier_3_charge: 0,
-  delivery_tier_1_max: 299.99,
-  delivery_tier_1_charge: 60,
-  delivery_tier_2_max: 999.99,
-  delivery_tier_2_charge: 50,
-  delivery_tier_3_max: 1999.99,
-  delivery_tier_3_charge: 40,
-  delivery_tier_4_charge: 30,
-  free_km_radius: 3,
-  free_km_mode: "EXCESS_ONLY",
-  per_km_tier_1_max: 999.99,
-  per_km_tier_1_rate: 15,
-  per_km_tier_2_rate: 10,
+  // ── Dynamic Delivery Tiers (unlimited, replaces old 4-tier flat fee +
+  // separate distance surcharge columns — those are deprecated in the DB
+  // schema but kept for rollback safety only) ──
+  delivery_tiers_json: [
+    { min_order_value: 0, flat_charge: 60, free_radius_km: 3, per_km_rate: 15 },
+    { min_order_value: 299.99, flat_charge: 50, free_radius_km: 3, per_km_rate: 15 },
+    { min_order_value: 999.99, flat_charge: 40, free_radius_km: 3, per_km_rate: 10 },
+    { min_order_value: 1999.99, flat_charge: 30, free_radius_km: 3, per_km_rate: 10 },
+  ],
   max_delivery_km: null,
   tip_enabled: true,
   // ── New: Toggle fields ──
   service_charge_enabled: true,
   delivery_fee_enabled: true,
-  km_surcharge_enabled: true,
   packing_enabled: false,
   // ── New: Packing charge tiers ──
   packing_tier_1_max: 999.99,
@@ -73,6 +69,8 @@ const DEFAULT_PRICING = {
   packing_tier_2_max: 1999.99,
   packing_tier_2_charge: 15,
   packing_tier_3_charge: 20,
+  // ── Fulfillment Active Toggle ──
+  is_active: true,
   // ── Same Day Cutoff ──
   same_day_cutoff_hour: 15,
   // ── GST (Tax) ──
@@ -222,6 +220,7 @@ export default function MarketplaceDeliveryPricingPage() {
           max_distance_km:
             t.max_distance_km === "" ? null : Number(t.max_distance_km),
           pct: Number(t.pct),
+          mode: t.mode === "EXCESS" ? "EXCESS" : "FULL",
         })),
       };
 
@@ -419,23 +418,84 @@ export default function MarketplaceDeliveryPricingPage() {
             );
           })}
         </div>
+        {activeFulfillment === "INSTANT_DELIVERY" && (
+          <div className="mt-2 px-4 py-2.5 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] text-[#05015A] font-medium">
+                Instant Delivery is <strong className="font-bold">always available</strong> to customers. This cannot be disabled.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                disabled
+                className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-[#05015A] opacity-60"
+              >
+                <span className="pointer-events-none inline-block h-4 w-4 transform translate-x-4 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" />
+              </button>
+              <span className="text-[10px] font-bold text-[#05015A] uppercase tracking-wide">On</span>
+            </div>
+          </div>
+        )}
         {activeFulfillment === "PICKUP" && (
-          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg">
+          <div className="mt-2 px-4 py-2.5 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg flex items-center justify-between gap-3">
             <p className="text-[11px] text-[#05015A] font-medium">
               Configuring charges for{" "}
               <strong className="font-bold">Pickup</strong> orders. Toggle
               individual charges on or off using the switch in each section
               header.
             </p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.is_active}
+                onClick={() => handlePricingChange("is_active", !form.is_active)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  form.is_active ? "bg-[#05015A]" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    form.is_active ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${form.is_active ? "text-[#05015A]" : "text-gray-400"}`}>
+                {form.is_active ? "On" : "Off"}
+              </span>
+            </div>
           </div>
         )}
         {activeFulfillment === "SAME_DAY" && (
-          <div className="mt-2 px-4 py-2 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg flex items-center gap-2">
-            <Truck size={13} className="text-[#05015A] flex-shrink-0" />
-            <p className="text-[11px] text-[#05015A] font-medium">
-              <strong>Same Day Delivery</strong> — orders placed before the
-              cutoff hour are batch-assigned to team riders by end of day.
-            </p>
+          <div className="mt-2 px-4 py-2.5 bg-[#05015A]/5 border border-[#05015A]/15 rounded-lg flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Truck size={13} className="text-[#05015A] flex-shrink-0" />
+              <p className="text-[11px] text-[#05015A] font-medium">
+                <strong>Same Day Delivery</strong> — orders placed before the
+                cutoff hour are batch-assigned to team riders by end of day.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.is_active}
+                onClick={() => handlePricingChange("is_active", !form.is_active)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  form.is_active ? "bg-[#05015A]" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    form.is_active ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${form.is_active ? "text-[#05015A]" : "text-gray-400"}`}>
+                {form.is_active ? "On" : "Off"}
+              </span>
+            </div>
           </div>
         )}
         {activeFulfillment === "NEXT_DAY" && (
@@ -582,164 +642,45 @@ export default function MarketplaceDeliveryPricingPage() {
             </div>
           </Section>
 
-          {/* Delivery Fee */}
+          {/* Delivery Fee — merged flat fee + distance surcharge, unlimited tiers */}
           <Section
-            title="Base Delivery Fee"
+            title="Delivery Charges"
             icon={Truck}
-            description="Fulfillment base delivery fee tiers"
+            description="Flat fee + free distance + per-km rate, combined by order value"
             toggleField="delivery_fee_enabled"
             form={form}
             onChange={handlePricingChange}
             defaultOpen={form.delivery_fee_enabled}
           >
             <InfoBanner>
-              Flat baseline delivery cost before any distance surcharges are
-              applied.
+              Add as many order-value tiers as you like. Each tier bundles
+              three things: a flat delivery fee, a free delivery distance, and
+              a per-km rate charged only beyond that free distance. The
+              system automatically picks the tier matching the customer's
+              order value.
             </InfoBanner>
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-400 px-1">
-                <span>Tier</span>
-                <span>Subtotal up to</span>
-                <span>Charge</span>
-              </div>
-              <TierRow
-                label="Tier 1"
-                thresholdKey="delivery_tier_1_max"
-                chargeKey="delivery_tier_1_charge"
-                form={form}
-                onChange={handlePricingChange}
-              />
-              <TierRow
-                label="Tier 2"
-                thresholdKey="delivery_tier_2_max"
-                chargeKey="delivery_tier_2_charge"
-                form={form}
-                onChange={handlePricingChange}
-              />
-              <TierRow
-                label="Tier 3"
-                thresholdKey="delivery_tier_3_max"
-                chargeKey="delivery_tier_3_charge"
-                form={form}
-                onChange={handlePricingChange}
-              />
-              <TierRow
-                label="Tier 4 (≥ Tier 3 max)"
-                chargeKey="delivery_tier_4_charge"
-                form={form}
-                onChange={handlePricingChange}
-                hideThreshold
-              />
+            <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
+              <Info size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                <strong>Rule of thumb:</strong> as the order value tier goes
+                up, the flat fee should go down (or stay the same), the free
+                distance should go up (or stay the same), and the per-km rate
+                should go down (or stay the same). Bigger orders should never
+                cost more to deliver than smaller ones.
+              </p>
             </div>
+            <DeliveryTierEditor
+              tiers={form.delivery_tiers_json}
+              onChange={(tiers) =>
+                handlePricingChange("delivery_tiers_json", tiers)
+              }
+            />
           </Section>
-
-{/* Surcharge limits */}
-<Section
-  title="Distance Surcharge Rate"
-  icon={MapPin}
-  description="Per-km mileage rates beyond the free zone threshold"
-  toggleField="km_surcharge_enabled"
-  form={form}
-  onChange={handlePricingChange}
-  defaultOpen={form.km_surcharge_enabled}
->
-  <div className="space-y-6">
-
-    {/* ── Free Zone Configuration ── */}
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field
-          label="Free delivery radius"
-          hint="No distance fees applied inside this boundary"
-          fieldKey="free_km_radius"
-          form={form}
-          onChange={handlePricingChange}
-          suffix="km"
-        />
-      </div>
-
-      {/* Free KM Radius Mode */}
-      <div>
-        <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-          Free radius behaviour
-        </label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            onClick={() => handlePricingChange("free_km_mode", "EXCESS_ONLY")}
-            className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
-              (form.free_km_mode || "EXCESS_ONLY") === "EXCESS_ONLY"
-                ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
-                : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-            }`}
-          >
-            <span className="font-bold block">Charge excess only</span>
-            <span className="text-[11px] opacity-70">
-              Per-km rate applies only beyond the free radius
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePricingChange("free_km_mode", "FULL_DISTANCE")}
-            className={`flex-1 text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
-              form.free_km_mode === "FULL_DISTANCE"
-                ? "bg-[#05015A]/5 border-[#05015A]/30 text-[#05015A]"
-                : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-            }`}
-          >
-            <span className="font-bold block">Charge full distance</span>
-            <span className="text-[11px] opacity-70">
-              Free inside radius, full distance charge outside
-            </span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {/* ── Divider ── */}
-    <div className="relative">
-      <div className="absolute inset-0 flex items-center" aria-hidden="true">
-        <div className="w-full border-t border-gray-200" />
-      </div>
-      <div className="relative flex justify-start">
-        <span className="bg-white pr-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-          Rate tiers
-        </span>
-      </div>
-    </div>
-
-    {/* ── Per-KM Rate Tiers ── */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="sm:col-span-2">
-        <Field
-          label="Subtotal threshold"
-          hint="Higher rate applies below this order basket size"
-          fieldKey="per_km_tier_1_max"
-          form={form}
-          onChange={handlePricingChange}
-          prefix="₹"
-        />
-      </div>
-      <Field
-        label="Rate — Tier 1 (Below threshold)"
-        fieldKey="per_km_tier_1_rate"
-        form={form}
-        onChange={handlePricingChange}
-        prefix="₹"
-        suffix="/km"
-      />
-      <Field
-        label="Rate — Tier 2 (Above threshold)"
-        fieldKey="per_km_tier_2_rate"
-        form={form}
-        onChange={handlePricingChange}
-        prefix="₹"
-        suffix="/km"
-      />
-    </div>
-
-  </div>
-</Section>
+{/* Distance Surcharge Rate section removed — free distance + per-km rate
+    are now configured per-tier inside the "Delivery Charges" section
+    above (see delivery_tiers_json). Old free_km_radius / free_km_mode /
+    per_km_tier_* columns remain in the DB schema (deprecated) for
+    rollback safety only. */}
 
           {/* Packing Charge */}
           <Section

@@ -5,7 +5,15 @@ import {
   RAZORPAY_MOBILE_CURRENCY,
   verifyMobilePaymentSignature,
 } from "../../../config/razorpay.js";
-import { computePricing, normaliseConfig, computeTierAnchor, computeFreeRadiusAnchor, computeNudges, computeGST } from "./pricing.engine.js";
+import {
+  computePricing,
+  normaliseConfig,
+  computeTierAnchor,
+  computeFreeRadiusAnchor,
+  computeNudges,
+  computeGST,
+  findMatchingDeliveryTier,
+} from "./pricing.engine.js";
 import { applySlash, normaliseSlashConfig } from "./slash.engine.js";
 import { getDrivingDistance } from "../../../services/distance.service.js";
 import { fireOrderPlacedEvents } from "../../marketplace-orders/marketplace.orders.events.js";
@@ -81,6 +89,32 @@ async function getSlashConfig() {
   return _slashCache;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FULFILLMENT TYPE GATE — checks is_active before allowing quote/session
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function assertFulfillmentActive(fulfillmentType) {
+  const row = await prisma.deliveryPricingConfig.findUnique({
+    where: { fulfillment_type: fulfillmentType },
+    select: { is_active: true },
+  });
+  if (row && row.is_active === false) {
+    throw new Error("This fulfillment option is currently not available.");
+  }
+}
+
+export async function getActiveFulfillmentTypes() {
+  const rows = await prisma.deliveryPricingConfig.findMany({
+    select: { fulfillment_type: true, is_active: true },
+  });
+  if (rows.length === 0) {
+    return ["INSTANT_DELIVERY", "PICKUP", "SAME_DAY"];
+  }
+  return rows
+    .filter((r) => r.is_active !== false)
+    .map((r) => r.fulfillment_type);
+}
+
 /**
  * Fetch the actual payment method from Razorpay (card, upi, netbanking, wallet).
  * Returns a friendly string like "RAZORPAY_UPI" or "RAZORPAY_CARD".
@@ -127,6 +161,7 @@ export async function getQuote({
   fulfillment_type = "INSTANT_DELIVERY",
 }) {
   const isPickup = fulfillment_type === "PICKUP";
+  await assertFulfillmentActive(fulfillment_type);
   const subtotal = await resolveSubtotal(items, branch_id);
   const config = await getConfig(fulfillment_type);
 
@@ -147,6 +182,7 @@ export async function getQuote({
         unavailable_reason: `Same Day delivery closed after ${config.same_day_cutoff_hour > 12 ? config.same_day_cutoff_hour - 12 : config.same_day_cutoff_hour}:00 PM IST. Choose Instant Delivery or Pickup.`,
         service_charge_anchor: null,
         delivery_charge_anchor: null,
+        delivery_breakdown: null,
         platform_savings: 0,
         coupon_code: null,
         coupon_discount: 0,
@@ -170,11 +206,11 @@ export async function getQuote({
     return {
       ...basePricing,
       distance_km,
-      delivery_charge: 0,
+         delivery_charge: 0,
       service_charge_anchor: null,
       delivery_charge_anchor: null,
-      platform_savings: 0,
-      coupon_code: null,
+      delivery_breakdown: null,
+      platform_savings: 0,      coupon_code: null,
       coupon_discount: 0,
       coupon_reason: null,
       loyalty_points_redeemed: 0,
@@ -189,6 +225,7 @@ export async function getQuote({
     ...basePricing,
     distance_km,
     config: slashConfig,
+    baseMatchedTier: basePricing.matchedDeliveryTier ?? null,
   });
 
   // ── 0b. Auto-anchor from tier-based free charges ──────────────
@@ -216,8 +253,11 @@ export async function getQuote({
   // delivery radius setting. Merges with any existing anchor (promo or
   // tier-based) via Math.max — whichever anchor is higher wins the
   // strikethrough display.
-  if (!isPickup) {
-    const freeRadiusAnchor = computeFreeRadiusAnchor(basePricing);
+    if (!isPickup) {
+    const freeRadiusAnchor = computeFreeRadiusAnchor({
+      ...basePricing,
+      distance_km,
+    });
     if (freeRadiusAnchor != null) {
       const merged = slashed.delivery_charge_anchor
         ? Math.max(slashed.delivery_charge_anchor, freeRadiusAnchor)
@@ -300,7 +340,8 @@ export async function getQuote({
   const gst = computeGST(slashed, config);
 
   const combinedDiscounts = coupon_discount + loyalty_discount;
-  const rawGrandTotal = slashed.grand_total + gst.gst_amount - combinedDiscounts;
+  const rawGrandTotal =
+    slashed.grand_total + gst.gst_amount - combinedDiscounts;
   const grand_total = parseFloat(Math.max(1, rawGrandTotal).toFixed(2));
 
   // ── Same Day availability (always included for the selector) ──
@@ -318,14 +359,36 @@ export async function getQuote({
     // Non-critical — selector falls back to default
   }
 
+  // ── Build delivery breakdown for transparency tooltip ────────
+  const matchedDT = basePricing.matchedDeliveryTier;
+  const effectiveDistance = isPickup ? 0 : distance_km;
+  const delivery_breakdown = matchedDT
+    ? {
+        flat_charge: matchedDT.flat_charge,
+        free_radius_km: matchedDT.free_radius_km,
+        per_km_rate: matchedDT.per_km_rate,
+        charged_distance_km: parseFloat(
+          Math.max(0, effectiveDistance - matchedDT.free_radius_km).toFixed(2),
+        ),
+        distance_charge: parseFloat(
+          (
+            Math.max(0, effectiveDistance - matchedDT.free_radius_km) *
+            matchedDT.per_km_rate
+          ).toFixed(2),
+        ),
+        matched_tier_min: matchedDT.min_order_value,
+      }
+    : null;
+
   return {
     subtotal: slashed.subtotal ?? subtotal,
     service_charge: slashed.service_charge,
     service_charge_anchor: slashed.service_charge_anchor,
     delivery_fee: slashed.delivery_charge,
     delivery_charge_anchor: slashed.delivery_charge_anchor,
+    delivery_breakdown,
     km_surcharge: 0,
-    distance_km: isPickup ? 0 : distance_km,
+    distance_km: effectiveDistance,
     packing_charge: basePricing.packing_charge ?? 0,
     tip: slashed.tip ?? tip,
     platform_savings: slashed.platform_savings,
@@ -368,6 +431,7 @@ export async function createCheckoutSession({
   fulfillment_type = "INSTANT_DELIVERY",
 }) {
   const isPickup = fulfillment_type === "PICKUP";
+  await assertFulfillmentActive(fulfillment_type);
   const config = await getConfig(fulfillment_type);
 
   // ── 0. Same Day cutoff gate ────────────────────────────
@@ -486,6 +550,7 @@ export async function createCheckoutSession({
     ...pricing,
     distance_km: validatedDistanceKm,
     config: slashConfig,
+    baseMatchedTier: pricing.matchedDeliveryTier ?? null,
   });
 
   // ── 6c. Auto-anchor from tier-based free charges ──────────────
@@ -508,8 +573,11 @@ export async function createCheckoutSession({
   }
 
   // ── 6d. Free-radius auto-anchor (distance-surcharge "slashed km") ────
-  if (!isPickup) {
-    const freeRadiusAnchor = computeFreeRadiusAnchor(pricing);
+ if (!isPickup) {
+    const freeRadiusAnchor = computeFreeRadiusAnchor({
+      ...pricing,
+      distance_km: validatedDistanceKm,
+    });
     if (freeRadiusAnchor != null) {
       const merged = slashed.delivery_charge_anchor
         ? Math.max(slashed.delivery_charge_anchor, freeRadiusAnchor)
@@ -584,7 +652,9 @@ export async function createCheckoutSession({
 
   const totalDiscount = coupon_discount_amount + loyalty_discount_amount;
   const grand_total = parseFloat(
-    Math.max(1, slashed.grand_total + gst.gst_amount - totalDiscount).toFixed(2),
+    Math.max(1, slashed.grand_total + gst.gst_amount - totalDiscount).toFixed(
+      2,
+    ),
   );
 
   // ── 9. Snapshot address (branch address for pickup) ──────
@@ -604,14 +674,21 @@ export async function createCheckoutSession({
     });
     address_snapshot = {
       label: "Pickup Location",
-      address_line_1: branch?.marketplaceSettings?.formatted_address || branch?.address_line_1 || "",
+      address_line_1:
+        branch?.marketplaceSettings?.formatted_address ||
+        branch?.address_line_1 ||
+        "",
       address_line_2: null,
       landmark: null,
       city: branch?.city || "",
       state: branch?.state || "",
       pincode: branch?.pincode || "",
-      latitude: branch?.marketplaceSettings?.latitude ? Number(branch.marketplaceSettings.latitude) : null,
-      longitude: branch?.marketplaceSettings?.longitude ? Number(branch.marketplaceSettings.longitude) : null,
+      latitude: branch?.marketplaceSettings?.latitude
+        ? Number(branch.marketplaceSettings.latitude)
+        : null,
+      longitude: branch?.marketplaceSettings?.longitude
+        ? Number(branch.marketplaceSettings.longitude)
+        : null,
       recipient_name: null,
       recipient_phone: null,
     };
@@ -696,12 +773,29 @@ export async function createCheckoutSession({
     amount_paise,
     currency: RAZORPAY_MOBILE_CURRENCY,
     key_id: process.env.RAZORPAY_MOBILE_KEY_ID,
-    pricing: {
+   pricing: {
       subtotal: pricing.subtotal,
       service_charge: slashed.service_charge,
       service_charge_anchor: slashed.service_charge_anchor,
       delivery_fee: slashed.delivery_charge,
       delivery_charge_anchor: slashed.delivery_charge_anchor,
+      delivery_breakdown: pricing.matchedDeliveryTier
+        ? {
+            flat_charge: pricing.matchedDeliveryTier.flat_charge,
+            free_radius_km: pricing.matchedDeliveryTier.free_radius_km,
+            per_km_rate: pricing.matchedDeliveryTier.per_km_rate,
+            charged_distance_km: parseFloat(
+              Math.max(0, validatedDistanceKm - pricing.matchedDeliveryTier.free_radius_km).toFixed(2),
+            ),
+            distance_charge: parseFloat(
+              (
+                Math.max(0, validatedDistanceKm - pricing.matchedDeliveryTier.free_radius_km) *
+                pricing.matchedDeliveryTier.per_km_rate
+              ).toFixed(2),
+            ),
+            matched_tier_min: pricing.matchedDeliveryTier.min_order_value,
+          }
+        : null,
       km_surcharge: 0,
       distance_km: validatedDistanceKm,
       tip: slashed.tip ?? pricing.tip,

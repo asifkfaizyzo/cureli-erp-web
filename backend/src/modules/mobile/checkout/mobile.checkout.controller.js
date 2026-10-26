@@ -6,6 +6,7 @@ import {
   createCheckoutSession,
   confirmCheckoutPayment,
   handleCheckoutWebhook,
+  getActiveFulfillmentTypes,
 } from "./mobile.checkout.service.js";
 import {
   quoteSchema,
@@ -47,6 +48,8 @@ export async function quoteHandler(req, res) {
     return success(res, result, "Quote calculated");
   } catch (err) {
     console.error("[Checkout] quote error:", err.message);
+    if (err.message === "This fulfillment option is currently not available.")
+      return fail(res, err.message, 400);
     return fail(res, err.message || "Failed to calculate quote", 500);
   }
 }
@@ -89,6 +92,7 @@ export async function createSessionHandler(req, res) {
     console.error("[Checkout] createSession error:", err.message);
 
     const knownErrors = [
+      "This fulfillment option is currently not available.",
       "Customer account is not active",
       "Delivery address not found",
       "Branch is not available",
@@ -159,6 +163,16 @@ export async function webhookHandler(req, res) {
   } catch (err) {
     console.error("[Webhook] checkout error:", err.message);
     return res.status(200).json({ success: true });
+  }
+}
+
+export async function activeFulfillmentTypesHandler(req, res) {
+  try {
+    const types = await getActiveFulfillmentTypes();
+    return success(res, { active_types: types }, "Active fulfillment types");
+  } catch (err) {
+    console.error("[Checkout] activeFulfillmentTypes error:", err.message);
+    return fail(res, "Failed to fetch fulfillment types", 500);
   }
 }
 
