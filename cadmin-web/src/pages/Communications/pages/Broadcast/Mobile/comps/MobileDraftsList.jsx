@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileDraftsList.jsx (do not remove this comment)
-// cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileDraftsList.jsx
 
 import { useState, useEffect } from 'react';
 import { Edit2, Trash2, FileText, Loader2 } from 'lucide-react';

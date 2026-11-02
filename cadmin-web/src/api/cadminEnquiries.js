@@ -1,5 +1,4 @@
 // cadmin-web/src/api/cadminEnquiries.js (do not remove this comment)
-// cadmin-web/src/api/cadminEnquiries.js
 import CAdminAPI from "./axios";
 
 // Logger for development only

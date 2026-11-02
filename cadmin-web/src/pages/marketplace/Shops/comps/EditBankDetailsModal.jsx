@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Shops/comps/EditBankDetailsModal.jsx (do not remove this comment)
-// cadmin-web/src/pages/marketplace/Shops/comps/EditBankDetailsModal.jsx
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";

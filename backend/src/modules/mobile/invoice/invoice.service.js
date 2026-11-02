@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/invoice/invoice.service.js (do not remove this comment)
-// backend/src/modules/mobile/invoice/invoice.service.js
 
 import prisma from "../../../config/prisma.js";
 import s3Client, { S3_BUCKET } from "../../../config/s3.js";

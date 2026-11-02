@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/PlatformOptions.jsx
+// landing-web/src/pages/landingPages/home/components/PlatformOptions.jsx (do not remove this comment)
 
 import { useEffect, useState, memo } from "react";
 import AOS from "aos";

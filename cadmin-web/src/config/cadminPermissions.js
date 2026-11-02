@@ -1,5 +1,4 @@
 // cadmin-web/src/config/cadminPermissions.js (do not remove this comment)
-// backend/src/config/cadminPermissions.js
 
 export const CADMIN_PERMISSIONS = {
   // ── Admin Management ──────────────────────────────────────────

@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/tabs/RevenueLeakageTab.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/tabs/RevenueLeakageTab.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { AlertOctagon, XCircle, Ban, TrendingDown, UserX } from "lucide-react";

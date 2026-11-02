@@ -1,4 +1,4 @@
-// src/pages/landingPages/services/components/Features.jsx
+// landing-web/src/pages/landingPages/Services/components/Features.jsx (do not remove this comment)
 
 import { useEffect, memo } from "react";
 import AOS from "aos";

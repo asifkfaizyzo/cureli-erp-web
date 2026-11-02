@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/login/comps/LoginOtpVerification.jsx (do not remove this comment)
-// src/pages/login/comps/LoginOtpVerification.jsx
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";

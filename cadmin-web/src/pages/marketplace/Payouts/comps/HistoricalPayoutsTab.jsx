@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/HistoricalPayoutsTab.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
 import { getPharmacyPayoutHistory } from "../../../../api/cadminPharmacyPayouts";
 import Pagination from "../../../../components/common/Pagination";

@@ -1,5 +1,4 @@
 // backend/src/modules/loyalty/loyalty.engine.js (do not remove this comment)
-// backend/src/modules/loyalty/loyalty.engine.js
 
 /**
  * @typedef {Object} LoyaltyConfigInput

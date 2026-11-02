@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/rider-payouts/cadmin.riderPayouts.service.js (do not remove this comment)
 //backend\src\modules\cadmin\rider-payouts\cadmin.riderPayouts.service.js
 
 import prisma from "../../../config/prisma.js";

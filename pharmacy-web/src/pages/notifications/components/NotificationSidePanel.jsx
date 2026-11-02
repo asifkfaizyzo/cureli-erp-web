@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/notifications/components/NotificationSidePanel.jsx (do not remove this comment)
-// pharmacy-web/src/pages/notifications/components/NotificationSidePanel.jsx
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";

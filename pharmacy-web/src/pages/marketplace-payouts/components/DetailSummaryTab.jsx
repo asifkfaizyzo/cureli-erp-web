@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/marketplace-payouts/components/DetailSummaryTab.jsx
+// pharmacy-web/src/pages/marketplace-payouts/components/DetailSummaryTab.jsx (do not remove this comment)
 
 import React from "react";
 import { CheckCircle2, ArrowUpRight, ArrowDownRight, Landmark, FileText, StickyNote } from "lucide-react";

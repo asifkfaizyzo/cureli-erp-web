@@ -1,5 +1,4 @@
 // backend/src/config/mobile_jwt.js (do not remove this comment)
-// src/config/mobile_jwt.js
 //
 // JWT configuration for Cureli Mobile customer auth.
 // Completely isolated from ERP JWT (jwt.js) and CAdmin JWT (cadmin_jwt.js).

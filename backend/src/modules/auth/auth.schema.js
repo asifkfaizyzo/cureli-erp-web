@@ -1,5 +1,4 @@
 // backend/src/modules/auth/auth.schema.js (do not remove this comment)
-//backend/src/modules/auth/auth.schema.js
 import { z } from "zod";
 
 // Password format regex - for use in registration/password change only

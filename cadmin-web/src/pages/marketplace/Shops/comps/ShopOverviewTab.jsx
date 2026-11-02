@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Shops/comps/ShopOverviewTab.jsx (do not remove this comment)
-// cadmin-web/src/pages/marketplace/Shops/comps/ShopOverviewTab.jsx
 
 import {
   Store,

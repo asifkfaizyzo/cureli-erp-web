@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/about/components/AboutPartners.jsx (do not remove this comment)
 import React, { useEffect, useRef, useState } from "react";
 import AOS from "aos";
 import "aos/dist/aos.css";

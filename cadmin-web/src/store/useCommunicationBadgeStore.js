@@ -1,5 +1,4 @@
 // cadmin-web/src/store/useCommunicationBadgeStore.js (do not remove this comment)
-// cadmin-web/src/store/useCommunicationBadgeStore.js
 
 import { create } from "zustand";
 import { getAllTickets } from "../api/cadminTickets";

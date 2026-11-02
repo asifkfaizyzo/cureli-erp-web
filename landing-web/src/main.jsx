@@ -1,4 +1,4 @@
-// src/main.jsx
+// landing-web/src/main.jsx (do not remove this comment)
 
 import React from "react";
 import ReactDOM from "react-dom/client";

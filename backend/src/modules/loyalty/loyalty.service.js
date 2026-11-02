@@ -1,5 +1,4 @@
 // backend/src/modules/loyalty/loyalty.service.js (do not remove this comment)
-// backend/src/modules/loyalty/loyalty.service.js
 import prisma from "../../config/prisma.js";
 import { getLoyaltyConfig } from "./loyalty.config.service.js";
 import { validateRedemption, calculatePointsEarned } from "./loyalty.engine.js";

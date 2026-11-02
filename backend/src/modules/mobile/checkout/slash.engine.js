@@ -1,4 +1,4 @@
-// backend/src/modules/mobile/checkout/slash.engine.js
+// backend/src/modules/mobile/checkout/slash.engine.js (do not remove this comment)
 // Pure function — no DB calls, no side effects.
 // Receives raw pricing output + slash config, returns adjusted
 // charges with anchor (strikethrough) values and savings.

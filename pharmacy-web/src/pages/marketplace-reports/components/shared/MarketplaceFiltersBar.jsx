@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/shared/MarketplaceFiltersBar.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/shared/MarketplaceFiltersBar.jsx
 
 import React from "react";
 import { Search, RotateCcw, Calendar } from "lucide-react";

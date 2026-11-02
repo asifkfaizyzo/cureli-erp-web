@@ -1,5 +1,4 @@
 // backend/src/middleware/maintenance.js (do not remove this comment)
-// backend/src/middleware/maintenance.js
 
 /**
  * Maintenance Mode Middleware

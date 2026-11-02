@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/MobileEmailAudienceFilterPanel.jsx (do not remove this comment)
-// cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/MobileEmailAudienceFilterPanel.jsx
 
 import { useState } from "react";
 import { Users, Calendar, ShoppingBag, X } from "lucide-react";

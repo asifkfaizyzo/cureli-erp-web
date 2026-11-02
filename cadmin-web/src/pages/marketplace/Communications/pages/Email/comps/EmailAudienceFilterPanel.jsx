@@ -1,6 +1,5 @@
 // cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/EmailAudienceFilterPanel.jsx (do not remove this comment)
 // ============================================
-// src/pages/Communications/pages/Broadcast/Email/comps/EmailAudienceFilterPanel.jsx
 // ============================================
 
 import { useState, useEffect, useCallback, useRef } from "react";

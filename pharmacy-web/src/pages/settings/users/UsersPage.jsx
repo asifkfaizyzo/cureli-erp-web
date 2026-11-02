@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/settings/users/UsersPage.jsx (do not remove this comment)
-// src/pages/settings/users/UsersPage.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { Users, Plus, AlertCircle, RefreshCw } from "lucide-react";

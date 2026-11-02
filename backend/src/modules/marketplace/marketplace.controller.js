@@ -1,5 +1,4 @@
 // backend/src/modules/marketplace/marketplace.controller.js (do not remove this comment)
-// backend/src/modules/marketplace/marketplace.controller.js
 
 import * as MarketplaceService from "./marketplace.service.js";
 import * as PlacesService from "./places.service.js";

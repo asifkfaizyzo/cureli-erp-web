@@ -1,5 +1,4 @@
 // pharmacy-web/src/components/common/Toast/Toast.jsx (do not remove this comment)
-// src/components/common/Toast/Toast.jsx
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from "lucide-react";

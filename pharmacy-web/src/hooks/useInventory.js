@@ -1,5 +1,4 @@
 // pharmacy-web/src/hooks/useInventory.js (do not remove this comment)
-// src/hooks/useInventory.js
 
 import { useState, useEffect, useCallback } from "react";
 import inventoryAPI from "../api/inventory";

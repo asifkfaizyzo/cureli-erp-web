@@ -1,4 +1,4 @@
-// backend/src/modules/rider/profile/rider.profile.routes.js
+// backend/src/modules/rider/profile/rider.profile.routes.js (do not remove this comment)
 
 import { Router } from "express";
 import { riderAuth } from "../../../middleware/rider.auth.js";

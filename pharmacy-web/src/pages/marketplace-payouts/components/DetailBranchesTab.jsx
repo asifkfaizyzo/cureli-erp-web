@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/marketplace-payouts/components/DetailBranchesTab.jsx
+// pharmacy-web/src/pages/marketplace-payouts/components/DetailBranchesTab.jsx (do not remove this comment)
 
 import React from "react";
 import { Layers } from "lucide-react";

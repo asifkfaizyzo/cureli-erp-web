@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261019102315_add_gst_fields/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "checkout_sessions" ADD COLUMN     "gst_amount" DECIMAL(10,2),
 ADD COLUMN     "gst_breakdown" JSONB,

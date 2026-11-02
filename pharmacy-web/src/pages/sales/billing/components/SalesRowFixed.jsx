@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/billing/components/SalesRowFixed.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/billing/components/SalesRowFixed.jsx
 // Changes from previous version:
 // 1. Accept `marketplaceLocked` prop
 // 2. Lock qty input when marketplaceLocked is true

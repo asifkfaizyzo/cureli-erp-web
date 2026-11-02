@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/tabs/CatalogHealthTab.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/tabs/CatalogHealthTab.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Activity, Layers, Eye, AlertTriangle, AlertCircle } from "lucide-react";

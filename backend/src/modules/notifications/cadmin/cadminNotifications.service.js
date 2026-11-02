@@ -1,6 +1,5 @@
 // backend/src/modules/notifications/cadmin/cadminNotifications.service.js (do not remove this comment)
 // ============================================
-// backend/src/modules/notifications/cadmin/cadminNotifications.service.js
 // ============================================
 
 import prisma from '../../../config/prisma.js';

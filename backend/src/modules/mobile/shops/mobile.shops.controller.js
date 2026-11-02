@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/shops/mobile.shops.controller.js (do not remove this comment)
-// src/modules/mobile/shops/mobile.shops.controller.js
 //
 // PUBLIC mobile shop discovery — controllers.
 // Same pattern as mobile.medicines.controller.js.

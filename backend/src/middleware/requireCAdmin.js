@@ -1,5 +1,4 @@
 // backend/src/middleware/requireCAdmin.js (do not remove this comment)
-// backend/src/middleware/requireCAdmin.js
 
 import jwt from "jsonwebtoken";
 import { ADMIN_ACCESS_SECRET, ADMIN_REFRESH_SECRET } from "../config/cadmin_jwt.js";

@@ -1,5 +1,4 @@
 // backend/src/utils/cronLogger.js (do not remove this comment)
-// backend/src/utils/cronLogger.js
 
 import fs from "fs";
 import path from "path";

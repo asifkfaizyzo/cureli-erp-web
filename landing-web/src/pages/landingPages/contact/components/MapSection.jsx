@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/contact/components/MapSection.jsx (do not remove this comment)
 const MapSection = () => {
   return (
     <div className="w-full">

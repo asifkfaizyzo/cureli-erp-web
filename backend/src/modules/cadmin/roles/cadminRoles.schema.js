@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/roles/cadminRoles.schema.js (do not remove this comment)
-// backend/src/modules/cadmin/roles/cadminRoles.schema.js
 
 import { z } from "zod";
 import { ALL_CADMIN_PERMISSION_KEYS } from "../../../config/cadminPermissions.js";

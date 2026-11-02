@@ -1,5 +1,4 @@
 // backend/src/modules/marketplace-dashboard/marketplaceDashboard.controller.js (do not remove this comment)
-// backend/src/modules/marketplace-dashboard/marketplaceDashboard.controller.js
 
 import { getMarketplaceDashboard } from './marketplaceDashboard.service.js';
 import { success, fail } from '../../utils/response.js';

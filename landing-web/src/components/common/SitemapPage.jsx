@@ -1,3 +1,4 @@
+// landing-web/src/components/common/SitemapPage.jsx (do not remove this comment)
 import Navbar from "../../components/common/Navbar";
 import Footer from "../../components/common/Footer";
 import { Link } from "react-router-dom";

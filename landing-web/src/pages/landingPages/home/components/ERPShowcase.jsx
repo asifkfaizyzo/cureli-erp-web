@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/ERPShowcase.jsx
+// landing-web/src/pages/landingPages/home/components/ERPShowcase.jsx (do not remove this comment)
 
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";

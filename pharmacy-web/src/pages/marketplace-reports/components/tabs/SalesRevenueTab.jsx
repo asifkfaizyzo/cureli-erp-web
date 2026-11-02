@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/tabs/SalesRevenueTab.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/tabs/SalesRevenueTab.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ShoppingBag, DollarSign, ArrowUpRight, Percent, Store, Layers } from "lucide-react";

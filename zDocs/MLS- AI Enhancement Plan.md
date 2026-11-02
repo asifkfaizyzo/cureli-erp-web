@@ -1,3 +1,4 @@
+<!-- zDocs/MLS- AI Enhancement Plan.md (do not remove this comment) -->
 
 # Medicine Linking System — AI Enhancement Plan
 

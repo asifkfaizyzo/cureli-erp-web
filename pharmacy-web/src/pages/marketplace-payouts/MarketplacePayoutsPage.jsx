@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-payouts/MarketplacePayoutsPage.jsx (do not remove this comment)
-// src/pages/marketplace-payouts/MarketplacePayoutsPage.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import {

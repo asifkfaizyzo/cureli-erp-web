@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Subscription-management/comps/plans/PlanCard.jsx (do not remove this comment)
-// cadmin-web/src/pages/Subscription-management/comps/plans/PlanCard.jsx
 
 import {
   Pencil,

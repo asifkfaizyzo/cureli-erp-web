@@ -1,5 +1,4 @@
 // backend/prisma/seed.dev.js (do not remove this comment)
-// prisma/seed.dev.js
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";

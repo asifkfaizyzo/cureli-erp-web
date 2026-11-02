@@ -1,3 +1,4 @@
+<!-- zDocs/cadminrabcdoc.md (do not remove this comment) -->
 # Documentation: Adding a New Permission to the CAdmin RBAC System
 
 **Save this as `docs/cadmin-rbac-guide.md` in your project root.**

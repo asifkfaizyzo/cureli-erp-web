@@ -1,6 +1,5 @@
 // backend/src/modules/mobile/prescriptions/mobile.prescriptions.routes.js (do not remove this comment)
 // ============================================
-// backend/src/modules/mobile/prescriptions/mobile.prescriptions.routes.js
 // ============================================
 
 import { Router } from 'express';

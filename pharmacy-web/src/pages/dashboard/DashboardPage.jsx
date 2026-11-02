@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/dashboard/DashboardPage.jsx (do not remove this comment)
-// src/pages/erp/dashboard/erp/dashboardPage.jsx
 
 import React, {
   useState,

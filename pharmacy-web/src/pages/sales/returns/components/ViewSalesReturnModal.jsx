@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/returns/components/ViewSalesReturnModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/returns/components/ViewSalesReturnModal.jsx
 
 import React, { useState, useRef } from "react";
 import { createPortal } from "react-dom";

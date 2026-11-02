@@ -1,3 +1,4 @@
+<!-- zDocs/manual-setup-steps.md (do not remove this comment) -->
 generator client {
   provider = "prisma-client-js"
 }

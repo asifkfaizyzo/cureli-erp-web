@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-storefront/MarketplaceStorefrontPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/marketplace-storefront/MarketplaceStorefrontPage.jsx
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion"; // ★ Imported motion

@@ -1,5 +1,4 @@
 // backend/src/config/permissions.js (do not remove this comment)
-// backend/src/config/permissions.js
 
 /**
  * ============================================

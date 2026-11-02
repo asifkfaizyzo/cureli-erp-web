@@ -1,4 +1,4 @@
-// src/components/layout/Breadcrumb.jsx
+// landing-web/src/components/common/Breadcrumb.jsx (do not remove this comment)
 
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";

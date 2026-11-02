@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/report/sales/SalesSummaryPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/report/sales/SalesSummaryPage.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { BarChart2 } from "lucide-react";

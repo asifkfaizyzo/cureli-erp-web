@@ -1,5 +1,4 @@
 // cadmin-web/src/config/ticketConfigs.js (do not remove this comment)
-// cadmin-web/src/config/ticketConfigs.js
 
 /**
  * ============================================

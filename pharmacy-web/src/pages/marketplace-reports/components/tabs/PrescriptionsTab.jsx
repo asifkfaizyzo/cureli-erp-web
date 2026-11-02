@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/tabs/PrescriptionsTab.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/tabs/PrescriptionsTab.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { FileText, Send, CheckSquare, ShoppingCart, Percent } from "lucide-react";

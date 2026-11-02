@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/HeroStatsCard.jsx
+// landing-web/src/pages/landingPages/home/components/HeroStatsCard.jsx (do not remove this comment)
 
 import { memo, useMemo } from "react";
 import { Star } from "lucide-react";

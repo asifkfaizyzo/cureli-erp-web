@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/maintenance/MaintenancePage.jsx
+// landing-web/src/pages/maintenance/MaintenancePage.jsx (do not remove this comment)
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";

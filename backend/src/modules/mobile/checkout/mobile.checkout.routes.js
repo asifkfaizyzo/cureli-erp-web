@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/checkout/mobile.checkout.routes.js (do not remove this comment)
-// backend/src/modules/mobile/checkout/mobile.checkout.routes.js
 
 import { Router } from 'express';
 import { mobileAuth } from '../../../middleware/mobile.auth.js';

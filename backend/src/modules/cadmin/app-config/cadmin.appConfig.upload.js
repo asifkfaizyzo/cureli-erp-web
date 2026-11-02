@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/app-config/cadmin.appConfig.upload.js (do not remove this comment)
-// backend/src/modules/cadmin/app-config/cadmin.appConfig.upload.js
 //
 // Multer configuration for category image uploads.
 // Mirrors the pattern used by cadmin.marketplace.upload.js.

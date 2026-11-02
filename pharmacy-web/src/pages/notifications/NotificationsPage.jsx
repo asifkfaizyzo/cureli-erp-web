@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/notifications/NotificationsPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/notifications/NotificationsPage.jsx
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";

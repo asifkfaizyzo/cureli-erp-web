@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/coupons/cadminCoupon.routes.js (do not remove this comment)
-// backend/src/modules/cadmin/coupons/cadminCoupon.routes.js
 
 import { Router } from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";

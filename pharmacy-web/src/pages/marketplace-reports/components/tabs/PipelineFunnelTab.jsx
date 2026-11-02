@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/tabs/PipelineFunnelTab.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/tabs/PipelineFunnelTab.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Filter, CheckCircle2, AlertOctagon, XCircle, ChevronRight } from "lucide-react";

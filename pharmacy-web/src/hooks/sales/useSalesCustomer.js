@@ -1,5 +1,4 @@
 // pharmacy-web/src/hooks/sales/useSalesCustomer.js (do not remove this comment)
-// src/hooks/sales/useSalesCustomer.js
 import { useState, useCallback, useEffect, useRef } from "react";
 
 const STORAGE_KEY = "sales_draft_customer";

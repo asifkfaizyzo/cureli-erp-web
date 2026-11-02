@@ -1,3 +1,4 @@
+<!-- zDocs/Same Day Delivery.md (do not remove this comment) -->
 # Cureli — Same Day Delivery Lifecycle — October 2026
 
 > **Companion to:** Cureli Instant Delivery Lifecycle doc.

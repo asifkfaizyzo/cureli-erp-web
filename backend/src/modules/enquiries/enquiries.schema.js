@@ -1,5 +1,4 @@
 // backend/src/modules/enquiries/enquiries.schema.js (do not remove this comment)
-// backend/src/modules/enquiries/enquiries.schema.js
 import { z } from "zod";
 
 // Public: Body schema for enquiry submission - RELAXED validation

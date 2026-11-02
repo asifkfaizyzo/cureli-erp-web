@@ -1,5 +1,4 @@
 // pharmacy-web/src/components/common/LoadingOverlay.jsx (do not remove this comment)
-// src/components/common/LoadingOverlay.jsx
 const LoadingOverlay = ({ message = "Processing..." }) => (
   <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
     <div className="bg-white rounded-xl p-6 shadow-2xl flex items-center gap-4 animate-in fade-in zoom-in duration-200">

@@ -1,5 +1,4 @@
 // backend/src/modules/inventory-import/inventoryImport.parser.js (do not remove this comment)
-// backend/src/modules/inventory-import/inventoryImport.parser.js
 
 import * as XLSX from "xlsx";
 import crypto from "crypto";

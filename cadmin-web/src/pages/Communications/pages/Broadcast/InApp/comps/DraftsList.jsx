@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/DraftsList.jsx (do not remove this comment)
-// cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/DraftsList.jsx
 import { useState, useEffect } from "react";
 import { Edit2, Trash2, FileText, Loader2 } from "lucide-react";
 import * as broadcastAPI from "../../../../../../api/cadminBroadcast";

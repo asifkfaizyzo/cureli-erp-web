@@ -1,5 +1,4 @@
 // cadmin-web/src/api/cadminDashboard.js (do not remove this comment)
-// src/api/cadminDashboard.js
 
 import CAdminAPI from "./axios";
 
