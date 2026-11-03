@@ -1,3 +1,4 @@
+<!-- zDocs/Cureli mobile.md (do not remove this comment) -->
 # Cureli Delivery — Rider App
 ## Architecture Decision Record (ADR)
 ### Internal Technical Reference Document

@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/prescription-requests/cadminPrescriptionRequests.service.js (do not remove this comment)
 //backend\src\modules\prescription-requests\cadminPrescriptionRequests.service.js
 import prisma from "../../../config/prisma.js";
 import { getSignedUrl } from "../../../services/fileStorage.service.js";

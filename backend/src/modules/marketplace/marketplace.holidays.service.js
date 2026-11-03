@@ -1,5 +1,4 @@
 // backend/src/modules/marketplace/marketplace.holidays.service.js (do not remove this comment)
-// backend/src/modules/marketplace/marketplace.holidays.service.js
 // NEW FILE
 
 import prisma from '../../config/prisma.js';

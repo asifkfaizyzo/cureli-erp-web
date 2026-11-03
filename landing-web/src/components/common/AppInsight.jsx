@@ -1,4 +1,4 @@
-// src/pages/landingPages/services/components/AppInsight.jsx
+// landing-web/src/components/common/AppInsight.jsx (do not remove this comment)
 
 import phones from "../../assets/images/appinsight.svg";
 import appleLogo from "../../assets/icons/APPLE.svg";

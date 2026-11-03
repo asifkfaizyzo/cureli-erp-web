@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/inventory/components/ViewInventoryModal.jsx (do not remove this comment)
-// src/pages/inventory/components/ViewInventoryModal.jsx
 
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";

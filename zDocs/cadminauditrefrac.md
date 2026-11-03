@@ -1,3 +1,4 @@
+<!-- zDocs/cadminauditrefrac.md (do not remove this comment) -->
 # CAdmin Audit Integration Guide — For Any Service File
 
 **Save as `docs/cadmin-audit-integration-guide.md`**

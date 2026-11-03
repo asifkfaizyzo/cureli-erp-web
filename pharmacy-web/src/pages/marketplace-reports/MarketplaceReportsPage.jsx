@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/MarketplaceReportsPage.jsx (do not remove this comment)
-// src/pages/marketplace-reports/MarketplaceReportsPage.jsx
 
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";

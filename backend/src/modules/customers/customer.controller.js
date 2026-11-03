@@ -1,5 +1,4 @@
 // backend/src/modules/customers/customer.controller.js (do not remove this comment)
-// backend/src/modules/customers/customer.controller.js
 
 import { success, fail } from "../../utils/response.js";
 import customerService from "./customer.service.js";

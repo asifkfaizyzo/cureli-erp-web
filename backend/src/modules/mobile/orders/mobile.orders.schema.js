@@ -1,6 +1,5 @@
 // backend/src/modules/mobile/orders/mobile.orders.schema.js (do not remove this comment)
 // ============================================
-// backend/src/modules/mobile/orders/mobile.orders.schema.js
 // ============================================
 
 import { z } from "zod";

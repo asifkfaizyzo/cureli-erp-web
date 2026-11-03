@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Fleet/Pricing/BasePayPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/Fleet/Pricing/BasePayPage.jsx
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";

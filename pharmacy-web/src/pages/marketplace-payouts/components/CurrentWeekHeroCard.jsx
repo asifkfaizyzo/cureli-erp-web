@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/marketplace-payouts/components/CurrentWeekHeroCard.jsx
+// pharmacy-web/src/pages/marketplace-payouts/components/CurrentWeekHeroCard.jsx (do not remove this comment)
 
 import React from "react";
 import { TrendingUp, CalendarDays, ShoppingBag, Landmark } from "lucide-react";

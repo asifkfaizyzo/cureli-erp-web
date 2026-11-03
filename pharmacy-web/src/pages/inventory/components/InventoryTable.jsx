@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/inventory/components/InventoryTable.jsx (do not remove this comment)
-// src/pages/inventory/components/InventoryTable.jsx
 
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import InventoryRowFixed    from "./InventoryRowFixed";

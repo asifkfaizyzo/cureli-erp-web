@@ -1,4 +1,4 @@
-// backend/scripts/migrate-fulfillment-type.mjs
+// backend/scripts/migrate-fulfillment-type.mjs (do not remove this comment)
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 

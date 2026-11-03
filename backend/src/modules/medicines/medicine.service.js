@@ -1,5 +1,4 @@
 // backend/src/modules/medicines/medicine.service.js (do not remove this comment)
-// backend/src/modules/medicines/medicine.service.js
 
 import prisma from "../../config/prisma.js";
 import { checkSingleMedicine } from "./linking.service.js";

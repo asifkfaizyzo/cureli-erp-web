@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/shared/MarketplaceStatCard.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/shared/MarketplaceStatCard.jsx
 
 import React from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";

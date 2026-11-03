@@ -1,5 +1,4 @@
 // backend/src/modules/marketplace-listings/listings.routes.js (do not remove this comment)
-// backend/src/modules/marketplace-listings/listings.routes.js
 
 import { Router }      from "express";
 import { requireAuth } from "../../middleware/auth.js";

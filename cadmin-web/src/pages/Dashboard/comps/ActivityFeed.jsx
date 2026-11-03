@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Dashboard/comps/ActivityFeed.jsx (do not remove this comment)
-// src/pages/Dashboard/comps/ActivityFeed.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";

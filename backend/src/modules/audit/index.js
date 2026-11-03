@@ -1,5 +1,4 @@
 // backend/src/modules/audit/index.js (do not remove this comment)
-// backend/src/modules/audit/index.js
 
 // ============================================
 // AUDIT MODULE — PUBLIC API

@@ -1,3 +1,4 @@
+// landing-web/src/pages/common/CancellationPolicy.jsx (do not remove this comment)
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";

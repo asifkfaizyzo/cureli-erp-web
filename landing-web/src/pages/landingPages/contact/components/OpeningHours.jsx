@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/contact/components/OpeningHours.jsx (do not remove this comment)
 // import { useState } from "react";
 // import { Clock, ChevronDown, Check } from "lucide-react";
 

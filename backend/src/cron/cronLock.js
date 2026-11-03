@@ -1,5 +1,4 @@
 // backend/src/cron/cronLock.js (do not remove this comment)
-// backend/src/cron/cronLock.js
 
 import { randomBytes } from "crypto";
 import os from "os";

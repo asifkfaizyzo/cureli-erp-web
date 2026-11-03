@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/mobile-users/cadminMobileUsers.controller.js (do not remove this comment)
-// backend/src/modules/cadmin/mobile-users/cadminMobileUsers.controller.js
 
 import { success, fail } from "../../../utils/response.js";
 import * as Service from "./cadminMobileUsers.service.js";

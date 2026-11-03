@@ -1,5 +1,4 @@
 // backend/src/modules/sales/sales-return.service.js (do not remove this comment)
-// backend/src/modules/sales/sales-return.service.js
 
 import prisma from "../../config/prisma.js";
 import * as audit from "../audit/index.js";

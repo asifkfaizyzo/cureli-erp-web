@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/BulkActionModal.jsx (do not remove this comment)
 import { useState } from "react";
 import { X, Loader2, Play, CheckCircle, AlertTriangle } from "lucide-react";
 import { bulkProcessPharmacyPayouts, bulkCompletePharmacyPayouts } from "../../../../api/cadminPharmacyPayouts";

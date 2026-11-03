@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/purchase/invoice/components/ViewInvoiceModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/purchase/invoice/components/ViewInvoiceModal.jsx
 import React, {
   useEffect,
   useState,

@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Shops/comps/ShopHolidaysTab.jsx (do not remove this comment)
-// cadmin-web/src/pages/marketplace/Shops/comps/ShopHolidaysTab.jsx
 
 import { useState, useEffect } from "react";
 import {

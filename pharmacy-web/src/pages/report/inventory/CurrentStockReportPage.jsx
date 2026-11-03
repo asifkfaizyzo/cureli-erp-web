@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/report/inventory/CurrentStockReportPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/report/inventory/CurrentStockReportPage.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Layers } from "lucide-react";

@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/setup/comps/PlanLimitsBanner.jsx (do not remove this comment)
-// src/components/setup/PlanLimitsBanner.jsx
 import { motion } from "framer-motion";
 import { Building2, Users, Crown, AlertCircle } from "lucide-react";
 import { useSetupStore } from "../../../store/useSetupStore";

@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/User-Shop-Verifications/comps/VerificationTable.jsx (do not remove this comment)
-// src/pages/User-Shop-Verifications/comps/VerificationTable.jsx
 import { useState, useEffect } from "react";
 import { ChevronUp, ChevronDown, ShieldCheck, Calendar } from "lucide-react";
 import Pagination from "../../../components/common/Pagination";

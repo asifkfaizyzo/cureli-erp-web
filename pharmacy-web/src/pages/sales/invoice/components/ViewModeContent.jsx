@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/invoice/components/ViewModeContent.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/invoice/components/ViewModeContent.jsx
 // View Mode Components for Sales Invoice Modal
 
 import React from "react";

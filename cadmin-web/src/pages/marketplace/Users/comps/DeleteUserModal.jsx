@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Users/comps/DeleteUserModal.jsx (do not remove this comment)
-// cadmin-web/src/pages/marketplace/Users/comps/DeleteUserModal.jsx
 
 import { useState } from "react";
 import { Trash2, AlertTriangle, X } from "lucide-react";

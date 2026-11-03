@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/report/sales/SalesProfitPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/report/sales/SalesProfitPage.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp } from "lucide-react";

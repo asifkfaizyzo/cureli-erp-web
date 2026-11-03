@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/settings/users/comps/UserLimitBanner.jsx (do not remove this comment)
-// src/pages/settings/components/UserLimitBanner.jsx
 
 import { motion } from "framer-motion";
 import { Users, AlertTriangle, CheckCircle2, Infinity } from "lucide-react";

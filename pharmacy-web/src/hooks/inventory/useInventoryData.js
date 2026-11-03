@@ -1,5 +1,4 @@
 // pharmacy-web/src/hooks/inventory/useInventoryData.js (do not remove this comment)
-// src/hooks/inventory/useInventoryData.js
 
 import { useState, useCallback, useRef } from "react";
 import medicinesAPI from "../../api/medicines";

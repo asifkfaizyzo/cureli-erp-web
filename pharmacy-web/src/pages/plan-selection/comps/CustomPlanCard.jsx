@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/plan-selection/comps/CustomPlanCard.jsx (do not remove this comment)
-// pharmacy-web/src/pages/plan-selection/comps/CustomPlanCard.jsx
 
 import { motion } from "framer-motion";
 import { Users, Building2, Check, Sparkles, Mail } from "lucide-react";

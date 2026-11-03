@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/MasterMedicines/comps/MasterCatalogTable.jsx (do not remove this comment)
-// cadmin/src/pages/MasterMedicines/comps/MasterCatalogTable.jsx
 // Only the filter section changes — add viewMode prop and toggle buttons
 
 import { useState, useEffect } from "react";

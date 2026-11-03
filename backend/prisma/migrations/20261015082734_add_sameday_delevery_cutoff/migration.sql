@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261015082734_add_sameday_delevery_cutoff/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "deliveries" ADD COLUMN     "batch_group_id" VARCHAR(30);
 

@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/broadcast/mobile/cadminMobileBroadcast.service.js (do not remove this comment)
-// backend/src/modules/cadmin/broadcast/mobile/cadminMobileBroadcast.service.js
 //
 // Cadmin → Mobile Customer push broadcast service.
 // Separate from cadminInAppBroadcast.service.js which targets ERP users.

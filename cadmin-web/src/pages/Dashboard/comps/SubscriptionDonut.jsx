@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Dashboard/comps/SubscriptionDonut.jsx (do not remove this comment)
-// src/pages/Dashboard/comps/SubscriptionDonut.jsx
 
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";

@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/marketplace/cadmin.marketplace.upload.js (do not remove this comment)
-// backend/src/modules/cadmin/marketplace/cadmin.marketplace.upload.js
 
 import multer from "multer";
 import { uploadFile, getPublicUrl } from "../../../services/fileStorage.service.js";

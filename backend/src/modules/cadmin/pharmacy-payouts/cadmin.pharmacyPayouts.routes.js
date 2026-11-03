@@ -1,4 +1,4 @@
-// backend/src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.routes.js
+// backend/src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.routes.js (do not remove this comment)
 
 import express from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";

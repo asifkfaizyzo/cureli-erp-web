@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-onboarding/components/MapStyles.js (do not remove this comment)
-// src/pages/marketplace-onboarding/components/MapStyles.js
 
 /**
  * Dark Google Maps style matching the #010015 app background.

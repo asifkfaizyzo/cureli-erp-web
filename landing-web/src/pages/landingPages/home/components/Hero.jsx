@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/Hero.jsx
+// landing-web/src/pages/landingPages/home/components/Hero.jsx (do not remove this comment)
 
 import { useEffect, memo } from "react";
 import AOS from "aos";

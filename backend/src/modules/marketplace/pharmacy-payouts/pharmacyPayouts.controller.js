@@ -1,3 +1,4 @@
+// backend/src/modules/marketplace/pharmacy-payouts/pharmacyPayouts.controller.js (do not remove this comment)
 import * as service from "./pharmacyPayouts.service.js";
 
 function ok(res, data, message = "Success") {

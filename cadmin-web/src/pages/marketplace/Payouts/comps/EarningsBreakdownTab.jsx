@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/EarningsBreakdownTab.jsx (do not remove this comment)
 import { TrendingUp, ArrowDownRight, ArrowUpRight, Store, ShieldCheck } from "lucide-react";
 
 const EarningsBreakdownTab = ({ payout }) => {

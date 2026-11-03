@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/tickets/components/ReopenTicketModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/tickets/components/ReopenTicketModal.jsx
 
 import { useState, useEffect } from "react";
 import { X, RotateCcw, AlertTriangle, Loader2, Info } from "lucide-react";

@@ -1,3 +1,4 @@
+// cadmin-web/src/api/cadminPharmacyPayouts.js (do not remove this comment)
 import CAdminAPI from "./axios";
 
 const BASE = "/pharmacy-payouts";

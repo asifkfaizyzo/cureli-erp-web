@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/ScheduledList.jsx (do not remove this comment)
-// cadmin-web/src/pages/Communications/pages/Broadcast/InApp/comps/ScheduledList.jsx
 import { useState, useEffect } from "react";
 import { Calendar, X, Loader2, Clock } from "lucide-react";
 import * as broadcastAPI from "../../../../../../api/cadminBroadcast";

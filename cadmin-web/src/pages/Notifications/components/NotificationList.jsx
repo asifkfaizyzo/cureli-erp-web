@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Notifications/components/NotificationList.jsx (do not remove this comment)
-// cadmin-web/src/pages/Notifications/components/NotificationList.jsx
 
 import React from "react";
 import {

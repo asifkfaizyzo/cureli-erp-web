@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261014064340_add_fulfillment_type_and_packing/migration.sql (do not remove this comment)
 /*
   Warnings:
 

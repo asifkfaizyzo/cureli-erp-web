@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/Services/Services.jsx (do not remove this comment)
 import Navbar from "../../../components/common/Navbar";
 import Footer from "../../../components/common/Footer";
 import FAQSection from "./components/FAQ";

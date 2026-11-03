@@ -1,5 +1,4 @@
 // cadmin-web/src/components/common/Toast/Toast.jsx (do not remove this comment)
-// src/components/common/Toast/Toast.jsx
 
 import { useState, useEffect, useRef } from "react";
 import { 

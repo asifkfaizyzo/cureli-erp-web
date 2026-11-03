@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/Services/components/HowItWorks.jsx (do not remove this comment)
 // HowItWorks.jsx
 
 import { useState, useEffect, useRef } from "react";

@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261005073515_add_payout_draft_and_fields/migration.sql (do not remove this comment)
 /*
   Warnings:
 

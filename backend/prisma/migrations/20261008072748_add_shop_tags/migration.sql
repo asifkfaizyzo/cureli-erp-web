@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261008072748_add_shop_tags/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "marketplace_profiles" ADD COLUMN     "shop_tags" TEXT[] DEFAULT ARRAY[]::TEXT[];
 

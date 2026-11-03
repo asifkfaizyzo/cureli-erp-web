@@ -1,4 +1,4 @@
-// backend/prisma/schema/commission.prisma
+// backend/prisma/schema/commission.prisma (do not remove this comment)
 // Commission — Rules, overrides, global suspension
 
 enum CommissionType {

@@ -1,3 +1,4 @@
+<!-- zDocs/Instant-Delivery-Lifecycle.md (do not remove this comment) -->
 # Cureli — Instant Delivery Lifecycle - 14-oct-2026
 
 > **Companion to:** Cureli System Overview (Sections 1–10)

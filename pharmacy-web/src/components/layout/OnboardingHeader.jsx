@@ -1,5 +1,4 @@
 // pharmacy-web/src/components/layout/OnboardingHeader.jsx (do not remove this comment)
-// pharmacy-web/src/components/layout/OnboardingHeader.jsx
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";

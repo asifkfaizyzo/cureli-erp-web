@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/marketplace-payouts/components/DetailOrdersTab.jsx
+// pharmacy-web/src/pages/marketplace-payouts/components/DetailOrdersTab.jsx (do not remove this comment)
 
 import React from "react";
 import { ShoppingBag } from "lucide-react";

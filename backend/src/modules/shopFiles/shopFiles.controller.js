@@ -1,5 +1,4 @@
 // backend/src/modules/shopFiles/shopFiles.controller.js (do not remove this comment)
-// backend/src/modules/shopFiles/shopFiles.controller.js
 
 import prisma from "../../config/prisma.js";
 import { success, fail } from "../../utils/response.js";

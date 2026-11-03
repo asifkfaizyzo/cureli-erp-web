@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/settings/plans/comps/UpgradeConfirmModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/settings/plans/comps/UpgradeConfirmModal.jsx
 
 import { useState } from "react";
 import { Link } from "react-router-dom";

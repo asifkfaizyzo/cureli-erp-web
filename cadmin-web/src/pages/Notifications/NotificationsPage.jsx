@@ -1,6 +1,5 @@
 // cadmin-web/src/pages/Notifications/NotificationsPage.jsx (do not remove this comment)
 // ============================================
-// cadmin-web/src/pages/Notifications/NotificationsPage.jsx
 // ============================================
 
 import React, { useEffect, useState, useCallback } from "react";

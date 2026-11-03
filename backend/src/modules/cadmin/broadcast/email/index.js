@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/broadcast/email/index.js (do not remove this comment)
-// backend/src/modules/cadmin/broadcast/email/index.js
 
 export * from './cadminEmailBroadcast.service.js';
 export * from './cadminEmailBroadcast.controller.js';

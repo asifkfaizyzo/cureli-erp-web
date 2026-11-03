@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-dashboard/components/MarketplaceStatusBanner.jsx (do not remove this comment)
-// src/pages/marketplace-dashboard/components/MarketplaceStatusBanner.jsx
 
 import { motion } from 'framer-motion';
 import { AlertTriangle, PauseCircle, FileEdit, ArrowRight } from 'lucide-react';

@@ -1,5 +1,4 @@
 // backend/src/middleware/rider.auth.js (do not remove this comment)
-// backend/src/middleware/rider.auth.js
 //
 // Authentication middleware for Cureli Delivery rider API endpoints.
 // Mirrors mobile.auth.js exactly — different model, different token type.

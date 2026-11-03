@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-onboarding/components/LocationPicker.jsx (do not remove this comment)
-// src/pages/marketplace-onboarding/components/LocationPicker.jsx
 
 import { useState, useRef, useEffect } from "react";
 import { MapPin, Search, Loader2, Check, X, AlertCircle } from "lucide-react";

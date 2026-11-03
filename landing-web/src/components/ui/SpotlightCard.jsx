@@ -1,4 +1,4 @@
-// src/components/ui/SpotlightCard.jsx
+// landing-web/src/components/ui/SpotlightCard.jsx (do not remove this comment)
 
 import { useRef, useState, useCallback } from "react";
 

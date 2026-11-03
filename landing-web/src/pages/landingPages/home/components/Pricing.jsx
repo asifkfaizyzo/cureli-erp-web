@@ -1,4 +1,4 @@
-// src/components/Pricing.jsx
+// landing-web/src/pages/landingPages/home/components/Pricing.jsx (do not remove this comment)
 import { useEffect } from "react";
 import AOS from "aos";
 import { Check } from "lucide-react";

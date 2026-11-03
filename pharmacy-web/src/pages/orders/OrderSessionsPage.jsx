@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/orders/OrderSessionsPage.jsx (do not remove this comment)
-// src/pages/orders/OrderSessionsPage.jsx
 
 import { motion } from "framer-motion";
 import { 

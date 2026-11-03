@@ -1,5 +1,4 @@
 // backend/src/modules/reports/marketplace/marketplace.report.controller.js (do not remove this comment)
-// backend/src/modules/reports/marketplace/marketplace.report.controller.js
 
 import { success, fail } from "../../../utils/response.js";
 import marketplaceReportService from "./marketplace.report.service.js";

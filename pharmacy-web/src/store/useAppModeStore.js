@@ -1,5 +1,4 @@
 // pharmacy-web/src/store/useAppModeStore.js (do not remove this comment)
-// src/store/useAppModeStore.js
 
 import { create } from "zustand";
 import { useLocation } from "react-router-dom";

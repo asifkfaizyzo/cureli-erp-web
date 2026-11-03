@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20260925093109_add_order_relation_to_deliveries/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "marketplace_orders" ADD COLUMN     "delivery_otp" VARCHAR(6),
 ADD COLUMN     "pickup_otp" VARCHAR(6);

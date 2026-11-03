@@ -1,6 +1,5 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/Email/comps/EmailHistoryList.jsx (do not remove this comment)
 // ============================================
-// src/pages/Communications/pages/Broadcast/Email/comps/EmailHistoryList.jsx
 // ============================================
 
 import { useState, useEffect } from "react";

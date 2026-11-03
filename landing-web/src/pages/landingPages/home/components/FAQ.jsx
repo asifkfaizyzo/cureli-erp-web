@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/FAQ.jsx
+// landing-web/src/pages/landingPages/home/components/FAQ.jsx (do not remove this comment)
 
 import { useEffect, useState, useCallback, memo, useRef } from "react";
 import AOS from "aos";
