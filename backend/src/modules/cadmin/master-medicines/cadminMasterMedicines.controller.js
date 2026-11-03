@@ -26,6 +26,7 @@ import {
   matchUnmappedToMaster,
   ignoreUnmappedMedicines,
   unlinkShopMedicine,
+  unignoreShopMedicine,
   uploadMasterImage,
   deleteMasterImage,
   createMasterMedicine,
