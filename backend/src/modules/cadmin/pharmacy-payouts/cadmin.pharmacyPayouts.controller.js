@@ -1,4 +1,4 @@
-// backend/src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.controller.js
+// backend/src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.controller.js (do not remove this comment)
 import * as service from "./cadmin.pharmacyPayouts.service.js";
 
 function ok(res, data, message = "Success") {

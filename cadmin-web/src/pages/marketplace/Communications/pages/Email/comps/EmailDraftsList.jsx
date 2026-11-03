@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Communications/pages/Email/comps/EmailDraftsList.jsx (do not remove this comment)
-// src/pages/Communications/pages/Broadcast/Email/comps/EmailDraftsList.jsx
 
 import { useState, useEffect } from "react";
 import { Edit2, Trash2, FileText, Loader2, Mail } from "lucide-react";

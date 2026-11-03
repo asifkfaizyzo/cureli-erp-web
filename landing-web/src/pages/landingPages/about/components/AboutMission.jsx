@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/about/components/AboutMission.jsx (do not remove this comment)
 // AboutMission.jsx
 
 import { useState, useEffect, useRef } from "react";

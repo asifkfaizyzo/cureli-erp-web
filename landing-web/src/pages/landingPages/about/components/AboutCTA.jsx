@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/about/components/AboutCTA.jsx (do not remove this comment)
 import React, { useEffect } from "react";
 import AOS from "aos";
 import { Link } from "react-router-dom";

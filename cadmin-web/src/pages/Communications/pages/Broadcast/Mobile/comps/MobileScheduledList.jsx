@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileScheduledList.jsx (do not remove this comment)
-// cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileScheduledList.jsx
 
 import { useState, useEffect } from 'react';
 import { Calendar, X, Loader2, Clock } from 'lucide-react';

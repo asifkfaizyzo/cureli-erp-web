@@ -1,3 +1,4 @@
+// landing-web/src/pages/error/ErrorPage.jsx (do not remove this comment)
 import React from "react";
 
 const ErrorPage = ({ onBack }) => {

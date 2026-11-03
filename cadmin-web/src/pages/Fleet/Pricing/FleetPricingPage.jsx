@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Fleet/Pricing/FleetPricingPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/Fleet/Pricing/FleetPricingPage.jsx
 import { useNavigate } from "react-router-dom";
 import { BadgeIndianRupee, Trophy } from "lucide-react";
 import PricingCard from "./comps/PricingCard";

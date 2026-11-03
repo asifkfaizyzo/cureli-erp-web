@@ -1,5 +1,4 @@
 // backend/src/modules/prescription-requests/prescription.requests.routes.js (do not remove this comment)
-// backend/src/modules/prescription-requests/prescription.requests.routes.js
 
 import { Router }                     from 'express';
 import { mobileAuth }                 from '../../middleware/mobile.auth.js';

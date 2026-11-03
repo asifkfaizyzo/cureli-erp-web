@@ -1,6 +1,5 @@
 // backend/src/modules/mobile/prescriptions/mobile.prescriptions.service.js (do not remove this comment)
 // ============================================
-// backend/src/modules/mobile/prescriptions/mobile.prescriptions.service.js
 // ============================================
 
 import { uploadFile } from '../../../services/fileStorage.service.js';

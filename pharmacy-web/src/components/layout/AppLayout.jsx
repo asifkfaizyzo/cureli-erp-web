@@ -1,4 +1,4 @@
-// src/components/layout/AppLayout.jsx
+// pharmacy-web/src/components/layout/AppLayout.jsx (do not remove this comment)
 import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Outlet, useLocation } from "react-router-dom";

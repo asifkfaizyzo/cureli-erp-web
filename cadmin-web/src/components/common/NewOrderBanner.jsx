@@ -1,3 +1,4 @@
+// cadmin-web/src/components/common/NewOrderBanner.jsx (do not remove this comment)
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';

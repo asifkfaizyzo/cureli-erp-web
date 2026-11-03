@@ -1,5 +1,4 @@
 // pharmacy-web/src/config/permissions.js (do not remove this comment)
-// src/config/permissions.js
 
 /**
  * ============================================

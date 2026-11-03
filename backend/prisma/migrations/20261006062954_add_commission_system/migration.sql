@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261006062954_add_commission_system/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "CommissionType" AS ENUM ('FLAT_PERCENT', 'FLAT_AMOUNT', 'HYBRID', 'CAPPED_PERCENT');
 

@@ -1,3 +1,4 @@
+<!-- zDocs/curelicontext.md (do not remove this comment) -->
 ### Cureli — System Overview
 
 Cureli is a pharmacy-focused healthcare platform in India built around **four connected components**: the **Cureli ERP**, **Cureli Customer Mobile App**, **Cureli Rider Mobile App**, and the **Cureli Backend/API**.

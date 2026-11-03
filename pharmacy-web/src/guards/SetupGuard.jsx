@@ -1,5 +1,4 @@
 // pharmacy-web/src/guards/SetupGuard.jsx (do not remove this comment)
-// src/guards/SetupGuard.jsx
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";

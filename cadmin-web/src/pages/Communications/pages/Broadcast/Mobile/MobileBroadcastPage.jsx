@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/MobileBroadcastPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/MobileBroadcastPage.jsx
 
 import { useState } from 'react';
 import { Smartphone, Archive, Calendar, History, Plus } from 'lucide-react';

@@ -1,5 +1,4 @@
 // backend/src/modules/audit/audit.actions.js (do not remove this comment)
-// backend/src/modules/audit/audit.actions.js
 
 // ============================================
 // AUDIT ACTIONS — IMMUTABLE BUSINESS FACTS

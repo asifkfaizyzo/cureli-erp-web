@@ -1,5 +1,4 @@
 // backend/src/modules/audit/audit.constants.js (do not remove this comment)
-// backend/src/modules/audit/audit.constants.js
 
 // ============================================
 // AUDIT CONSTANTS

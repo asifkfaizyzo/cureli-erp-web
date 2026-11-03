@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/ReportTabBar.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/ReportTabBar.jsx
 
 import React from "react";
 import {

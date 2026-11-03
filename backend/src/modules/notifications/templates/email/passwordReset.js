@@ -1,5 +1,4 @@
 // backend/src/modules/notifications/templates/email/passwordReset.js (do not remove this comment)
-// backend/src/modules/notifications/templates/email/passwordReset.js
 // ============================================
 // PASSWORD RESET EMAIL TEMPLATE
 // ============================================

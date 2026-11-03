@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Dashboard/comps/UserGrowthChart.jsx (do not remove this comment)
-// src/pages/Dashboard/comps/UserGrowthChart.jsx
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";

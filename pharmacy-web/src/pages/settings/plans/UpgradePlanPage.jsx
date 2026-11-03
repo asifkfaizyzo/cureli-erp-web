@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/settings/plans/UpgradePlanPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/settings/plans/UpgradePlanPage.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";

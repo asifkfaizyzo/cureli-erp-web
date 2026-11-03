@@ -1,5 +1,4 @@
 // backend/src/utils/cadminTokens.js (do not remove this comment)
-// backend/src/utils/cadminTokens.js
 
 import jwt from "jsonwebtoken";
 import {

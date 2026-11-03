@@ -1,3 +1,4 @@
+// backend/src/modules/marketplace/pharmacy-payouts/pharmacyPayouts.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 import { calculateEarningsBreakdown } from "../../cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.service.js";
 

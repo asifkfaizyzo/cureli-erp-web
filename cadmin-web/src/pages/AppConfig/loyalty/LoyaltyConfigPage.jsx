@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/AppConfig/loyalty/LoyaltyConfigPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/AppConfig/loyalty/LoyaltyConfigPage.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";

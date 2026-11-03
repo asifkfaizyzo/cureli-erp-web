@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/InternalNotesPanel.jsx (do not remove this comment)
 import { useState } from "react";
 import { Send, User } from "lucide-react";
 import { addPharmacyPayoutNote } from "../../../../api/cadminPharmacyPayouts";

@@ -1,5 +1,4 @@
 // backend/src/modules/files/files.routes.js (do not remove this comment)
-// backend/src/modules/files/files.routes.js
 
 import express from 'express';
 import * as fileController from './files.controller.js';

@@ -36,6 +36,15 @@ ssh cureli@187.127.139.168
 # enter password when prompted
 AWS- 138720667523
 
+
+# 2. SSH in and pull (you see conflicts HERE, not inside the script)
+ssh cureli@187.127.139.168
+cd ~/cureli-erp-devs
+git pull origin prod
+
+# 3. If pull is clean, deploy everything:
+./deploy.sh
+
 # ============================================================
 # STEP 3 — Pull latest prod on VPS
 # ============================================================
@@ -205,123 +214,133 @@ git push origin prod
 
 
 
-
 # ============================================================
 # RECOVERY — Accidentally coded on prod instead of dev
 # ============================================================
 #
 # Scenario:
-# You made changes while on the "prod" branch but have NOT
-# committed or pushed yet. Move the work safely to "dev".
+# You've been working for hours (or days) on the "prod" branch.
+# You have tons of uncommitted changes across backend,
+# pharmacy-web, cadmin-web, landing-web — maybe new files,
+# maybe deleted files, maybe edits everywhere.
+# You have NOT committed or pushed any of it.
+# Goal: move ALL of it safely to "dev" without losing a single line.
 #
-# 1. Check your current branch:
+# ----------------------------------------------------------
+# STEP 1 — Confirm you're on prod and see the damage
+# ----------------------------------------------------------
+
 git branch --show-current
+# should say: prod
 
-# 2. Stash tracked changes:
-git stash
+git status
+# you'll see a wall of red/green — that's fine, don't panic
 
-# If you created NEW files (untracked), stash those too:
-git stash -u
+# ----------------------------------------------------------
+# STEP 2 — Stash EVERYTHING (including new/untracked files)
+# ----------------------------------------------------------
+# The -u flag is critical. Without it, brand new files you
+# created (new components, new routes, new .prisma files, etc.)
+# will NOT be stashed and will be left behind on prod.
 
-# 3. Switch to dev:
+git stash push -u -m "WIP: moving work from prod to dev"
+
+# Verify prod is now clean:
+git status
+# should say: "nothing to commit, working tree clean"
+
+# Verify your stash was saved:
+git stash list
+# should show something like:
+#   stash@{0}: WIP: moving work from prod to dev
+
+# ----------------------------------------------------------
+# STEP 3 — Switch to dev
+# ----------------------------------------------------------
+
 git switch dev
 
-# 4. Restore your changes:
+# If dev is behind origin, pull first:
+git pull origin dev
+
+# ----------------------------------------------------------
+# STEP 4 — Restore your changes onto dev
+# ----------------------------------------------------------
+
 git stash pop
 
-# 5. Verify everything moved correctly:
+# This applies ALL your changes (edits + new files + deletes)
+# onto the dev branch, exactly as they were.
+
+# ----------------------------------------------------------
+# STEP 5 — Verify
+# ----------------------------------------------------------
+
 git status
+# you should see the same wall of changes you had before,
+# but now on the dev branch
 
-# 6. Continue working on dev:
+# Quick sanity check — make sure your key files are there:
+# (adjust paths to whatever you were working on)
+#   git diff --stat
+
+# ----------------------------------------------------------
+# STEP 6 — Commit and push on dev
+# ----------------------------------------------------------
+
 git add .
-git commit -m "Your commit message"
+git commit -m "feat: your actual commit message here"
 git push origin dev
+
+# ----------------------------------------------------------
+# STEP 7 — Clean up prod (if needed)
+# ----------------------------------------------------------
+# If you accidentally committed something to prod earlier
+# (before you realized the mistake), you need to undo it:
+
+git switch prod
+git log --oneline -5
+# find the commit hash of your accidental commit, then:
+git revert <accidental-commit-hash>
+git push origin prod
+
+# ----------------------------------------------------------
+# TROUBLESHOOTING
+# ----------------------------------------------------------
 #
-# Notes:
-# - Use "git stash" if you only modified existing files.
-# - Use "git stash -u" if you also created new files.
-# - Do NOT commit on prod if the changes belong on dev.
-# - If "git stash pop" reports conflicts, resolve them before
-#   committing.
+# "git stash pop" says CONFLICT:
+#   This means dev already has changes to the same files.
+#   Open the conflicted files, look for <<<<<<< markers,
+#   resolve them, then:
+#     git add .
+#     git stash drop    (removes the stash since it's applied)
+#     git commit -m "feat: resolved stash conflicts"
+#
+# "git stash pop" says "already up to date" or nothing happens:
+#   Your stash might be empty. Check:
+#     git stash show stash@{0} --stat
+#   If it shows files, try:
+#     git stash apply stash@{0}
+#   (apply doesn't delete the stash, so you can retry safely)
+#
+# You stashed WITHOUT -u and lost new files:
+#   New/untracked files are NOT in the stash. They're still
+#   sitting on the prod branch as untracked files.
+#   Switch back to prod, grab them, switch to dev:
+#     git switch prod
+#     git status          (your new files are still here)
+#     git stash push -u -m "grabbing missed files"
+#     git switch dev
+#     git stash pop
+#
+# You want to see what's in a stash before popping:
+#     git stash show stash@{0} --stat     (file list)
+#     git stash show stash@{0} -p         (full diff)
+#
+# You have multiple stashes and don't know which is which:
+#     git stash list
+#     git stash show stash@{0} --stat
+#     git stash show stash@{1} --stat
+#   Pop the right one:
+#     git stash pop stash@{1}
 # ============================================================
-
-
-
-
-
-
-
-
-Here is the complete step-by-step checklist to build and release both **Android** and **iOS** with your new changes.
-
----
-
-### Step 1: Check Config & Bump Versions
-
-1. **Verify Production API URL**  
-   Open `src/constants/config.ts` and confirm:
-   ```typescript
-   export const CONFIG = {
-     BASE_URL: "https://api.curelihealth.com",
-     API_TIMEOUT: 15000,
-   };
-   ```
-
-2. **Bump Versions in `app.config.js`**  
-   Open `app.config.js`:
-   * **Android**: Bump `versionCode` from `11` to **`12`**.
-   * **iOS**: 
-     * If `2.1.1` is **not yet released/approved** on the App Store: keep `version: "2.1.1"` and bump `buildNumber` from `"1"` to **`"2"`**.
-     * If `2.1.1` was **already approved/live**: bump `version` to **`"2.1.2"`** and reset `buildNumber` to **`"1"`**.
-
----
-
-### Step 2: Build Android (Local `.aab`)
-
-Run these commands inside `/Users/sibixavier/cureli-erp-devs/cureli-mobile`:
-
-```bash
-# 1. Ensure google-services.json is present
-ls google-services.json
-
-# 2. Temporarily un-ignore google-services.json for the build archive
-sed -i '' '/google-services.json/d' .gitignore
-
-# 3. Run the local Android build
-eas build --profile production --platform android --local
-
-# 4. Immediately add google-services.json back to .gitignore after build starts/finishes
-echo "google-services.json" >> .gitignore
-```
-
-* **Upload to Play Store**: When finished, take the generated `.aab` path printed at the end and upload it to **Google Play Console** ➔ **Production** ➔ **Create new release**.
-
----
-
-### Step 3: Build & Submit iOS (EAS Cloud)
-
-```bash
-# 1. Run the cloud iOS build
-eas build --profile production --platform ios
-
-# 2. Once the build finishes, submit directly to App Store Connect
-eas submit --platform ios --latest
-```
-
-* **Submit on App Store Connect**:
-  1. Go to [appstoreconnect.apple.com](https://appstoreconnect.apple.com) ➔ **Cureli**.
-  2. Wait ~5–10 mins for Apple processing.
-  3. Under **Distribution / App Store**, select the newly uploaded build.
-  4. Save and click **Submit for Review**.
-
----
-
-### Step 4: Git Sync
-
-Commit your changes and version bumps:
-
-```bash
-git add -A
-git commit -m "chore: release update (Android versionCode 12, iOS new build)"
-git push origin dev
-```

@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Subscription-management/comps/risk/SuspendedTable.jsx (do not remove this comment)
-// src/pages/Subscription-management/comps/risk/SuspendedTable.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { Ban, ChevronUp, ChevronDown } from "lucide-react";

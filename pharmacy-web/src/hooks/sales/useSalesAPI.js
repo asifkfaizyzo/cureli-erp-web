@@ -1,5 +1,4 @@
 // pharmacy-web/src/hooks/sales/useSalesAPI.js (do not remove this comment)
-// pharmacy-web/src/hooks/sales/useSalesAPI.js
 
 import { useState, useCallback } from 'react';
 import salesAPI from '../../api/sales';

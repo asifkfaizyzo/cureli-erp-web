@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/about/About.jsx (do not remove this comment)
 import React from "react";
 
 import AboutHero from "./components/AboutHero";

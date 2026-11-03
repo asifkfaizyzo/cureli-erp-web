@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/marketplace-dashboard/cadminMarketplaceDashboard.controller.js (do not remove this comment)
-// backend/src/modules/cadmin/marketplace-dashboard/cadminMarketplaceDashboard.controller.js
 
 import { success, fail } from "../../../utils/response.js";
 import * as svc from "./cadminMarketplaceDashboard.service.js";

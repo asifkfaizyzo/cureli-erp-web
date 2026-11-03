@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/cadminDocs/cadminDocs.controller.js (do not remove this comment)
-// backend/src/modules/cadmin/cadminDocs/cadminDocs.controller.js
 
 import * as svc from "./cadminDocs.service.js";
 import { success, fail } from "../../../utils/response.js";

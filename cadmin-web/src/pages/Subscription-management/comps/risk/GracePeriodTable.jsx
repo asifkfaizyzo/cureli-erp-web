@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Subscription-management/comps/risk/GracePeriodTable.jsx (do not remove this comment)
-// src/pages/Subscription-management/comps/risk/GracePeriodTable.jsx
 
 import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Clock, ChevronUp, ChevronDown } from "lucide-react";

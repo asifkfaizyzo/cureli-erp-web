@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Subscription-management/comps/risk/modals/ReminderConfirmModal.jsx (do not remove this comment)
-// src/pages/Subscription-management/comps/risk/modals/ReminderConfirmModal.jsx
 
 import { useState } from "react";
 import { X, Send, Mail, MessageSquare, Loader2 } from "lucide-react";

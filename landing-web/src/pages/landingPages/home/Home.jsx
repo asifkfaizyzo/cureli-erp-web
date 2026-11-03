@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/Home.jsx
+// landing-web/src/pages/landingPages/home/Home.jsx (do not remove this comment)
 
 import Navbar from "../../../components/common/Navbar";
 import Hero from "./components/Hero";

@@ -1,3 +1,4 @@
+// landing-web/src/components/Toast/Toast.jsx (do not remove this comment)
 // src/components/common/Toast/Toast.jsx - Simpler version
 
 import { useState, useEffect, useRef } from "react";

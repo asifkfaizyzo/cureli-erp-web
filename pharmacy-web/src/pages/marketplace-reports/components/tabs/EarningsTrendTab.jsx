@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/tabs/EarningsTrendTab.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/tabs/EarningsTrendTab.jsx
 
 import React, { useState, useEffect } from "react";
 import { IndianRupee, TrendingUp, Landmark, Percent } from "lucide-react";

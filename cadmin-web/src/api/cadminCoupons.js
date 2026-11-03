@@ -1,5 +1,4 @@
 // cadmin-web/src/api/cadminCoupons.js (do not remove this comment)
-// cadmin-web/src/api/cadminCoupons.js
 import CAdminAPI from "./axios";
 
 export const listCoupons = (params) => 

@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileHistoryList.jsx (do not remove this comment)
-// cadmin-web/src/pages/Communications/pages/Broadcast/Mobile/comps/MobileHistoryList.jsx
 
 import { useState, useEffect } from 'react';
 import { History, CheckCircle, Loader2, Smartphone } from 'lucide-react';

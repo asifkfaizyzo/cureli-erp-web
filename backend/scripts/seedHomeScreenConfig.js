@@ -1,5 +1,4 @@
 // backend/scripts/seedHomeScreenConfig.js (do not remove this comment)
-// backend/scripts/seedHomeScreenConfig.js
 //
 // Seeds the HomeScreenConfig table with all 8 default config rows.
 // Safe to run multiple times — uses upsert so existing rows are not

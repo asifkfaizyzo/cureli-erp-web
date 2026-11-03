@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/marketplace/Communications/pages/Email/MobileEmailBroadcastPage.jsx (do not remove this comment)
-// cadmin-web/src/pages/marketplace/Communications/pages/Email/MobileEmailBroadcastPage.jsx
 
 import { useState } from "react";
 import { Mail, Archive, Calendar, History, Plus } from "lucide-react";

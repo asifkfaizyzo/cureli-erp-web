@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Fleet/Riders/comps/CreateRiderModal.jsx (do not remove this comment)
-// cadmin-web/src/pages/Fleet/Riders/comps/CreateRiderModal.jsx
 
 import { useState } from "react";
 import {

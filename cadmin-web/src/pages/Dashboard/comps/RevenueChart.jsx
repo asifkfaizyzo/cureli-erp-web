@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Dashboard/comps/RevenueChart.jsx (do not remove this comment)
-// src/pages/Dashboard/comps/RevenueChart.jsx
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";

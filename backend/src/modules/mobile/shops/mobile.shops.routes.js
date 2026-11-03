@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/shops/mobile.shops.routes.js (do not remove this comment)
-// src/modules/mobile/shops/mobile.shops.routes.js
 //
 // PUBLIC mobile shop discovery routes.
 // No auth required — same pattern as mobile.medicines.routes.js.

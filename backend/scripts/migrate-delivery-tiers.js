@@ -1,4 +1,4 @@
-// backend/scripts/migrate-delivery-tiers.js
+// backend/scripts/migrate-delivery-tiers.js (do not remove this comment)
 // One-time migration: flat delivery columns → delivery_tiers_json
 // Also injects mode:"FULL" into existing slash tiers.
 // Idempotent — safe to re-run.

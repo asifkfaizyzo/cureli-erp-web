@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Dashboard/comps/PendingActionsPanel.jsx (do not remove this comment)
-// src/pages/Dashboard/comps/PendingActionsPanel.jsx
 
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";

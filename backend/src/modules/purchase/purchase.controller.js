@@ -1,5 +1,4 @@
 // backend/src/modules/purchase/purchase.controller.js (do not remove this comment)
-// backend/src/modules/purchase/purchase.controller.js
 
 import { success, fail } from "../../utils/response.js";
 //  UPDATED: Import from index.js which combines both service files

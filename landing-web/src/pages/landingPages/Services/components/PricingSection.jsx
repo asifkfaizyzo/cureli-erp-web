@@ -1,4 +1,4 @@
-// src/pages/landingPages/Services/components/PricingSection.jsx
+// landing-web/src/pages/landingPages/Services/components/PricingSection.jsx (do not remove this comment)
 
 import { useEffect, useState } from "react";
 import AOS from "aos";

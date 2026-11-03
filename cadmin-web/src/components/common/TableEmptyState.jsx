@@ -1,5 +1,4 @@
 // cadmin-web/src/components/common/TableEmptyState.jsx (do not remove this comment)
-// src/components/common/TableEmptyState.jsx
 import React from 'react';
 import { Users } from 'lucide-react';
 import { TABLE_CONFIG } from '../../config/tableConfig';

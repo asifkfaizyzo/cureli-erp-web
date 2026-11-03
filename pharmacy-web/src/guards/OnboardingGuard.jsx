@@ -1,5 +1,4 @@
 // pharmacy-web/src/guards/OnboardingGuard.jsx (do not remove this comment)
-// src/guards/OnboardingGuard.jsx
 
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, Outlet } from "react-router-dom";

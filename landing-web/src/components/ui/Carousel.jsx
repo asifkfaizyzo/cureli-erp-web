@@ -1,3 +1,4 @@
+// landing-web/src/components/ui/Carousel.jsx (do not remove this comment)
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 

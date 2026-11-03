@@ -1,4 +1,4 @@
-// src/config/planConfig.js
+// landing-web/src/config/planConfig.js (do not remove this comment)
 // Landing page plan configuration
 
 // ============================================

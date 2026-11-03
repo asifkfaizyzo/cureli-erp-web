@@ -1,4 +1,4 @@
-// cadmin/src/config/colorGuide.js
+// zDocs/colorGuide.js (do not remove this comment)
 
 // ═══════════════════════════════════════════════════════════════
 // 🎨 BRAND COLOR GUIDE

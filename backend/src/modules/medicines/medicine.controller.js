@@ -1,5 +1,4 @@
 // backend/src/modules/medicines/medicine.controller.js (do not remove this comment)
-// backend/src/modules/medicines/medicine.controller.js
 
 import { success, fail } from "../../utils/response.js";
 import prisma from "../../config/prisma.js"; //  FIX: Add missing prisma import

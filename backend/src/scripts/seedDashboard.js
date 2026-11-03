@@ -1,4 +1,4 @@
-// backend/src/scripts/seedDashboard.js
+// backend/src/scripts/seedDashboard.js (do not remove this comment)
 import { PrismaClient, TicketCategory } from "@prisma/client";
 
 const prisma = new PrismaClient();

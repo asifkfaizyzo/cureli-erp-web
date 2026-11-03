@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Settings/comps/ContactModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/Settings/comps/ContactModal.jsx
 
 import { useState } from "react";
 import { X, Mail, Phone, Loader2, AlertCircle, Save } from "lucide-react";

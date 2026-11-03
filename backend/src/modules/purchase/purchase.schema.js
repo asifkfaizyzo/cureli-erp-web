@@ -1,5 +1,4 @@
 // backend/src/modules/purchase/purchase.schema.js (do not remove this comment)
-// backend/src/modules/purchase/purchase.schema.js
 import { z } from "zod";
 
 const lineItemSchema = z.object({

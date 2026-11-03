@@ -1,5 +1,4 @@
 // cadmin-web/src/components/layout/AdminHeader.jsx (do not remove this comment)
-// src/components/layout/AdminHeader.jsx
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";

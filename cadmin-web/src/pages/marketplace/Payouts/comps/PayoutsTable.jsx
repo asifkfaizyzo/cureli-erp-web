@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/PayoutsTable.jsx (do not remove this comment)
 import { useState } from "react";
 import { RefreshCw, Eye, AlertTriangle, Play, CheckCircle, X, HelpCircle } from "lucide-react";
 import Pagination from "../../../../components/common/Pagination";

@@ -1,4 +1,4 @@
-// src/pages/landingPages/services/components/ServiceShowcase.jsx
+// landing-web/src/pages/landingPages/Services/components/ServiceShowcase.jsx (do not remove this comment)
 
 import { useEffect, memo } from "react";
 import { Link } from "react-router-dom";

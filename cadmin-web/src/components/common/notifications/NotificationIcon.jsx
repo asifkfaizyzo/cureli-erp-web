@@ -1,6 +1,5 @@
 // cadmin-web/src/components/common/notifications/NotificationIcon.jsx (do not remove this comment)
 // ============================================
-// cadmin-web/src/components/common/notifications/NotificationIcon.jsx
 // ============================================
 
 import React from "react";

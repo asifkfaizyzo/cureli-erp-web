@@ -1,5 +1,4 @@
 // backend/src/modules/notifications/notification.events.js (do not remove this comment)
-// backend/src/modules/notifications/notification.events.js
 
 export const NOTIFICATION_EVENTS = {
   PASSWORD_CHANGED: "PASSWORD_CHANGED",

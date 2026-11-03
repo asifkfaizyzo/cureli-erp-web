@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261009063425_add_price_slash/migration.sql (do not remove this comment)
 -- CreateEnum
 CREATE TYPE "SlashMode" AS ENUM ('NONE', 'NEW', 'OLD');
 

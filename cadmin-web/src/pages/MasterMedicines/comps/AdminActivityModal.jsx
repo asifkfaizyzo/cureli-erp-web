@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/MasterMedicines/comps/AdminActivityModal.jsx (do not remove this comment)
 import { useState, useEffect, useCallback } from "react";
 import {
   X,
