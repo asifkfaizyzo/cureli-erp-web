@@ -1,3 +1,4 @@
+// landing-web/src/components/common/Footer.jsx (do not remove this comment)
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AOS from "aos";

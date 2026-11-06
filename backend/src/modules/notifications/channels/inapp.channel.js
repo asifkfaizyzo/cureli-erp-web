@@ -1,6 +1,5 @@
 // backend/src/modules/notifications/channels/inapp.channel.js (do not remove this comment)
 // ============================================
-// backend/src/modules/notifications/channels/inapp.channel.js
 // ============================================
 
 import prisma from "../../../config/prisma.js";

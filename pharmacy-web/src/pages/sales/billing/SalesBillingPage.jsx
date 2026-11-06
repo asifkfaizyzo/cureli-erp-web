@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/billing/SalesBillingPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/billing/SalesBillingPage.jsx
 
 import { useRef, useCallback, useState, useEffect } from "react";
 import { useReactToPrint } from "react-to-print";

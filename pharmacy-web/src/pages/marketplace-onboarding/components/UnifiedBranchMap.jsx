@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-onboarding/components/UnifiedBranchMap.jsx (do not remove this comment)
-// src/pages/marketplace-onboarding/components/UnifiedBranchMap.jsx
 
 import { useCallback, useRef, useEffect, useState } from "react";
 import { GoogleMap, Marker } from "@react-google-maps/api";

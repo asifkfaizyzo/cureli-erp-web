@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/shared/MarketplaceReportTable.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/shared/MarketplaceReportTable.jsx
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Layers, Loader2 } from "lucide-react";

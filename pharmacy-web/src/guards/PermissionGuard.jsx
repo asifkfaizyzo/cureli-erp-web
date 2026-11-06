@@ -1,5 +1,4 @@
 // pharmacy-web/src/guards/PermissionGuard.jsx (do not remove this comment)
-// src/guards/PermissionGuard.jsx
 
 import { useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";

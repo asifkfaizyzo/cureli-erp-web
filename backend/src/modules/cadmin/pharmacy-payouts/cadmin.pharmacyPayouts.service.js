@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/pharmacy-payouts/cadmin.pharmacyPayouts.service.js (do not remove this comment)
 import prisma from "../../../config/prisma.js";
 import { getEffectiveRateForShop } from "../commission/cadmin.commission.service.js";
 

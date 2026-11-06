@@ -1,5 +1,4 @@
 // backend/src/utils/cleanup.js (do not remove this comment)
-// backend/src/utils/cleanup.js
 
 import prisma from "../config/prisma.js";
 import * as fileStorage from "../services/fileStorage.service.js";

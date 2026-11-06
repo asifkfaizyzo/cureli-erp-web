@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/roles/cadminRoles.service.js (do not remove this comment)
-// backend/src/modules/cadmin/roles/cadminRoles.service.js
 
 import prisma from "../../../config/prisma.js";
 import { ALL_CADMIN_PERMISSION_KEYS } from "../../../config/cadminPermissions.js";

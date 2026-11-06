@@ -1,5 +1,4 @@
 // cadmin-web/src/utils/normalizePlan.js (do not remove this comment)
-// cadmin-web/src/utils/normalizePlan.js
 
 /**
  * Normalizes a single raw plan from the API.

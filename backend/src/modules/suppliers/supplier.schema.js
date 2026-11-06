@@ -1,5 +1,4 @@
 // backend/src/modules/suppliers/supplier.schema.js (do not remove this comment)
-// backend/src/modules/suppliers/supplier.schema.js
 import { z } from "zod";
 
 //  GST Regex: 2 digits + 5 letters + 4 digits + 1 letter + 1 alphanumeric + Z + 1 alphanumeric

@@ -1,5 +1,4 @@
 // backend/src/modules/users/users.controller.js (do not remove this comment)
-// src/modules/users/users.controller.js
 
 import { success, fail } from "../../utils/response.js";
 import * as svc from "./users.service.js";

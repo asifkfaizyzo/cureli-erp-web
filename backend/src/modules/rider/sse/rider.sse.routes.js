@@ -1,5 +1,4 @@
 // backend/src/modules/rider/sse/rider.sse.routes.js (do not remove this comment)
-// backend/src/modules/rider/sse/rider.sse.routes.js
 
 import { Router } from "express";
 import { riderAuth } from "../../../middleware/rider.auth.js";

@@ -1,4 +1,4 @@
-// src/modules/marketplace/pharmacy-payouts/pharmacyPayouts.routes.js
+// backend/src/modules/marketplace/pharmacy-payouts/pharmacyPayouts.routes.js (do not remove this comment)
 
 import express from "express";
 import { requireAuth } from "../../../middleware/auth.js";

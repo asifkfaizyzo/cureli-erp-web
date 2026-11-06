@@ -1,3 +1,4 @@
+-- backend/prisma/migrations/20261006112947_add_pharmacy_payouts_and_commission_snapshots/migration.sql (do not remove this comment)
 -- AlterTable
 ALTER TABLE "marketplace_orders" ADD COLUMN     "commission_amount_snapshot" DECIMAL(10,2) DEFAULT 0,
 ADD COLUMN     "commission_rate_snapshot" DECIMAL(5,2) DEFAULT 0,

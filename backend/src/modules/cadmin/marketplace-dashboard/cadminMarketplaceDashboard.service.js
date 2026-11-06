@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/marketplace-dashboard/cadminMarketplaceDashboard.service.js (do not remove this comment)
-// backend/src/modules/cadmin/marketplace-dashboard/cadminMarketplaceDashboard.service.js
 
 import prisma from "../../../config/prisma.js";
 

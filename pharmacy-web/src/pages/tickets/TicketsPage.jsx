@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/tickets/TicketsPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/tickets/TicketsPage.jsx
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Search, X, Filter, Calendar, RefreshCw } from "lucide-react";

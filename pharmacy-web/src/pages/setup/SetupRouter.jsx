@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/setup/SetupRouter.jsx (do not remove this comment)
-// src/pages/setup/SetupRouter.jsx
 
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";

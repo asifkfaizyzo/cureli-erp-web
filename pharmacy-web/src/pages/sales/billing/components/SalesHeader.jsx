@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/billing/components/SalesHeader.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/billing/components/SalesHeader.jsx
 
 import {
   Save, Printer, CheckCircle, Clock, AlertCircle, Loader2,

@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/auth/cadminPassword.service.js (do not remove this comment)
-// backend/src/modules/cadmin/auth/cadminPassword.service.js
 
 import prisma from "../../../config/prisma.js";
 import { generateResetToken, hashToken } from "../../../utils/resetToken.js";

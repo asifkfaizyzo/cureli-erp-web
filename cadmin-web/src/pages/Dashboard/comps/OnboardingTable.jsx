@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Dashboard/comps/OnboardingTable.jsx (do not remove this comment)
-// src/pages/Dashboard/comps/OnboardingTable.jsx
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";

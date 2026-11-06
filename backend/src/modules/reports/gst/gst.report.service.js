@@ -1,5 +1,4 @@
 // backend/src/modules/reports/gst/gst.report.service.js (do not remove this comment)
-// backend/src/modules/reports/gst/gst.report.service.js
 
 import prisma from "../../../config/prisma.js";
 import { buildBranchFilter } from "../../sales/sales.helpers.js";

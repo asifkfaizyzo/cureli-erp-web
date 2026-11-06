@@ -1,4 +1,4 @@
-// pharmacy-web/src/components/common/BankingPendingBanner.jsx
+// pharmacy-web/src/components/common/BankingPendingBanner.jsx (do not remove this comment)
 
 import { Landmark } from "lucide-react";
 

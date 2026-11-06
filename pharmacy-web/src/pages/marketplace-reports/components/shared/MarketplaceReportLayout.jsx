@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-reports/components/shared/MarketplaceReportLayout.jsx (do not remove this comment)
-// src/pages/marketplace-reports/components/shared/MarketplaceReportLayout.jsx
 
 import React from "react";
 import MarketplaceExportButton from "./MarketplaceExportButton";

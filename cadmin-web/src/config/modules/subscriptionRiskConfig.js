@@ -1,5 +1,4 @@
 // cadmin-web/src/config/modules/subscriptionRiskConfig.js (do not remove this comment)
-// src/config/modules/subscriptionRiskConfig.js
 
 // ============================================
 // TAB DEFINITIONS

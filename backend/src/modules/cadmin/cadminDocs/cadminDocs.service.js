@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/cadminDocs/cadminDocs.service.js (do not remove this comment)
-// backend/src/modules/cadmin/cadminDocs/cadminDocs.service.js
 
 import prisma from "../../../config/prisma.js";
 import { notifyAsync } from "../../notifications/index.js";

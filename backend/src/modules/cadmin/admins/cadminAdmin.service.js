@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/admins/cadminAdmin.service.js (do not remove this comment)
-// backend/src/modules/cadmin/admins/cadminAdmin.service.js
 
 import prisma from "../../../config/prisma.js";
 import { hashPassword } from "../../../utils/hash.js";

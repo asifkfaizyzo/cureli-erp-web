@@ -1,5 +1,4 @@
 // pharmacy-web/src/hooks/marketplace/useDashboard.js (do not remove this comment)
-// src/hooks/marketplace/useDashboard.js
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import marketplaceDashboardAPI from '../../api/marketplaceDashboard';

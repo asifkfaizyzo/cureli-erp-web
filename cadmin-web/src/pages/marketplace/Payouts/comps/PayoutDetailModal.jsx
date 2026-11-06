@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/PayoutDetailModal.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
 import { X, Loader2, Landmark, CreditCard, FileText, ListOrdered, StickyNote, History, RefreshCw, TrendingUp } from "lucide-react";
 import { getPharmacyPayoutDetail, refreshPharmacyPayout } from "../../../../api/cadminPharmacyPayouts";

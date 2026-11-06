@@ -1,5 +1,4 @@
 // backend/src/modules/shop/shop.routes.js (do not remove this comment)
-// backend/src/modules/shop/shop.routes.js
 
 import express from "express";
 import { requireAuth } from "../../middleware/auth.js";

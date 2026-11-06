@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/marketplace-onboarding/steps/BankingStep.jsx
+// pharmacy-web/src/pages/marketplace-onboarding/steps/BankingStep.jsx (do not remove this comment)
 
 import React, { useState } from "react";
 import {

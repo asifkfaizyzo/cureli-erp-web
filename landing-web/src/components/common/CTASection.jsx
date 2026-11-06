@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/CTASection.jsx
+// landing-web/src/components/common/CTASection.jsx (do not remove this comment)
 
 import { Link } from "react-router-dom";
 import ctaLogo from "../../assets/icons/curelinew copy.svg";

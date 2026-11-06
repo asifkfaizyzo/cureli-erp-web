@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Subscription-management/comps/risk/modals/SuspendConfirmModal.jsx (do not remove this comment)
-// src/pages/Subscription-management/comps/risk/modals/SuspendConfirmModal.jsx
 
 import { useState } from "react";
 import { X, Ban, Loader2, AlertCircle, AlertTriangle } from "lucide-react";

@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Communications/pages/Broadcast/Email/EmailBroadcastPage.jsx (do not remove this comment)
-// src/pages/Communications/pages/Broadcast/Email/EmailBroadcastPage.jsx
 
 import { useState, useEffect } from "react";
 import {

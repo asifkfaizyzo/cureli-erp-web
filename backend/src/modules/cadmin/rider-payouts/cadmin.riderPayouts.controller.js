@@ -1,3 +1,4 @@
+// backend/src/modules/cadmin/rider-payouts/cadmin.riderPayouts.controller.js (do not remove this comment)
 //backend\src\modules\cadmin\rider-payouts\cadmin.riderPayouts.controller.js
 import * as service from "./cadmin.riderPayouts.service.js";
 import { success, fail } from "../../../utils/response.js";

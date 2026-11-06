@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Cadmin-management/comps/AssignRolesModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/Cadmin-management/comps/AssignRolesModal.jsx
 
 import { useState, useEffect } from "react";
 import { X, Shield, Save, Loader2, AlertCircle, Star } from "lucide-react";

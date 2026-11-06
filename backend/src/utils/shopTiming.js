@@ -1,5 +1,4 @@
 // backend/src/utils/shopTiming.js (do not remove this comment)
-// backend/src/utils/shopTiming.js
 //
 // Unified branch timing engine for the Cureli marketplace.
 // Single source of truth for open/closed computation, "closes soon"

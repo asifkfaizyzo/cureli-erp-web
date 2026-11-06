@@ -1,5 +1,4 @@
 // pharmacy-web/src/components/common/Breadcrumb.jsx (do not remove this comment)
-// src/components/common/Breadcrumb.jsx
 
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";

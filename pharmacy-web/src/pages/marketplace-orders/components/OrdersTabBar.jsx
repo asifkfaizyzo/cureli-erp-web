@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/marketplace-orders/components/OrdersTabBar.jsx (do not remove this comment)
-// pharmacy-web/src/pages/marketplace-orders/components/OrdersTabBar.jsx
 
 import { FileText } from 'lucide-react';
 import { ORDER_TABS } from '../../../hooks/marketplace/useOrdersPage';

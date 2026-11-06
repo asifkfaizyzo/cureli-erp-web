@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/purchase/billing/components/PurchaseInvoicePrint.jsx (do not remove this comment)
-// src/pages/purchase/billing/components/PurchaseInvoicePrint.jsx
 // No structural changes needed — the component already accepts companyDetails
 // as a prop.  The only update is tightening the default fallback so it is
 // obvious when real data has not yet been injected.

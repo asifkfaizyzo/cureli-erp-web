@@ -1,3 +1,4 @@
+// landing-web/src/pages/landingPages/contact/components/ContactHero.jsx (do not remove this comment)
 import { useEffect } from "react";
 import AOS from "aos";
 import "aos/dist/aos.css";

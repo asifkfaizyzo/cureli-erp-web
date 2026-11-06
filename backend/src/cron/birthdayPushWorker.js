@@ -1,5 +1,4 @@
 // backend/src/cron/birthdayPushWorker.js (do not remove this comment)
-// backend/src/cron/birthdayPushWorker.js
 // ============================================
 // BIRTHDAY PUSH NOTIFICATION WORKER
 // Runs daily at 11:00 AM IST (05:30 UTC)

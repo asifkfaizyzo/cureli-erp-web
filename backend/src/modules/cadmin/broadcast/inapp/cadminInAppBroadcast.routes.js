@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/broadcast/inapp/cadminInAppBroadcast.routes.js (do not remove this comment)
-// backend/src/modules/cadmin/broadcast/inapp/cadminInAppBroadcast.routes.js
 
 import { Router } from 'express';
 import * as controller from './cadminInAppBroadcast.controller.js';

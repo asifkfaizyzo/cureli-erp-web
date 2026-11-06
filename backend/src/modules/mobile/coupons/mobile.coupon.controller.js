@@ -1,5 +1,4 @@
 // backend/src/modules/mobile/coupons/mobile.coupon.controller.js (do not remove this comment)
-// backend/src/modules/mobile/coupons/mobile.coupon.controller.js
 
 import { success, fail } from "../../../utils/response.js";
 import { validateCouponForCustomer } from "../../coupons/coupon.service.js";

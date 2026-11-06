@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/purchase/billing/components/PurchaseHeader.jsx (do not remove this comment)
-// src/pages/purchase/billing/components/PurchaseHeader.jsx
 import {
   Save,
   Printer,

@@ -1,4 +1,4 @@
-// src/pages/marketplace-onboarding/steps/WelcomeStep.jsx (do not remove this comment)
+// pharmacy-web/src/pages/marketplace-onboarding/steps/WelcomeStep.jsx (do not remove this comment)
 
 import {
   ArrowRight,

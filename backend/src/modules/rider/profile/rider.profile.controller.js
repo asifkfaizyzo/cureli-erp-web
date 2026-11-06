@@ -1,4 +1,4 @@
-// backend/src/modules/rider/profile/rider.profile.controller.js
+// backend/src/modules/rider/profile/rider.profile.controller.js (do not remove this comment)
 
 import { success, fail } from "../../../utils/response.js";
 import { getRiderDocuments } from "./rider.profile.service.js";

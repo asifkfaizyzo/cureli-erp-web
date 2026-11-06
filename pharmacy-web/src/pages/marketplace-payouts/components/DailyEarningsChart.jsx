@@ -1,4 +1,4 @@
-// pharmacy-web/src/pages/marketplace-payouts/components/DailyEarningsChart.jsx
+// pharmacy-web/src/pages/marketplace-payouts/components/DailyEarningsChart.jsx (do not remove this comment)
 
 import React from "react";
 import { BarChart3 } from "lucide-react";

@@ -1,5 +1,4 @@
 // pharmacy-web/src/api/setup.js (do not remove this comment)
-// src/api/setup.js
 import API from "./axios";
 
 /**

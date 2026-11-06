@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/returns/components/CreateSalesReturnModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/returns/components/CreateSalesReturnModal.jsx
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";

@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/auth/cadminAuth.service.js (do not remove this comment)
-// backend/src/modules/cadmin/auth/cadminAuth.service.js
 
 import prisma from "../../../config/prisma.js";
 import { comparePassword } from "../../../utils/hash.js";

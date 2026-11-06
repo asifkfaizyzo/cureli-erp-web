@@ -1,5 +1,4 @@
 // backend/src/config/reviewCredentials.js (do not remove this comment)
-// src/config/reviewCredentials.js
 
 /**
  * Checks dynamically at runtime so dotenv loading order never breaks reviewer mode.

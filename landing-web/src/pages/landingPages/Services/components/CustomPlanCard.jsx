@@ -1,4 +1,4 @@
-// src/pages/landingPages/Services/components/CustomPlanCard.jsx
+// landing-web/src/pages/landingPages/Services/components/CustomPlanCard.jsx (do not remove this comment)
 
 import { useNavigate } from "react-router-dom";
 import {

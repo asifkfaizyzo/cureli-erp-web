@@ -1,4 +1,4 @@
-// src/pages/landingPages/Services/components/PlanCard.jsx
+// landing-web/src/pages/landingPages/Services/components/PlanCard.jsx (do not remove this comment)
 
 import {
   Check,

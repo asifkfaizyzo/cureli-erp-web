@@ -1,5 +1,4 @@
 // cadmin-web/src/pages/Subscription-management/comps/risk/modals/ExtendGraceModal.jsx (do not remove this comment)
-// src/pages/Subscription-management/comps/risk/modals/ExtendGraceModal.jsx
 
 import { useState } from "react";
 import { X, Clock, Loader2, AlertCircle } from "lucide-react";

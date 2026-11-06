@@ -1,3 +1,4 @@
+// cadmin-web/src/pages/marketplace/Payouts/comps/AdjustmentsEditor.jsx (do not remove this comment)
 import { useState, useEffect } from "react";
 import { Plus, Trash2, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { updatePharmacyPayoutAdjustments } from "../../../../api/cadminPharmacyPayouts";

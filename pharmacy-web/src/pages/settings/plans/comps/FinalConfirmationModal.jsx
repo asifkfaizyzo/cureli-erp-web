@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/settings/plans/comps/FinalConfirmationModal.jsx (do not remove this comment)
-// pharmacy-web/src/pages/settings/plans/comps/FinalConfirmationModal.jsx
 
 import { useState } from "react";
 import { motion } from "framer-motion";

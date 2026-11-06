@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/app-config/cadmin.appConfig.routes.js (do not remove this comment)
-// src/modules/cadmin/app-config/cadmin.appConfig.routes.js
 
 import { Router } from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";

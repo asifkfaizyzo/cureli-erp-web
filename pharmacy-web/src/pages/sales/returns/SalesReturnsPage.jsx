@@ -1,5 +1,4 @@
 // pharmacy-web/src/pages/sales/returns/SalesReturnsPage.jsx (do not remove this comment)
-// pharmacy-web/src/pages/sales/returns/SalesReturnsPage.jsx
 
 import React, {
   useState,

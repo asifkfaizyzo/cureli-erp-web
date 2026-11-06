@@ -1,7 +1,6 @@
 // backend/src/services/assetUrl.service.js (do not remove this comment)
 // ============================================================
 // ASSET URL SERVICE
-// backend/services/assetUrl.service.js
 // ============================================================
 
 const CDN_DOMAIN    = process.env.CDN_DOMAIN    || null;

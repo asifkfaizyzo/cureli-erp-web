@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/broadcast/email/emailBroadcast.converter.js (do not remove this comment)
-// backend/src/modules/cadmin/broadcast/email/emailBroadcast.converter.js
 
 /**
  * Converts plain text to HTML email format

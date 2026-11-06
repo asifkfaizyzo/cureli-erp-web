@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/Navbar.jsx
+// landing-web/src/components/common/Navbar.jsx (do not remove this comment)
 
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";

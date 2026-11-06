@@ -1,5 +1,4 @@
 // backend/scripts/uploadLogosToS3.js (do not remove this comment)
-// backend/scripts/uploadLogosToS3.js
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import fs from "fs";

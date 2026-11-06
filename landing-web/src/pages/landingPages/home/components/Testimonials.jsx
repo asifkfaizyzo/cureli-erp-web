@@ -1,4 +1,4 @@
-// src/pages/landingPages/home/components/Testimonials.jsx
+// landing-web/src/pages/landingPages/home/components/Testimonials.jsx (do not remove this comment)
 
 import { useEffect, memo, useRef, useState, useCallback } from "react";
 import AOS from "aos";

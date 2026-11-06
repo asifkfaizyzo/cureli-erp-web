@@ -1,5 +1,4 @@
 // pharmacy-web/src/store/useSetupStore.js (do not remove this comment)
-// src/store/useSetupStore.js
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

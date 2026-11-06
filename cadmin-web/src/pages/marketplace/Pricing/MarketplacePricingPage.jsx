@@ -1,4 +1,4 @@
-// cadmin-web/src/pages/marketplace/Pricing/MarketplacePricingPage.jsx
+// cadmin-web/src/pages/marketplace/Pricing/MarketplacePricingPage.jsx (do not remove this comment)
 
 import { useNavigate } from "react-router-dom";
 import { Truck, Percent } from "lucide-react";

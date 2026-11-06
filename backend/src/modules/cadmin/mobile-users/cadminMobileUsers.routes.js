@@ -1,5 +1,4 @@
 // backend/src/modules/cadmin/mobile-users/cadminMobileUsers.routes.js (do not remove this comment)
-// backend/src/modules/cadmin/mobile-users/cadminMobileUsers.routes.js
 
 import express from "express";
 import { requireCAdmin } from "../../../middleware/requireCAdmin.js";

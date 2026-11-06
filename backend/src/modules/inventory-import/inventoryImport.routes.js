@@ -1,5 +1,4 @@
 // backend/src/modules/inventory-import/inventoryImport.routes.js (do not remove this comment)
-// src/modules/inventory-import/inventoryImport.routes.js
 
 import { Router }            from "express";
 import { requireAuth }       from "../../middleware/auth.js";
