@@ -12,6 +12,41 @@ import {
 } from "lucide-react";
 import { changePassword } from "../../../api/cadminProfile";
 
+/* ──────────────────────────────────────────────
+   ✅ Moved OUTSIDE so React keeps the same
+   component reference across re-renders.
+   ────────────────────────────────────────────── */
+const PasswordInput = ({ label, field, showKey, value, isShown, onChange, onToggleShow }) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-semibold text-gray-600 block">
+      {label}
+    </label>
+    <div className="relative">
+      <Lock
+        size={15}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+      />
+      <input
+        type={isShown ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(field, e.target.value)}
+        placeholder={`Enter ${label.toLowerCase()}`}
+        className="w-full pl-9 pr-10 h-10 border border-gray-200 rounded-xl text-sm
+                   outline-none focus:ring-2 focus:ring-indigo-500/20
+                   focus:border-indigo-500 transition-all"
+      />
+      <button
+        type="button"
+        onClick={() => onToggleShow(showKey)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
+                   hover:text-gray-600 transition-colors"
+      >
+        {isShown ? <EyeOff size={15} /> : <Eye size={15} />}
+      </button>
+    </div>
+  </div>
+);
+
 const ChangePasswordModal = ({ onClose }) => {
   const [form, setForm] = useState({
     currentPassword: "",
@@ -29,6 +64,10 @@ const ChangePasswordModal = ({ onClose }) => {
   const handleChange = (field, value) => {
     setForm((p) => ({ ...p, [field]: value }));
     setError("");
+  };
+
+  const toggleShow = (key) => {
+    setShow((p) => ({ ...p, [key]: !p[key] }));
   };
 
   const checks = [
@@ -84,37 +123,6 @@ const ChangePasswordModal = ({ onClose }) => {
     }
   };
 
-  const PasswordInput = ({ label, field, showKey }) => (
-    <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-gray-600 block">
-        {label}
-      </label>
-      <div className="relative">
-        <Lock
-          size={15}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-        />
-        <input
-          type={show[showKey] ? "text" : "password"}
-          value={form[field]}
-          onChange={(e) => handleChange(field, e.target.value)}
-          placeholder={`Enter ${label.toLowerCase()}`}
-          className="w-full pl-9 pr-10 h-10 border border-gray-200 rounded-xl text-sm
-                     outline-none focus:ring-2 focus:ring-indigo-500/20
-                     focus:border-indigo-500 transition-all"
-        />
-        <button
-          type="button"
-          onClick={() => setShow((p) => ({ ...p, [showKey]: !p[showKey] }))}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
-                     hover:text-gray-600 transition-colors"
-        >
-          {show[showKey] ? <EyeOff size={15} /> : <Eye size={15} />}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
@@ -149,16 +157,28 @@ const ChangePasswordModal = ({ onClose }) => {
             label="Current Password"
             field="currentPassword"
             showKey="current"
+            value={form.currentPassword}
+            isShown={show.current}
+            onChange={handleChange}
+            onToggleShow={toggleShow}
           />
           <PasswordInput
             label="New Password"
             field="newPassword"
             showKey="new"
+            value={form.newPassword}
+            isShown={show.new}
+            onChange={handleChange}
+            onToggleShow={toggleShow}
           />
           <PasswordInput
             label="Confirm New Password"
             field="confirmPassword"
             showKey="confirm"
+            value={form.confirmPassword}
+            isShown={show.confirm}
+            onChange={handleChange}
+            onToggleShow={toggleShow}
           />
 
           {/* Strength checks */}
