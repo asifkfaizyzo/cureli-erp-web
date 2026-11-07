@@ -48,11 +48,10 @@ export function rejectReviewMatch(medicineId) {
   return CAdminAPI.post(`/master-medicines/review/${medicineId}/reject`);
 }
 
-//  RENAMED + updated to send variantId
 export function matchToVariant(medicineIds, variantId) {
   return CAdminAPI.post("/master-medicines/match", {
     medicineIds,
-    variantId, //  was masterMedicineId
+    variantId,
   });
 }
 
@@ -64,9 +63,6 @@ export function getDistinctShops(params = {}) {
   return CAdminAPI.get("/master-medicines/shops", { params });
 }
 
-
-
-// Keep old name as alias during transition so nothing breaks immediately
 export const matchToMaster = matchToVariant;
 
 export function ignoreUnmapped(medicineIds) {
@@ -81,7 +77,6 @@ export function getLinkedMedicines(masterMedicineId) {
   return CAdminAPI.get(`/master-medicines/${masterMedicineId}/linked`);
 }
 
-//  NEW: get linked medicines by specific variant
 export function getLinkedByVariant(variantId) {
   return CAdminAPI.get(`/master-medicines/variants/${variantId}/linked`);
 }
@@ -89,9 +84,11 @@ export function getLinkedByVariant(variantId) {
 export function unlinkMedicine(medicineId) {
   return CAdminAPI.post(`/master-medicines/unlink/${medicineId}`);
 }
+
 export function createMasterMedicine(data) {
   return CAdminAPI.post("/master-medicines", data);
 }
+
 // ══════════════════════════════════════════════════════════════
 // IMAGE APIs
 // ══════════════════════════════════════════════════════════════
@@ -128,7 +125,6 @@ export function getImageUrl(relativePath) {
   if (!relativePath) return null;
   if (relativePath.startsWith("http")) return relativePath;
   const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-  // Remove leading slash if present to avoid double slash
   const cleanPath = relativePath.startsWith("/")
     ? relativePath.slice(1)
     : relativePath;
@@ -136,7 +132,7 @@ export function getImageUrl(relativePath) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// IMAGE STATUS HELPERS (moved from mock data)
+// IMAGE STATUS HELPERS
 // ══════════════════════════════════════════════════════════════
 
 export const IMAGE_STATUS = {
@@ -211,7 +207,9 @@ export function getConfidenceColorClasses(score) {
   };
 }
 
-
+// ══════════════════════════════════════════════════════════════
+// HISTORY & UNIGNORE
+// ══════════════════════════════════════════════════════════════
 
 export function getMappingHistory(params = {}) {
   return CAdminAPI.get("/master-medicines/history", { params });
@@ -222,8 +220,8 @@ export function unignoreMedicine(medicineId) {
 }
 
 export const createVariantUnderMaster = (masterId, variantData) =>
-  cadminApi.post(`/master-medicines/${masterId}/variants`, variantData);
-
+  CAdminAPI.post(`/master-medicines/${masterId}/variants`, variantData);
+//  ^^^^^^^^ FIXED: was "cadminApi" (lowercase) — would throw ReferenceError
 
 // ══════════════════════════════════════════════════════════════
 // ADMIN ACTIVITY APIs
@@ -235,4 +233,49 @@ export function getAdminActivitySummary(params = {}) {
 
 export function getAdminActivityDetail(params = {}) {
   return CAdminAPI.get("/master-medicines/admin-activity/detail", { params });
+}
+
+// ── CSV Download Helpers ─────────────────────────────────────
+
+async function triggerDownload(response, fallbackName) {
+  const disposition = response.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^";\n]+)"?/);
+  const filename = match?.[1] || fallbackName;
+
+  const blob = new Blob([response.data], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function downloadAdminActivityCSV(params = {}) {
+  const res = await CAdminAPI.get("/master-medicines/admin-activity/export", {
+    params,
+    responseType: "blob",
+  });
+  await triggerDownload(res, `admin-activity-${params.dateFrom || "all"}.csv`);
+}
+
+export async function downloadAdminActivityDetailCSV(params = {}) {
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(
+      ([, v]) => v !== null && v !== undefined && v !== "",
+    ),
+  );
+  const res = await CAdminAPI.get(
+    "/master-medicines/admin-activity/export-detail",
+    {
+      params: cleanParams,
+      responseType: "blob",
+    },
+  );
+  await triggerDownload(
+    res,
+    `activity-${params.actorType || "user"}-${params.dateFrom || "all"}.csv`,
+  );
 }

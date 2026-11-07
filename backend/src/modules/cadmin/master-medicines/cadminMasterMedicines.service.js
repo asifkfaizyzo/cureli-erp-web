@@ -12,7 +12,10 @@ import {
   resolveAssetUrls,
 } from "../../../services/assetUrl.service.js";
 import { checkSingleMedicine } from "../../medicines/linking.service.js";
-import { propagateLinkToOtherShops } from "../../medicines/linkPropagation.service.js"; 
+import {
+  propagateLinkToOtherShops,
+  propagateUnlinkToOtherShops,
+} from "../../medicines/linkPropagation.service.js";
 
 // ══════════════════════════════════════════════════════════════
 // HELPER: Compute Image Status
@@ -1429,9 +1432,13 @@ export async function matchUnmappedToVariant(
   });
 
   if (!variant) throw new Error("Variant not found");
+  if (!medicineIds || medicineIds.length === 0) throw new Error("No medicine IDs");
 
-  const result = await prisma.medicine.updateMany({
-    where: { medicine_id: { in: medicineIds } },
+  // ── Link ONLY the first medicine as CADMIN ────────────────────
+  const sourceId = medicineIds[0];
+
+  await prisma.medicine.update({
+    where: { medicine_id: sourceId },
     data: {
       master_medicine_id: variant.master_medicine_id,
       linked_variant_id: variant.variant_id,
@@ -1455,7 +1462,7 @@ export async function matchUnmappedToVariant(
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
       medicine_ids: medicineIds,
-      count: result.count,
+      count: medicineIds.length,
       variant_id: variant.variant_id,
       variant_name: variant.name,
       variant_sku: variant.sku_id,
@@ -1466,19 +1473,18 @@ export async function matchUnmappedToVariant(
     },
   });
 
-  const affectedMedicines = await prisma.medicine.findMany({
-    where: { medicine_id: { in: medicineIds } },
+  const sourceMedicine = await prisma.medicine.findUnique({
+    where: { medicine_id: sourceId },
     select: { medicine_id: true, name: true, manufacturer: true, shop_id: true },
   });
 
-  // ── 👇 PROPAGATE FROM FIRST AFFECTED MEDICINE TO OTHER SHOPS 👇 ──
-  if (affectedMedicines.length > 0) {
-    const source = affectedMedicines[0];
+  // ── 👇 PROPAGATE TO ALL OTHER SHOPS (marks as PROPAGATED = "System") 👇 ──
+  if (sourceMedicine) {
     setImmediate(() => {
       propagateLinkToOtherShops({
-        sourceMedicineId: source.medicine_id,
-        name: source.name,
-        manufacturer: source.manufacturer,
+        sourceMedicineId: sourceMedicine.medicine_id,
+        name: sourceMedicine.name,
+        manufacturer: sourceMedicine.manufacturer,
         masterMedicineId: variant.master_medicine_id,
         variantId: variant.variant_id,
         variantSku: variant.sku_id,
@@ -1487,39 +1493,28 @@ export async function matchUnmappedToVariant(
         variantName: variant.name,
         masterName: variant.master.generic_name,
       }).catch((err) =>
-        console.error("[Propagation] matchUnmappedToVariant failed:", err.message),
+        console.error("[Propagation] matchUnmappedToVariant:", err.message),
       );
     });
   }
   // ── 👆 END PROPAGATION 👆 ──
 
-  const shopGroups = new Map();
-  for (const med of affectedMedicines) {
-    if (!med.shop_id) continue;
-    if (!shopGroups.has(med.shop_id)) {
-      shopGroups.set(med.shop_id, { names: [], count: 0 });
-    }
-    const group = shopGroups.get(med.shop_id);
-    group.names.push(med.name);
-    group.count++;
-  }
-
-  for (const [shopId, group] of shopGroups) {
+  if (sourceMedicine?.shop_id) {
     notifyAsync({
       type: NOTIFICATION_EVENTS.MEDICINE_LINKED,
       context: {
-        shop_id: shopId,
-        medicine_name: group.names[0],
+        shop_id: sourceMedicine.shop_id,
+        medicine_name: sourceMedicine.name,
         variant_name: variant.name,
         master_name: variant.master.generic_name,
-        linked_count: group.count,
+        linked_count: medicineIds.length,
       },
     });
   }
 
   return {
     success: true,
-    linkedCount: result.count,
+    linkedCount: medicineIds.length,
     linkedTo: {
       variant_id: variant.variant_id,
       variant_name: variant.name,
@@ -1530,6 +1525,8 @@ export async function matchUnmappedToVariant(
     },
   };
 }
+
+
 
 export async function matchUnmappedToMaster(
   medicineIds,
@@ -1596,8 +1593,16 @@ export async function ignoreUnmappedMedicines(medicineIds, cadminId = null, audi
 // ══════════════════════════════════════════════════════════════
 
 export async function unlinkShopMedicine(medicineId, auditContext = {}) {
-  const now = new Date();
   const effectiveCadminId = auditContext?.actor_id || null;
+
+  // Fetch BEFORE unlinking so we have name/manufacturer/variant for propagation
+  const medicine = await prisma.medicine.findUnique({
+    where: { medicine_id: medicineId },
+  });
+
+  if (!medicine) throw new Error("Medicine not found");
+
+  const previousVariantId = medicine.linked_variant_id;
 
   const updated = await prisma.medicine.update({
     where: { medicine_id: medicineId },
@@ -1605,12 +1610,15 @@ export async function unlinkShopMedicine(medicineId, auditContext = {}) {
       master_medicine_id: null,
       linked_variant_id: null,
       linked_variant_sku: null,
-      link_status: "UNLINKED",
-      link_rejected: true,
+      link_status: "PENDING",            // ✅ Returns to Unmapped queue
+      link_rejected: false,              // ✅ Not ignored
       link_confidence_score: null,
-      linked_at: now,
-      linked_by_id: effectiveCadminId,
-      linked_by_type: "CADMIN",
+      linked_at: null,                   // ✅ Clear stale timestamp
+      linked_by_id: null,                // ✅ Clear stale actor
+      linked_by_type: null,              // ✅ Clear stale actor type
+      suggested_master_id: null,         // ✅ Clear stale suggestions
+      suggested_variant_id: null,
+      suggestion_reason: null,
     },
   });
 
@@ -1623,12 +1631,31 @@ export async function unlinkShopMedicine(medicineId, auditContext = {}) {
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
       medicine_id: medicineId,
+      medicine_name: medicine.name,
+      manufacturer: medicine.manufacturer,
+      previous_variant_id: previousVariantId,
     },
   });
 
+  // ── 👇 PROPAGATE UNLINK TO OTHER SHOPS (fire-and-forget) 👇 ──
+  if (previousVariantId) {
+    setImmediate(() => {
+      propagateUnlinkToOtherShops({
+        sourceMedicineId: medicineId,
+        name: medicine.name,
+        manufacturer: medicine.manufacturer,
+        previousVariantId,
+        actorId: effectiveCadminId,
+        actorType: "cadmin",
+      }).catch((err) =>
+        console.error("[UnlinkPropagation] failed:", err.message),
+      );
+    });
+  }
+  // ── 👆 END UNLINK PROPAGATION 👆 ──
+
   return { success: true, medicine: updated };
 }
-
 // ══════════════════════════════════════════════════════════════
 // UPLOAD MASTER IMAGE
 // ══════════════════════════════════════════════════════════════
@@ -2403,97 +2430,38 @@ export async function unignoreShopMedicine(medicineId, auditContext = {}) {
 
   if (!medicine) throw new Error("Medicine not found");
 
-  const result = await prisma.$transaction(async (tx) => {
-    // 1. Reset ignoration / unlinked flags
-    const updated = await tx.medicine.update({
-      where: { medicine_id: medicineId },
-      data: {
-        link_rejected: false,
-        link_status: "PENDING",
-        suggested_master_id: null,
-        suggested_variant_id: null,
-        suggestion_reason: null,
-        link_confidence_score: null,
-      },
-    });
-
-    // 2. Re-run auto-matcher
-    try {
-      const matchResult = await checkSingleMedicine({
-        name: updated.name,
-        manufacturer: updated.manufacturer,
-        generic_name: updated.generic_name,
-      });
-
-      if (matchResult.status === "AUTO_LINKED") {
-        await tx.medicine.update({
-          where: { medicine_id: medicineId },
-          data: {
-            master_medicine_id: matchResult.master_medicine_id,
-            linked_variant_id: matchResult.matched_variant?.variant_id ?? null,
-            linked_variant_sku: matchResult.matched_variant?.sku_id ?? null,
-            link_status: "AUTO_LINKED",
-            link_confidence_score: matchResult.confidence,
-            linked_at: new Date(),
-            linked_by_type: "SYSTEM",
-            suggestion_reason: matchResult.reason,
-          },
-        });
-      } else if (matchResult.status === "PENDING") {
-        await tx.medicine.update({
-          where: { medicine_id: medicineId },
-          data: {
-            link_status: "SUGGESTED",
-            link_confidence_score: matchResult.confidence,
-            suggested_master_id: matchResult.suggested_master_id,
-            suggestion_reason: matchResult.reason,
-          },
-        });
-      }
-    } catch (matchError) {
-      console.warn(`Auto-match failed for unignored medicine ${medicineId}:`, matchError.message);
-    }
-
-    // 3. Log Audit Trail
-    await audit.log(
-      {
-        action: audit.AuditAction.MEDICINE_UNIGNORED,
-        entity_type: audit.EntityType.MEDICINE,
-        entity_id: medicineId,
-        ...auditContext,
-        reason_code: audit.AuditReasonCode.ADMIN_ACTION,
-        metadata: {
-          medicine_id: medicineId,
-          medicine_name: medicine.name,
-          manufacturer: medicine.manufacturer,
-        },
-      },
-      { tx },
-    );
-
-    return updated;
+  const updated = await prisma.medicine.update({
+    where: { medicine_id: medicineId },
+    data: {
+      link_rejected: false,
+      link_status: "PENDING",
+      master_medicine_id: null,
+      linked_variant_id: null,
+      linked_variant_sku: null,
+      suggested_master_id: null,
+      suggested_variant_id: null,
+      suggestion_reason: null,
+      link_confidence_score: null,
+      linked_at: null,
+      linked_by_id: null,
+      linked_by_type: null,
+    },
   });
 
-  // ── 👇 PROPAGATE AFTER TRANSACTION COMMITS (only if AUTO_LINKED) 👇 ──
-  if (result.link_status === "AUTO_LINKED") {
-    setImmediate(() => {
-      propagateLinkToOtherShops({
-        sourceMedicineId: medicineId,
-        name: medicine.name,
-        manufacturer: medicine.manufacturer,
-        masterMedicineId: result.master_medicine_id,
-        variantId: result.linked_variant_id,
-        variantSku: result.linked_variant_sku,
-        actorId: auditContext?.actor_id || null,
-        actorType: "cadmin",
-        variantName: null,
-        masterName: null,
-      }).catch(() => {});
-    });
-  }
-  // ── 👆 END PROPAGATION 👆 ──
+  await audit.log({
+    action: audit.AuditAction.MEDICINE_UNIGNORED,
+    entity_type: audit.EntityType.MEDICINE,
+    entity_id: medicineId,
+    ...auditContext,
+    reason_code: audit.AuditReasonCode.ADMIN_ACTION,
+    metadata: {
+      medicine_id: medicineId,
+      medicine_name: medicine.name,
+      manufacturer: medicine.manufacturer,
+    },
+  });
 
-  return result;
+  return updated;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2510,6 +2478,8 @@ const MEDICINE_ACTIVITY_ACTIONS = [
   "MASTER_MEDICINE_CREATED",
   "MASTER_MEDICINE_IMAGE_UPLOADED",
   "MASTER_MEDICINE_IMAGE_DELETED",
+  "MEDICINE_LINK_PROPAGATED",
+  "MEDICINE_UNLINK_PROPAGATED",
 ];
 
 /**
@@ -2521,43 +2491,59 @@ const MEDICINE_ACTIVITY_ACTIONS = [
  * @param {string} [params.dateTo]   - YYYY-MM-DD
  */
 export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {}) {
-  const where = {
-    action: { in: MEDICINE_ACTIVITY_ACTIONS },
-  };
-
-  if (dateFrom || dateTo) {
-    where.created_at = {};
-    if (dateFrom && String(dateFrom).trim() !== "") {
-      const parsed = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
-      if (!isNaN(parsed.getTime())) where.created_at.gte = parsed;
-    }
-    if (dateTo && String(dateTo).trim() !== "") {
-      const parsed = new Date(String(dateTo).trim() + "T23:59:59.999Z");
-      if (!isNaN(parsed.getTime())) where.created_at.lte = parsed;
-    }
-    if (Object.keys(where.created_at).length === 0) delete where.created_at;
+  const dateWhere = {};
+  if (dateFrom && String(dateFrom).trim() !== "") {
+    const parsed = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
+    if (!isNaN(parsed.getTime())) dateWhere.gte = parsed;
   }
+  if (dateTo && String(dateTo).trim() !== "") {
+    const parsed = new Date(String(dateTo).trim() + "T23:59:59.999Z");
+    if (!isNaN(parsed.getTime())) dateWhere.lte = parsed;
+  }
+  const hasDateFilter = Object.keys(dateWhere).length > 0;
 
-  // Group by actor + action
+  // ── Step 1: Group non-propagation actions (count = log entries) ──
+  const coreActions = MEDICINE_ACTIVITY_ACTIONS.filter(
+    (a) => a !== "MEDICINE_LINK_PROPAGATED" && a !== "MEDICINE_UNLINK_PROPAGATED",
+  );
+
+  const coreWhere = { action: { in: coreActions } };
+  if (hasDateFilter) coreWhere.created_at = dateWhere;
+
   const grouped = await prisma.auditLog.groupBy({
     by: ["actor_id", "actor_type", "action"],
-    where,
+    where: coreWhere,
     _count: { _all: true },
   });
 
-  // Collect cadmin IDs for name lookup
+  // ── Step 2: Fetch propagation logs separately (need metadata counts) ──
+  const propWhere = {
+    action: { in: ["MEDICINE_LINK_PROPAGATED", "MEDICINE_UNLINK_PROPAGATED"] },
+  };
+  if (hasDateFilter) propWhere.created_at = dateWhere;
+
+  const propagationLogs = await prisma.auditLog.findMany({
+    where: propWhere,
+    select: {
+      actor_id: true,
+      actor_type: true,
+      action: true,
+      metadata: true,
+    },
+  });
+
+  // ── Step 3: Collect cadmin IDs for name lookup ──────────────
   const cadminIds = new Set();
   for (const row of grouped) {
-    if (row.actor_type === "cadmin" && row.actor_id) {
-      cadminIds.add(row.actor_id);
-    }
+    if (row.actor_type === "cadmin" && row.actor_id) cadminIds.add(row.actor_id);
+  }
+  for (const log of propagationLogs) {
+    if (log.actor_type === "cadmin" && log.actor_id) cadminIds.add(log.actor_id);
   }
 
   const isValidUUID = (val) =>
     typeof val === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      val.trim(),
-    );
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val.trim());
 
   const validCadminIds = Array.from(cadminIds).filter(isValidUUID);
 
@@ -2577,8 +2563,7 @@ export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {
 
   const cadminMap = new Map(cadmins.map((c) => [c.cadmin_id, c]));
 
-  // ── Build per-actor pivot ───────────────────────────────────────
-  // Key = `${actor_type}:${actor_id || 'SYSTEM'}`
+  // ── Step 4: Build per-actor pivot ──────────────────────────
   const pivot = new Map();
 
   const getBucket = (action) => {
@@ -2604,11 +2589,11 @@ export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {
     }
   };
 
-  for (const row of grouped) {
+  const ensureActor = (actorType, actorId) => {
     const key =
-      row.actor_type === "system"
+      actorType === "system"
         ? "system:SYSTEM"
-        : `${row.actor_type}:${row.actor_id || "UNKNOWN"}`;
+        : `${actorType}:${actorId || "UNKNOWN"}`;
 
     if (!pivot.has(key)) {
       let actorName = "Unknown";
@@ -2616,11 +2601,11 @@ export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {
       let actorRole = null;
       let isActive = true;
 
-      if (row.actor_type === "system") {
+      if (actorType === "system") {
         actorName = "System";
         actorRole = "SYSTEM";
-      } else if (row.actor_type === "cadmin") {
-        const c = cadminMap.get(row.actor_id);
+      } else if (actorType === "cadmin") {
+        const c = cadminMap.get(actorId);
         if (c) {
           actorName = c.name || c.username || c.email || "CAdmin";
           actorEmail = c.email || null;
@@ -2631,30 +2616,36 @@ export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {
           actorRole = "UNKNOWN";
           isActive = false;
         }
-      } else if (row.actor_type === "erp_user") {
+      } else if (actorType === "erp_user") {
         actorName = "Shop User";
         actorRole = "ERP_USER";
       }
 
       pivot.set(key, {
-        actorId: row.actor_id || null,
-        actorType: row.actor_type,
+        actorId: actorId || null,
+        actorType,
         actorName,
         actorEmail,
         actorRole,
         isActive,
         linked: 0,
+        linkedPropagated: 0,
         rejected: 0,
         ignored: 0,
         unlinked: 0,
+        unlinkedPropagated: 0,
         unignored: 0,
         created: 0,
         images: 0,
         totalActions: 0,
       });
     }
+    return pivot.get(key);
+  };
 
-    const entry = pivot.get(key);
+  // Process core (non-propagation) actions
+  for (const row of grouped) {
+    const entry = ensureActor(row.actor_type, row.actor_id);
     const bucket = getBucket(row.action);
     const count = row._count?._all || 0;
 
@@ -2662,6 +2653,21 @@ export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {
       entry[bucket] += count;
     }
     entry.totalActions += count;
+  }
+
+  // Process propagation actions (sum actual shop counts from metadata)
+  for (const log of propagationLogs) {
+    const entry = ensureActor(log.actor_type, log.actor_id);
+
+    if (log.action === "MEDICINE_LINK_PROPAGATED") {
+      const count = log.metadata?.propagated_count || 1;
+      entry.linkedPropagated += count;
+      entry.totalActions += count;
+    } else if (log.action === "MEDICINE_UNLINK_PROPAGATED") {
+      const count = log.metadata?.unlinked_count || 1;
+      entry.unlinkedPropagated += count;
+      entry.totalActions += count;
+    }
   }
 
   // Sort by total actions DESC
@@ -2837,5 +2843,276 @@ export async function getAdminActivityDetail({
       hasNext: pageNum < Math.ceil(total / limitNum),
       hasPrev: pageNum > 1,
     },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY — CSV EXPORT
+// ══════════════════════════════════════════════════════════════
+
+export async function exportAdminActivityCSV({ dateFrom = "", dateTo = "" } = {}) {
+  const { summary, meta } = await getAdminActivitySummary({ dateFrom, dateTo });
+
+  const headers = [
+    "Admin Name",
+    "Email",
+    "Role",
+    "Status",
+    "Linked (Manual)",
+    "Linked (Propagated)",
+    "Total Linked",
+    "Rejected",
+    "Ignored",
+    "Unlinked (Manual)",
+    "Unlinked (Propagated)",
+    "Total Unlinked",
+    "Unignored",
+    "Created",
+    "Images",
+    "Total Actions",
+  ];
+
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = summary.map((s) => [
+    escapeCSV(s.actorName),
+    escapeCSV(s.actorEmail),
+    escapeCSV(s.actorRole),
+    s.isActive ? "Active" : "Inactive",
+    s.linked,
+    s.linkedPropagated,
+    s.linked + s.linkedPropagated,
+    s.rejected,
+    s.ignored,
+    s.unlinked,
+    s.unlinkedPropagated,
+    s.unlinked + s.unlinkedPropagated,
+    s.unignored,
+    s.created,
+    s.images,
+    s.totalActions,
+  ]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((r) => r.join(",")),
+    "",
+    `Report Period,${escapeCSV(meta.dateFrom || "All time")} to ${escapeCSV(meta.dateTo || "Now")}`,
+    `Generated,${new Date().toISOString()}`,
+    `Total Admins,${meta.totalAdmins}`,
+  ].join("\n");
+
+  return csvContent;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY — PER-USER DETAIL CSV EXPORT
+// ══════════════════════════════════════════════════════════════
+
+export async function exportAdminActivityDetailCSV({
+  actorId = null,
+  actorType = "cadmin",
+  dateFrom = "",
+  dateTo = "",
+} = {}) {
+  if (actorType !== "system" && !actorId) {
+    throw new Error("actorId is required for non-system actors");
+  }
+
+  // ── Resolve actor name ─────────────────────────────────────
+  let actorName = "System";
+  if (actorType === "cadmin" && actorId) {
+    const admin = await prisma.cAdmin.findUnique({
+      where: { cadmin_id: actorId },
+      select: { name: true, username: true, email: true },
+    });
+    actorName = admin?.name || admin?.username || admin?.email || "Unknown CAdmin";
+  }
+
+  // ── Build where clause ─────────────────────────────────────
+  const where = {
+    action: { in: MEDICINE_ACTIVITY_ACTIONS },
+    actor_type: actorType,
+  };
+
+  if (actorType === "system") {
+    where.actor_id = null;
+  } else {
+    where.actor_id = actorId;
+  }
+
+  if (dateFrom || dateTo) {
+    where.created_at = {};
+    if (dateFrom && String(dateFrom).trim() !== "") {
+      const parsed = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
+      if (!isNaN(parsed.getTime())) where.created_at.gte = parsed;
+    }
+    if (dateTo && String(dateTo).trim() !== "") {
+      const parsed = new Date(String(dateTo).trim() + "T23:59:59.999Z");
+      if (!isNaN(parsed.getTime())) where.created_at.lte = parsed;
+    }
+    if (Object.keys(where.created_at).length === 0) delete where.created_at;
+  }
+
+  // ── Fetch all logs (no pagination for CSV) ─────────────────
+  const logs = await prisma.auditLog.findMany({
+    where,
+    select: {
+      audit_id: true,
+      action: true,
+      entity_type: true,
+      entity_id: true,
+      metadata: true,
+      shop_id: true,
+      created_at: true,
+    },
+    orderBy: { created_at: "desc" },
+  });
+
+  // ── Resolve shop names ─────────────────────────────────────
+  const shopIds = new Set();
+  for (const log of logs) {
+    if (log.shop_id) shopIds.add(log.shop_id);
+    if (log.metadata?.shop_id) shopIds.add(log.metadata.shop_id);
+  }
+
+  const shops = shopIds.size
+    ? await prisma.shop.findMany({
+        where: { shop_id: { in: Array.from(shopIds) } },
+        select: { shop_id: true, business_name: true },
+      })
+    : [];
+  const shopMap = new Map(shops.map((s) => [s.shop_id, s.business_name]));
+
+  // ── Action label map ───────────────────────────────────────
+  const actionLabelMap = {
+    MEDICINE_MATCHED_TO_VARIANT: "Linked (Manual Match)",
+    MEDICINE_MATCH_ACCEPTED: "Linked (Accepted Suggestion)",
+    MEDICINE_MATCH_REJECTED: "Rejected Suggestion",
+    UNMAPPED_MEDICINES_IGNORED: "Ignored",
+    MEDICINE_UNLINKED: "Unlinked",
+    MEDICINE_UNIGNORED: "Unignored",
+    MASTER_MEDICINE_CREATED: "Created Master Medicine",
+    MASTER_MEDICINE_IMAGE_UPLOADED: "Uploaded Image",
+    MASTER_MEDICINE_IMAGE_DELETED: "Deleted Image",
+    MEDICINE_LINK_PROPAGATED: "Link Propagated (Auto)",
+    MEDICINE_UNLINK_PROPAGATED: "Unlink Propagated (Auto)",
+  };
+
+  // ── Build CSV ──────────────────────────────────────────────
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headers = [
+    "Date",
+    "Time",
+    "Action",
+    "Medicine Name",
+    "Variant",
+    "Master Medicine",
+    "Shop",
+    "Count",
+    "Entity ID",
+    "Notes",
+  ];
+
+  const rows = logs.map((log) => {
+    const meta = log.metadata || {};
+    const dt = new Date(log.created_at);
+    const dateStr = dt.toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+    const timeStr = dt.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const medicineName =
+      meta.medicine_name ||
+      meta.generic_name ||
+      (Array.isArray(meta.medicine_ids) && meta.medicine_ids.length > 1
+        ? `${meta.medicine_ids.length} medicines`
+        : "");
+
+    const variantName = meta.variant_name || "";
+    const masterName = meta.master_generic_name || meta.generic_name || "";
+    const shopId = log.shop_id || meta.shop_id || null;
+    const shopName = shopId ? shopMap.get(shopId) || "" : "";
+    const bulkCount =
+      meta.propagated_count ||
+      meta.unlinked_count ||
+      meta.count ||
+      meta.ignored_count ||
+      "";
+
+    // Build a human-readable note
+    let notes = "";
+    if (log.action === "MEDICINE_LINK_PROPAGATED") {
+      notes = `Auto-linked to ${bulkCount} shops`;
+    } else if (log.action === "MEDICINE_UNLINK_PROPAGATED") {
+      notes = `Auto-unlinked from ${bulkCount} shops`;
+    } else if (meta.confidence_score) {
+      notes = `Confidence: ${meta.confidence_score}%`;
+    } else if (meta.previous_variant_id) {
+      notes = `Was linked to variant ${meta.previous_variant_id}`;
+    }
+
+    return [
+      escapeCSV(dateStr),
+      escapeCSV(timeStr),
+      escapeCSV(actionLabelMap[log.action] || log.action),
+      escapeCSV(medicineName),
+      escapeCSV(variantName),
+      escapeCSV(masterName),
+      escapeCSV(shopName),
+      bulkCount,
+      escapeCSV(log.entity_id || ""),
+      escapeCSV(notes),
+    ];
+  });
+
+  // ── Summary footer ─────────────────────────────────────────
+  const actionCounts = {};
+  for (const log of logs) {
+    const label = actionLabelMap[log.action] || log.action;
+    actionCounts[label] = (actionCounts[label] || 0) + 1;
+  }
+
+  const summaryLines = Object.entries(actionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([action, count]) => `${escapeCSV(action)},${count}`);
+
+  const csvContent = [
+    `Admin,${escapeCSV(actorName)}`,
+    `Period,${escapeCSV(dateFrom || "All time")} to ${escapeCSV(dateTo || "Now")}`,
+    `Total Actions,${logs.length}`,
+    "",
+    "--- Action Summary ---",
+    "Action,Count",
+    ...summaryLines,
+    "",
+    "--- Detailed Log ---",
+    headers.join(","),
+    ...rows.map((r) => r.join(",")),
+  ].join("\n");
+
+  return {
+    csv: csvContent,
+    filename: `activity-${actorName.replace(/[^a-zA-Z0-9]/g, "_")}-${dateFrom || "all"}-to-${dateTo || "now"}.csv`,
   };
 }
