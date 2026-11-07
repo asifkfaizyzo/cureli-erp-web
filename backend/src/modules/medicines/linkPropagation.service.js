@@ -217,3 +217,149 @@ export async function propagateLinkToOtherShops({
     console.error("[LinkPropagation] Failed:", error.message);
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// CROSS-SHOP UNLINK PROPAGATION
+// ══════════════════════════════════════════════════════════════
+//
+// Mirror of propagateLinkToOtherShops — when a medicine is unlinked
+// in one shop, cascade the unlink to all PROPAGATED copies (same
+// name + manufacturer + variant) in other shops.
+//
+// Only touches linked_by_type === "PROPAGATED" rows so that
+// manually-reviewed links in other shops are preserved.
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * @param {Object} params
+ * @param {string} params.sourceMedicineId - The medicine that was just unlinked
+ * @param {string} params.name - Medicine name
+ * @param {string} params.manufacturer - Manufacturer name
+ * @param {string} params.previousVariantId - The variant it was unlinked from
+ * @param {string|null} params.actorId - Who triggered the unlink
+ * @param {string} params.actorType - 'cadmin' | 'system' | 'erp_user'
+ */
+export async function propagateUnlinkToOtherShops({
+  sourceMedicineId,
+  name,
+  manufacturer,
+  previousVariantId,
+  actorId,
+  actorType,
+}) {
+  if (!name || !manufacturer || !previousVariantId) return;
+
+  try {
+    // ── Step 1: Find all PROPAGATED copies linked to the same variant ──
+    const targets = await prisma.medicine.findMany({
+      where: {
+        name: { equals: name.trim(), mode: "insensitive" },
+        manufacturer: { equals: manufacturer.trim(), mode: "insensitive" },
+        medicine_id: { not: sourceMedicineId },
+        linked_variant_id: previousVariantId,
+        link_status: { in: ["AUTO_LINKED", "MANUAL_LINKED"] },
+        linked_by_type: "PROPAGATED",
+        is_active: true,
+      },
+      select: {
+        medicine_id: true,
+        shop_id: true,
+        branch_id: true,
+        name: true,
+      },
+    });
+
+    if (targets.length === 0) return;
+
+    const targetIds = targets.map((t) => t.medicine_id);
+
+    // ── Step 2: Bulk unlink all propagated copies ─────────────────
+    await prisma.medicine.updateMany({
+      where: { medicine_id: { in: targetIds } },
+      data: {
+        master_medicine_id: null,
+        linked_variant_id: null,
+        linked_variant_sku: null,
+        link_status: "PENDING",
+        link_rejected: false,
+        link_confidence_score: null,
+        linked_at: null,
+        linked_by_id: null,
+        linked_by_type: null,
+        suggested_master_id: null,
+        suggested_variant_id: null,
+        suggestion_reason: null,
+      },
+    });
+
+    // ── Step 3: Remove marketplace listings (best-effort) ─────────
+    // TODO: If you have a removeListingForMedicine() in listings.service.js,
+    //       import it and call it here for each target with a branch_id.
+    // for (const target of targets) {
+    //   if (!target.branch_id) continue;
+    //   try { await removeListingForMedicine(target.medicine_id, target.branch_id); }
+    //   catch { /* non-critical */ }
+    // }
+
+    // ── Step 4: Audit log (single batch entry) ────────────────────
+    try {
+      await audit.log({
+        action:
+          audit.AuditAction?.MEDICINE_LINK_PROPAGATED ||
+          "MEDICINE_LINK_PROPAGATED",
+        entity_type: audit.EntityType?.MEDICINE || "MEDICINE",
+        entity_id: sourceMedicineId,
+        actor_type: actorType || "system",
+        actor_id: actorId,
+        reason_code:
+          audit.ReasonCode?.SYSTEM_PROPAGATION || "SYSTEM_PROPAGATION",
+        metadata: {
+          source_medicine_id: sourceMedicineId,
+          medicine_name: name,
+          manufacturer,
+          previous_variant_id: previousVariantId,
+          unlinked_ids: targetIds,
+          unlinked_count: targetIds.length,
+          propagation_type: "unlink",
+        },
+      });
+    } catch {
+      /* non-critical */
+    }
+
+    // ── Step 5: Notifications per shop ────────────────────────────
+    const shopGroups = new Map();
+    for (const target of targets) {
+      if (!shopGroups.has(target.shop_id)) {
+        shopGroups.set(target.shop_id, { names: [], count: 0 });
+      }
+      const group = shopGroups.get(target.shop_id);
+      if (!group.names.includes(target.name)) group.names.push(target.name);
+      group.count++;
+    }
+
+    for (const [shopId, group] of shopGroups) {
+      try {
+        notifyAsync({
+          type: NOTIFICATION_EVENTS.MEDICINE_LINKED,
+          context: {
+            shop_id: shopId,
+            medicine_name: group.names[0],
+            unlinked_count: group.count,
+            propagated: true,
+            action: "unlinked",
+          },
+        });
+      } catch {
+        /* non-critical */
+      }
+    }
+
+    console.log(
+      `[UnlinkPropagation] Unlinked "${name}" (${manufacturer}) ` +
+        `from ${targetIds.length} propagated copies across ${shopGroups.size} shops`,
+    );
+  } catch (error) {
+    console.error("[UnlinkPropagation] Failed:", error.message);
+  }
+}

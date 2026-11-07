@@ -12,7 +12,10 @@ import {
   resolveAssetUrls,
 } from "../../../services/assetUrl.service.js";
 import { checkSingleMedicine } from "../../medicines/linking.service.js";
-import { propagateLinkToOtherShops } from "../../medicines/linkPropagation.service.js"; 
+import {
+  propagateLinkToOtherShops,
+  propagateUnlinkToOtherShops,
+} from "../../medicines/linkPropagation.service.js";
 
 // ══════════════════════════════════════════════════════════════
 // HELPER: Compute Image Status
@@ -1429,9 +1432,13 @@ export async function matchUnmappedToVariant(
   });
 
   if (!variant) throw new Error("Variant not found");
+  if (!medicineIds || medicineIds.length === 0) throw new Error("No medicine IDs");
 
-  const result = await prisma.medicine.updateMany({
-    where: { medicine_id: { in: medicineIds } },
+  // ── Link ONLY the first medicine as CADMIN ────────────────────
+  const sourceId = medicineIds[0];
+
+  await prisma.medicine.update({
+    where: { medicine_id: sourceId },
     data: {
       master_medicine_id: variant.master_medicine_id,
       linked_variant_id: variant.variant_id,
@@ -1455,7 +1462,7 @@ export async function matchUnmappedToVariant(
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
       medicine_ids: medicineIds,
-      count: result.count,
+      count: medicineIds.length,
       variant_id: variant.variant_id,
       variant_name: variant.name,
       variant_sku: variant.sku_id,
@@ -1466,19 +1473,18 @@ export async function matchUnmappedToVariant(
     },
   });
 
-  const affectedMedicines = await prisma.medicine.findMany({
-    where: { medicine_id: { in: medicineIds } },
+  const sourceMedicine = await prisma.medicine.findUnique({
+    where: { medicine_id: sourceId },
     select: { medicine_id: true, name: true, manufacturer: true, shop_id: true },
   });
 
-  // ── 👇 PROPAGATE FROM FIRST AFFECTED MEDICINE TO OTHER SHOPS 👇 ──
-  if (affectedMedicines.length > 0) {
-    const source = affectedMedicines[0];
+  // ── 👇 PROPAGATE TO ALL OTHER SHOPS (marks as PROPAGATED = "System") 👇 ──
+  if (sourceMedicine) {
     setImmediate(() => {
       propagateLinkToOtherShops({
-        sourceMedicineId: source.medicine_id,
-        name: source.name,
-        manufacturer: source.manufacturer,
+        sourceMedicineId: sourceMedicine.medicine_id,
+        name: sourceMedicine.name,
+        manufacturer: sourceMedicine.manufacturer,
         masterMedicineId: variant.master_medicine_id,
         variantId: variant.variant_id,
         variantSku: variant.sku_id,
@@ -1487,39 +1493,28 @@ export async function matchUnmappedToVariant(
         variantName: variant.name,
         masterName: variant.master.generic_name,
       }).catch((err) =>
-        console.error("[Propagation] matchUnmappedToVariant failed:", err.message),
+        console.error("[Propagation] matchUnmappedToVariant:", err.message),
       );
     });
   }
   // ── 👆 END PROPAGATION 👆 ──
 
-  const shopGroups = new Map();
-  for (const med of affectedMedicines) {
-    if (!med.shop_id) continue;
-    if (!shopGroups.has(med.shop_id)) {
-      shopGroups.set(med.shop_id, { names: [], count: 0 });
-    }
-    const group = shopGroups.get(med.shop_id);
-    group.names.push(med.name);
-    group.count++;
-  }
-
-  for (const [shopId, group] of shopGroups) {
+  if (sourceMedicine?.shop_id) {
     notifyAsync({
       type: NOTIFICATION_EVENTS.MEDICINE_LINKED,
       context: {
-        shop_id: shopId,
-        medicine_name: group.names[0],
+        shop_id: sourceMedicine.shop_id,
+        medicine_name: sourceMedicine.name,
         variant_name: variant.name,
         master_name: variant.master.generic_name,
-        linked_count: group.count,
+        linked_count: medicineIds.length,
       },
     });
   }
 
   return {
     success: true,
-    linkedCount: result.count,
+    linkedCount: medicineIds.length,
     linkedTo: {
       variant_id: variant.variant_id,
       variant_name: variant.name,
@@ -1530,6 +1525,8 @@ export async function matchUnmappedToVariant(
     },
   };
 }
+
+
 
 export async function matchUnmappedToMaster(
   medicineIds,
@@ -1596,8 +1593,16 @@ export async function ignoreUnmappedMedicines(medicineIds, cadminId = null, audi
 // ══════════════════════════════════════════════════════════════
 
 export async function unlinkShopMedicine(medicineId, auditContext = {}) {
-  const now = new Date();
   const effectiveCadminId = auditContext?.actor_id || null;
+
+  // Fetch BEFORE unlinking so we have name/manufacturer/variant for propagation
+  const medicine = await prisma.medicine.findUnique({
+    where: { medicine_id: medicineId },
+  });
+
+  if (!medicine) throw new Error("Medicine not found");
+
+  const previousVariantId = medicine.linked_variant_id;
 
   const updated = await prisma.medicine.update({
     where: { medicine_id: medicineId },
@@ -1605,12 +1610,15 @@ export async function unlinkShopMedicine(medicineId, auditContext = {}) {
       master_medicine_id: null,
       linked_variant_id: null,
       linked_variant_sku: null,
-      link_status: "UNLINKED",
-      link_rejected: true,
+      link_status: "PENDING",            // ✅ Returns to Unmapped queue
+      link_rejected: false,              // ✅ Not ignored
       link_confidence_score: null,
-      linked_at: now,
-      linked_by_id: effectiveCadminId,
-      linked_by_type: "CADMIN",
+      linked_at: null,                   // ✅ Clear stale timestamp
+      linked_by_id: null,                // ✅ Clear stale actor
+      linked_by_type: null,              // ✅ Clear stale actor type
+      suggested_master_id: null,         // ✅ Clear stale suggestions
+      suggested_variant_id: null,
+      suggestion_reason: null,
     },
   });
 
@@ -1623,12 +1631,31 @@ export async function unlinkShopMedicine(medicineId, auditContext = {}) {
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
       medicine_id: medicineId,
+      medicine_name: medicine.name,
+      manufacturer: medicine.manufacturer,
+      previous_variant_id: previousVariantId,
     },
   });
 
+  // ── 👇 PROPAGATE UNLINK TO OTHER SHOPS (fire-and-forget) 👇 ──
+  if (previousVariantId) {
+    setImmediate(() => {
+      propagateUnlinkToOtherShops({
+        sourceMedicineId: medicineId,
+        name: medicine.name,
+        manufacturer: medicine.manufacturer,
+        previousVariantId,
+        actorId: effectiveCadminId,
+        actorType: "cadmin",
+      }).catch((err) =>
+        console.error("[UnlinkPropagation] failed:", err.message),
+      );
+    });
+  }
+  // ── 👆 END UNLINK PROPAGATION 👆 ──
+
   return { success: true, medicine: updated };
 }
-
 // ══════════════════════════════════════════════════════════════
 // UPLOAD MASTER IMAGE
 // ══════════════════════════════════════════════════════════════
@@ -2403,97 +2430,38 @@ export async function unignoreShopMedicine(medicineId, auditContext = {}) {
 
   if (!medicine) throw new Error("Medicine not found");
 
-  const result = await prisma.$transaction(async (tx) => {
-    // 1. Reset ignoration / unlinked flags
-    const updated = await tx.medicine.update({
-      where: { medicine_id: medicineId },
-      data: {
-        link_rejected: false,
-        link_status: "PENDING",
-        suggested_master_id: null,
-        suggested_variant_id: null,
-        suggestion_reason: null,
-        link_confidence_score: null,
-      },
-    });
-
-    // 2. Re-run auto-matcher
-    try {
-      const matchResult = await checkSingleMedicine({
-        name: updated.name,
-        manufacturer: updated.manufacturer,
-        generic_name: updated.generic_name,
-      });
-
-      if (matchResult.status === "AUTO_LINKED") {
-        await tx.medicine.update({
-          where: { medicine_id: medicineId },
-          data: {
-            master_medicine_id: matchResult.master_medicine_id,
-            linked_variant_id: matchResult.matched_variant?.variant_id ?? null,
-            linked_variant_sku: matchResult.matched_variant?.sku_id ?? null,
-            link_status: "AUTO_LINKED",
-            link_confidence_score: matchResult.confidence,
-            linked_at: new Date(),
-            linked_by_type: "SYSTEM",
-            suggestion_reason: matchResult.reason,
-          },
-        });
-      } else if (matchResult.status === "PENDING") {
-        await tx.medicine.update({
-          where: { medicine_id: medicineId },
-          data: {
-            link_status: "SUGGESTED",
-            link_confidence_score: matchResult.confidence,
-            suggested_master_id: matchResult.suggested_master_id,
-            suggestion_reason: matchResult.reason,
-          },
-        });
-      }
-    } catch (matchError) {
-      console.warn(`Auto-match failed for unignored medicine ${medicineId}:`, matchError.message);
-    }
-
-    // 3. Log Audit Trail
-    await audit.log(
-      {
-        action: audit.AuditAction.MEDICINE_UNIGNORED,
-        entity_type: audit.EntityType.MEDICINE,
-        entity_id: medicineId,
-        ...auditContext,
-        reason_code: audit.AuditReasonCode.ADMIN_ACTION,
-        metadata: {
-          medicine_id: medicineId,
-          medicine_name: medicine.name,
-          manufacturer: medicine.manufacturer,
-        },
-      },
-      { tx },
-    );
-
-    return updated;
+  const updated = await prisma.medicine.update({
+    where: { medicine_id: medicineId },
+    data: {
+      link_rejected: false,
+      link_status: "PENDING",
+      master_medicine_id: null,
+      linked_variant_id: null,
+      linked_variant_sku: null,
+      suggested_master_id: null,
+      suggested_variant_id: null,
+      suggestion_reason: null,
+      link_confidence_score: null,
+      linked_at: null,
+      linked_by_id: null,
+      linked_by_type: null,
+    },
   });
 
-  // ── 👇 PROPAGATE AFTER TRANSACTION COMMITS (only if AUTO_LINKED) 👇 ──
-  if (result.link_status === "AUTO_LINKED") {
-    setImmediate(() => {
-      propagateLinkToOtherShops({
-        sourceMedicineId: medicineId,
-        name: medicine.name,
-        manufacturer: medicine.manufacturer,
-        masterMedicineId: result.master_medicine_id,
-        variantId: result.linked_variant_id,
-        variantSku: result.linked_variant_sku,
-        actorId: auditContext?.actor_id || null,
-        actorType: "cadmin",
-        variantName: null,
-        masterName: null,
-      }).catch(() => {});
-    });
-  }
-  // ── 👆 END PROPAGATION 👆 ──
+  await audit.log({
+    action: audit.AuditAction.MEDICINE_UNIGNORED,
+    entity_type: audit.EntityType.MEDICINE,
+    entity_id: medicineId,
+    ...auditContext,
+    reason_code: audit.AuditReasonCode.ADMIN_ACTION,
+    metadata: {
+      medicine_id: medicineId,
+      medicine_name: medicine.name,
+      manufacturer: medicine.manufacturer,
+    },
+  });
 
-  return result;
+  return updated;
 }
 
 // ══════════════════════════════════════════════════════════════
