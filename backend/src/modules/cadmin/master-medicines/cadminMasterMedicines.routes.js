@@ -30,6 +30,8 @@ import {
   unignoreMedicine,
   listAdminActivitySummary,
   listAdminActivityDetail,
+  exportAdminActivity,
+  exportAdminActivityDetail,
 } from "./cadminMasterMedicines.controller.js";
 
 const router = Router();
@@ -189,5 +191,21 @@ router.get(
   requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW),
   getMasterMedicine
 );
+
+
+// Add BEFORE the :id routes (near the other admin-activity routes):
+router.get(
+  "/master-medicines/admin-activity/export",
+  requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW),
+  exportAdminActivity
+);
+
+// Add BEFORE :id routes (near other admin-activity routes):
+router.get(
+  "/master-medicines/admin-activity/export-detail",
+  requireCAdminPermission(CADMIN_PERMISSIONS.MASTER_MEDICINES_VIEW),
+  exportAdminActivityDetail
+);
+
 
 export default router;

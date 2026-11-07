@@ -302,11 +302,9 @@ export async function propagateUnlinkToOtherShops({
     // }
 
     // ── Step 4: Audit log (single batch entry) ────────────────────
-    try {
+        try {
       await audit.log({
-        action:
-          audit.AuditAction?.MEDICINE_LINK_PROPAGATED ||
-          "MEDICINE_LINK_PROPAGATED",
+        action: "MEDICINE_UNLINK_PROPAGATED",
         entity_type: audit.EntityType?.MEDICINE || "MEDICINE",
         entity_id: sourceMedicineId,
         actor_type: actorType || "system",
@@ -320,7 +318,6 @@ export async function propagateUnlinkToOtherShops({
           previous_variant_id: previousVariantId,
           unlinked_ids: targetIds,
           unlinked_count: targetIds.length,
-          propagation_type: "unlink",
         },
       });
     } catch {

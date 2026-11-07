@@ -33,6 +33,8 @@ import {
   getMappingHistory,
   getAdminActivitySummary,
   getAdminActivityDetail,
+  exportAdminActivityCSV,
+  exportAdminActivityDetailCSV,
 } from "./cadminMasterMedicines.service.js";
 
 import { extractRequestContext } from "../../audit/audit.utils.js";
@@ -752,6 +754,69 @@ export async function listAdminActivityDetail(req, res) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch admin activity detail",
+      error: error.message,
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY CSV EXPORT
+// ══════════════════════════════════════════════════════════════
+
+export async function exportAdminActivity(req, res) {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    const csv = await exportAdminActivityCSV({
+      dateFrom: dateFrom || "",
+      dateTo: dateTo || "",
+    });
+
+    const filename = `admin-activity-${dateFrom || "all"}-to-${dateTo || "now"}.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.status(200).send(csv);
+  } catch (error) {
+    console.error("Error exporting admin activity:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to export admin activity",
+      error: error.message,
+    });
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN ACTIVITY PER-USER CSV EXPORT
+// ══════════════════════════════════════════════════════════════
+
+export async function exportAdminActivityDetail(req, res) {
+  try {
+    const { actorId, actorType, dateFrom, dateTo } = req.query;
+
+    if (!actorType) {
+      return res.status(400).json({
+        success: false,
+        message: "actorType is required",
+      });
+    }
+
+    const { csv, filename } = await exportAdminActivityDetailCSV({
+      actorId: actorId || null,
+      actorType,
+      dateFrom: dateFrom || "",
+      dateTo: dateTo || "",
+    });
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.status(200).send(csv);
+  } catch (error) {
+    console.error("Error exporting admin activity detail:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to export",
       error: error.message,
     });
   }
