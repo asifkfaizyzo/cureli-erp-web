@@ -109,7 +109,7 @@ function App() {
           path="/admin-forgot-password"
           element={<CAdminForgotPassword />}
         />
-        <Route path="/reset-password" element={<CAdminResetPassword />} />
+        <Route path="/admin-reset-password" element={<CAdminResetPassword />} />
 
         {/* ── Protected (AuthProvider & Sidebar Context Active) ───────── */}
         <Route element={<ProtectedLayout />}>
