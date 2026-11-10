@@ -1454,15 +1454,22 @@ export async function matchUnmappedToVariant(
     },
   });
 
+  // ✅ MOVED UP: Fetch source medicine BEFORE audit log
+  const sourceMedicine = await prisma.medicine.findUnique({
+    where: { medicine_id: sourceId },
+    select: { medicine_id: true, name: true, manufacturer: true, shop_id: true },
+  });
+
+  // ✅ FIXED: entity_id = sourceId, count = 1
   await audit.log({
     action: audit.AuditAction.MEDICINE_MATCHED_TO_VARIANT,
     entity_type: audit.EntityType.MEDICINE,
-    entity_id: null,
+    entity_id: sourceId,
     ...auditContext,
     reason_code: audit.AuditReasonCode.ADMIN_ACTION,
     metadata: {
       medicine_ids: medicineIds,
-      count: medicineIds.length,
+      count: 1,
       variant_id: variant.variant_id,
       variant_name: variant.name,
       variant_sku: variant.sku_id,
@@ -1470,15 +1477,12 @@ export async function matchUnmappedToVariant(
       master_key: variant.master.master_key,
       generic_name: variant.master.generic_name,
       linked_by_cadmin_id: cadminId,
+      medicine_name: sourceMedicine?.name || null,
+      manufacturer: sourceMedicine?.manufacturer || null,
     },
   });
 
-  const sourceMedicine = await prisma.medicine.findUnique({
-    where: { medicine_id: sourceId },
-    select: { medicine_id: true, name: true, manufacturer: true, shop_id: true },
-  });
-
-  // ── 👇 PROPAGATE TO ALL OTHER SHOPS (marks as PROPAGATED = "System") 👇 ──
+  // ── PROPAGATE TO ALL OTHER SHOPS ──
   if (sourceMedicine) {
     setImmediate(() => {
       propagateLinkToOtherShops({
@@ -1497,7 +1501,6 @@ export async function matchUnmappedToVariant(
       );
     });
   }
-  // ── 👆 END PROPAGATION 👆 ──
 
   if (sourceMedicine?.shop_id) {
     notifyAsync({
@@ -1507,14 +1510,14 @@ export async function matchUnmappedToVariant(
         medicine_name: sourceMedicine.name,
         variant_name: variant.name,
         master_name: variant.master.generic_name,
-        linked_count: medicineIds.length,
+        linked_count: 1,
       },
     });
   }
 
   return {
     success: true,
-    linkedCount: medicineIds.length,
+    linkedCount: 1,
     linkedTo: {
       variant_id: variant.variant_id,
       variant_name: variant.name,
@@ -2148,7 +2151,7 @@ export async function createVariantForMasterMedicine(
 }
 
 // ══════════════════════════════════════════════════════════════
-// GET MAPPING HISTORY — WITH EXACT SCHEMA RESOLUTION
+// GET MAPPING HISTORY — FULL AUDIT TRAIL (one row per event)
 // ══════════════════════════════════════════════════════════════
 
 export async function getMappingHistory({
@@ -2166,248 +2169,286 @@ export async function getMappingHistory({
   const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const where = {
-    is_active: true,
-    link_status: { in: ["AUTO_LINKED", "MANUAL_LINKED", "UNLINKED"] },
+  const isValidUUID = (val) =>
+    typeof val === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      val.trim(),
+    );
+
+  // ── Action groups (maps status filter → audit actions) ──
+  const ACTION_GROUPS = {
+    linked: [
+      "MEDICINE_MATCHED_TO_VARIANT",
+      "MEDICINE_MATCH_ACCEPTED",
+      "MEDICINE_LINK_PROPAGATED",
+    ],
+    unlinked: [
+      "MEDICINE_UNLINKED",
+      "MEDICINE_UNLINK_PROPAGATED",
+    ],
+    ignored: [
+      "UNMAPPED_MEDICINES_IGNORED",
+    ],
+    restored: [
+      "MEDICINE_UNIGNORED",
+      "MEDICINE_MATCH_REJECTED",
+    ],
   };
 
-  if (status === "linked") {
-    where.link_status = { in: ["AUTO_LINKED", "MANUAL_LINKED"] };
-  } else if (status === "unlinked" || status === "ignored") {
-    where.link_status = "UNLINKED";
+  const ALL_HISTORY_ACTIONS = Object.values(ACTION_GROUPS).flat();
+
+  const actions =
+    status && ACTION_GROUPS[status]
+      ? ACTION_GROUPS[status]
+      : ALL_HISTORY_ACTIONS;
+
+  // ── Build audit log where clause ──
+  const where = { action: { in: actions } };
+
+  if (dateFrom && String(dateFrom).trim()) {
+    const d = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
+    if (!isNaN(d.getTime())) {
+      where.created_at = where.created_at || {};
+      where.created_at.gte = d;
+    }
   }
-
-  if (search && search.trim()) {
-    const searchTerm = search.trim();
-    where.OR = [
-      { name: { contains: searchTerm, mode: "insensitive" } },
-      { normalized_name: { contains: searchTerm, mode: "insensitive" } },
-      { manufacturer: { contains: searchTerm, mode: "insensitive" } },
-    ];
-  }
-
-  const isValidUUID = (val) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return typeof val === "string" && uuidRegex.test(val.trim());
-  };
-
-  if (shopIds && shopIds.length > 0) {
-    const validShopIds = shopIds.filter(isValidUUID);
-    if (validShopIds.length > 0) {
-      where.shop_id = { in: validShopIds };
+  if (dateTo && String(dateTo).trim()) {
+    const d = new Date(String(dateTo).trim() + "T23:59:59.999Z");
+    if (!isNaN(d.getTime())) {
+      where.created_at = where.created_at || {};
+      where.created_at.lte = d;
     }
   }
 
-  if ((dateFrom && String(dateFrom).trim() !== "") || (dateTo && String(dateTo).trim() !== "")) {
-    where.linked_at = {};
-    if (dateFrom && String(dateFrom).trim() !== "") {
-      const parsedDate = new Date(String(dateFrom).trim() + "T00:00:00.000Z");
-      if (!isNaN(parsedDate.getTime())) {
-        where.linked_at.gte = parsedDate;
-      }
+  // ── Search & Shop filter ──
+  if ((search && search.trim()) || (shopIds && shopIds.length > 0)) {
+    const medWhere = {};
+    if (search && search.trim()) {
+      const s = search.trim();
+      medWhere.OR = [
+        { name: { contains: s, mode: "insensitive" } },
+        { normalized_name: { contains: s, mode: "insensitive" } },
+        { manufacturer: { contains: s, mode: "insensitive" } },
+      ];
     }
-    if (dateTo && String(dateTo).trim() !== "") {
-      const parsedDate = new Date(String(dateTo).trim() + "T23:59:59.999Z");
-      if (!isNaN(parsedDate.getTime())) {
-        where.linked_at.lte = parsedDate;
-      }
+    if (shopIds && shopIds.length > 0) {
+      const valid = shopIds.filter(isValidUUID);
+      if (valid.length > 0) medWhere.shop_id = { in: valid };
     }
-    if (Object.keys(where.linked_at).length === 0) {
-      delete where.linked_at;
+
+    const matchingMeds = await prisma.medicine.findMany({
+      where: medWhere,
+      select: { medicine_id: true },
+      take: 2000,
+    });
+    const medIds = matchingMeds.map((m) => m.medicine_id);
+
+    if (medIds.length === 0) {
+      return {
+        history: [],
+        meta: { total: 0, page: pageNum, limit: limitNum, totalPages: 0 },
+      };
     }
+
+    where.entity_id = { in: medIds };
   }
 
-  const validSortMap = {
-    rawName: "name",
-    actionDate: "linked_at",
-    status: "link_status",
-  };
-  const dbSortField = validSortMap[sort] || "linked_at";
+  // ── Sort ──
   const dbSortOrder = order === "asc" ? "asc" : "desc";
 
-  const [medicines, total] = await Promise.all([
-    prisma.medicine.findMany({
+  // ── Query audit logs ──
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
       where,
       select: {
-        medicine_id: true,
-        name: true,
-        normalized_name: true,
-        generic_name: true,
-        manufacturer: true,
-        link_status: true,
-        link_confidence_score: true,
-        linked_at: true,
-        linked_by_id: true,
-        linked_by_type: true,
-        linked_variant_id: true,
-        linked_variant_sku: true,
+        audit_id: true,
+        action: true,
+        entity_id: true,
+        actor_id: true,
+        actor_type: true,
         created_at: true,
-        updated_at: true,
-        shop_id: true,
-        branch_id: true,
-        shop: {
-          select: { shop_id: true, business_name: true },
-        },
-        linkedVariant: {
-          select: {
-            variant_id: true,
-            name: true,
-            sku_id: true,
-          },
-        },
+        metadata: true,
       },
-      orderBy: { [dbSortField]: dbSortOrder },
+      orderBy: { created_at: dbSortOrder },
       skip,
       take: limitNum,
     }),
-    prisma.medicine.count({ where }),
+    prisma.auditLog.count({ where }),
   ]);
 
-  // ── Retroactive Audit Log Lookup for Ignored items with null linked_by_id ──
-  const unlinkedWithoutActor = medicines.filter(
-    (m) => m.link_status === "UNLINKED" && !m.linked_by_id
-  );
-
-  const fallbackAuditMap = new Map();
-
-  if (unlinkedWithoutActor.length > 0) {
-    try {
-      const recentIgnoreLogs = await prisma.auditLog.findMany({
-        where: {
-          action: { in: ["UNMAPPED_MEDICINES_IGNORED", "MEDICINE_UNLINKED", "MEDICINE_MATCH_REJECTED"] },
-        },
-        select: {
-          actor_id: true,
-          created_at: true,
-          metadata: true,
-          entity_id: true,
-        },
-        orderBy: { created_at: "desc" },
-        take: 100,
-      });
-
-      for (const med of unlinkedWithoutActor) {
-        for (const log of recentIgnoreLogs) {
-          const medIdsInLog = Array.isArray(log.metadata?.medicine_ids)
-            ? log.metadata.medicine_ids
-            : [log.entity_id].filter(Boolean);
-
-          if (medIdsInLog.includes(med.medicine_id)) {
-            fallbackAuditMap.set(med.medicine_id, {
-              actor_id: log.actor_id,
-              date: log.created_at,
-            });
-            break;
-          }
-        }
-      }
-    } catch (auditErr) {
-      console.warn("[getMappingHistory] Audit lookup fallback failed:", auditErr.message);
-    }
-  }
-
-  // ── Collect Actor IDs ──
+  // ── Collect IDs for enrichment ──
+  const medicineIds = new Set();
+  const variantIds = new Set();
   const cadminIds = new Set();
   const shopUserIds = new Set();
 
-  medicines.forEach((m) => {
-    const fallback = fallbackAuditMap.get(m.medicine_id);
-    const actorId = m.linked_by_id || fallback?.actor_id;
-
-    if (actorId) {
-      const type = String(m.linked_by_type || "CADMIN").toUpperCase().trim();
-      if (type === "CADMIN") {
-        cadminIds.add(actorId);
-      } else {
-        shopUserIds.add(actorId);
-      }
+  for (const log of logs) {
+    if (log.entity_id) medicineIds.add(log.entity_id);
+    const meta = log.metadata || {};
+    if (meta.variant_id) variantIds.add(meta.variant_id);
+    if (meta.previous_variant_id) variantIds.add(meta.previous_variant_id);
+    if (Array.isArray(meta.medicine_ids)) {
+      meta.medicine_ids.forEach((id) => medicineIds.add(id));
     }
-  });
+    const at = String(log.actor_type || "").toUpperCase();
+    if (log.actor_id) {
+      if (at === "CADMIN") cadminIds.add(log.actor_id);
+      else shopUserIds.add(log.actor_id);
+    }
+  }
 
-  const validCadminIds = Array.from(cadminIds).filter(isValidUUID);
-  const validShopUserIds = Array.from(shopUserIds).filter(isValidUUID);
-
-  // ── Exact Schema Lookups ──
-  let cadmins = [];
-  if (validCadminIds.length > 0) {
-    try {
-      cadmins = await prisma.cAdmin.findMany({
-        where: { cadmin_id: { in: validCadminIds } },
+  // ── Fetch medicines ──
+  const validMedIds = Array.from(medicineIds).filter(isValidUUID);
+  const medicines = validMedIds.length
+    ? await prisma.medicine.findMany({
+        where: { medicine_id: { in: validMedIds } },
         select: {
-          cadmin_id: true,
+          medicine_id: true,
           name: true,
-          email: true,
-          username: true,
+          manufacturer: true,
+          shop: { select: { shop_id: true, business_name: true } },
         },
-      });
-    } catch (err) {
-      console.error("[getMappingHistory] CAdmin query failed:", err.message);
-    }
-  }
+      })
+    : [];
+  const medMap = new Map(medicines.map((m) => [m.medicine_id, m]));
 
-  let shopUsers = [];
-  if (validShopUserIds.length > 0) {
-    try {
-      shopUsers = await prisma.user.findMany({
-        where: { user_id: { in: validShopUserIds } },
-        select: {
-          user_id: true,
-          full_name: true,
-          username: true,
-          email: true,
-        },
-      });
-    } catch (err) {
-      console.error("[getMappingHistory] User query failed:", err.message);
-    }
-  }
+  // ── Fetch variants ──
+  const validVarIds = Array.from(variantIds).filter(isValidUUID);
+  const variants = validVarIds.length
+    ? await prisma.masterMedicineVariant.findMany({
+        where: { variant_id: { in: validVarIds } },
+        select: { variant_id: true, name: true, sku_id: true },
+      })
+    : [];
+  const variantMap = new Map(variants.map((v) => [v.variant_id, v]));
 
+  // ── Fetch actors (username-first) ──
+  const validCadminIds = Array.from(cadminIds).filter(isValidUUID);
+  const cadmins = validCadminIds.length
+    ? await prisma.cAdmin.findMany({
+        where: { cadmin_id: { in: validCadminIds } },
+        select: { cadmin_id: true, name: true, email: true, username: true },
+      })
+    : [];
   const actorMap = new Map();
   cadmins.forEach((c) => {
-    const displayName = c.username || c.name || c.email || "cadmin";
-    actorMap.set(c.cadmin_id, displayName);
+    actorMap.set(c.cadmin_id, c.username || c.name || c.email || "CAdmin");
   });
+
+  const validShopUserIds = Array.from(shopUserIds).filter(isValidUUID);
+  const shopUsers = validShopUserIds.length
+    ? await prisma.user.findMany({
+        where: { user_id: { in: validShopUserIds } },
+        select: { user_id: true, full_name: true, username: true, email: true },
+      })
+    : [];
   shopUsers.forEach((u) => {
-    const displayName = u.username || u.full_name || u.email || "Shop User";
-    actorMap.set(u.user_id, displayName);
+    actorMap.set(u.user_id, u.username || u.full_name || u.email || "Shop User");
   });
 
-  const historyItems = medicines.map((med) => {
-    const fallback = fallbackAuditMap.get(med.medicine_id);
-    const effectiveActorId = med.linked_by_id || fallback?.actor_id;
-    const effectiveDate = med.linked_at || fallback?.date || med.updated_at || med.created_at;
+  // ── Map action → display status ──
+  const actionToStatus = (action) => {
+    if (ACTION_GROUPS.linked.includes(action)) return "LINKED";
+    if (ACTION_GROUPS.unlinked.includes(action)) return "UNLINKED";
+    if (ACTION_GROUPS.ignored.includes(action)) return "IGNORED";
+    if (ACTION_GROUPS.restored.includes(action)) return "RESTORED";
+    return "UNKNOWN";
+  };
 
+  // ── Build history items (one row per audit event) ──
+  const historyItems = logs.map((log) => {
+    const meta = log.metadata || {};
+    const med = log.entity_id ? medMap.get(log.entity_id) : null;
+
+    // Medicine name: prefer metadata snapshot, fallback to DB
+    const medicineName =
+      meta.medicine_name ||
+      med?.name ||
+      (Array.isArray(meta.medicine_ids) && meta.medicine_ids.length > 1
+        ? `${meta.medicine_ids.length} medicines`
+        : meta.medicine_ids?.[0]
+          ? medMap.get(meta.medicine_ids[0])?.name || "Unknown"
+          : "Unknown");
+
+    const manufacturer = meta.manufacturer || med?.manufacturer || null;
+
+    // Variant linked TO (for link events)
+    const linkedVarId = meta.variant_id || null;
+    const linkedVar = linkedVarId ? variantMap.get(linkedVarId) : null;
+
+    // Variant unlinked FROM (for unlink events)
+    const prevVarId = meta.previous_variant_id || null;
+    const prevVar = prevVarId ? variantMap.get(prevVarId) : null;
+
+    // ── Actor name ──
+    // Propagation events are done by the SYSTEM, not the user.
+    // Only the manual link row shows the actual username.
+    const actorType = String(log.actor_type || "").toUpperCase();
     let actorName = "—";
-    if (med.link_status === "AUTO_LINKED") {
+    if (
+      actorType === "SYSTEM" ||
+      log.action === "MEDICINE_LINK_PROPAGATED" ||
+      log.action === "MEDICINE_UNLINK_PROPAGATED"
+    ) {
       actorName = "System";
-    } else if (effectiveActorId && actorMap.has(effectiveActorId)) {
-      actorName = actorMap.get(effectiveActorId);
-    } else if (med.link_status === "UNLINKED" || med.linked_by_type === "CADMIN") {
+    } else if (log.actor_id && actorMap.has(log.actor_id)) {
+      actorName = actorMap.get(log.actor_id);
+    } else if (actorType === "CADMIN") {
       actorName = "CAdmin";
-    } else if (med.linked_by_type === "USER") {
+    } else if (actorType === "USER" || actorType === "ERP_USER") {
       actorName = "Shop User";
     }
 
+    const displayStatus = actionToStatus(log.action);
+
+    // Human-readable action label
+    const actionLabels = {
+      MEDICINE_MATCHED_TO_VARIANT: "Linked to Variant",
+      MEDICINE_MATCH_ACCEPTED: "Accepted Suggestion",
+      MEDICINE_LINK_PROPAGATED: "Auto-Linked (Propagated)",
+      MEDICINE_UNLINKED: "Unlinked",
+      MEDICINE_UNLINK_PROPAGATED: "Auto-Unlinked (Propagated)",
+      UNMAPPED_MEDICINES_IGNORED: "Ignored",
+      MEDICINE_UNIGNORED: "Restored to Unmapped",
+      MEDICINE_MATCH_REJECTED: "Rejected Suggestion",
+    };
+
     return {
-      id: med.medicine_id,
-      rawName: med.name,
-      normalizedRaw: med.normalized_name || med.name.toLowerCase(),
-      manufacturer: med.manufacturer,
-      status: med.link_status,
-      linkedVariant: med.linkedVariant
-        ? {
-            id: med.linkedVariant.variant_id,
-            name: med.linkedVariant.name,
-            skuId: med.linkedVariant.sku_id,
-          }
+      id: `audit_${log.audit_id}`,
+      auditId: log.audit_id,
+      medicineId: log.entity_id,
+      rawName: medicineName,
+      manufacturer,
+      status: displayStatus,
+      actionLabel: actionLabels[log.action] || log.action,
+      linkedVariant: linkedVar
+        ? { id: linkedVar.variant_id, name: linkedVar.name, skuId: linkedVar.sku_id }
         : null,
-      confidenceScore: med.link_confidence_score,
+      previouslyLinkedVariant: prevVar
+        ? { id: prevVar.variant_id, name: prevVar.name, skuId: prevVar.sku_id }
+        : null,
       actionBy: actorName,
-      actionDate: effectiveDate,
-      shopId: med.shop?.shop_id,
-      shopName: med.shop?.business_name || "Unknown Shop",
+      actionDate: log.created_at,
+      shopName: med?.shop?.business_name || null,
+      bulkCount:
+        meta.count ||
+        meta.ignored_count ||
+        meta.propagated_count ||
+        meta.unlinked_count ||
+        null,
     };
   });
+
+  // ── Mark latest entry per medicine (for action buttons) ──
+  const seenMeds = new Set();
+  for (const item of historyItems) {
+    if (item.medicineId) {
+      item.isLatest = !seenMeds.has(item.medicineId);
+      seenMeds.add(item.medicineId);
+    } else {
+      item.isLatest = false;
+    }
+  }
 
   return {
     history: historyItems,
@@ -2607,7 +2648,7 @@ export async function getAdminActivitySummary({ dateFrom = "", dateTo = "" } = {
       } else if (actorType === "cadmin") {
         const c = cadminMap.get(actorId);
         if (c) {
-          actorName = c.name || c.username || c.email || "CAdmin";
+          actorName = c.username || c.name || c.email || "CAdmin";
           actorEmail = c.email || null;
           actorRole = c.is_super_cadmin ? "SUPER_CADMIN" : "CUSTOM_ROLE";
           isActive = c.is_active;
@@ -2779,16 +2820,18 @@ export async function getAdminActivityDetail({
 
   // ── Human-readable action label ─────────────────────────────────
   const actionLabelMap = {
-    MEDICINE_MATCHED_TO_VARIANT: "Linked (Manual Match)",
-    MEDICINE_MATCH_ACCEPTED: "Linked (Accepted Suggestion)",
-    MEDICINE_MATCH_REJECTED: "Rejected Suggestion",
-    UNMAPPED_MEDICINES_IGNORED: "Ignored",
-    MEDICINE_UNLINKED: "Unlinked",
-    MEDICINE_UNIGNORED: "Unignored",
-    MASTER_MEDICINE_CREATED: "Created Master Medicine",
-    MASTER_MEDICINE_IMAGE_UPLOADED: "Uploaded Image",
-    MASTER_MEDICINE_IMAGE_DELETED: "Deleted Image",
-  };
+  MEDICINE_MATCHED_TO_VARIANT: "Linked (Manual Match)",
+  MEDICINE_MATCH_ACCEPTED: "Linked (Accepted Suggestion)",
+  MEDICINE_MATCH_REJECTED: "Rejected Suggestion",
+  UNMAPPED_MEDICINES_IGNORED: "Ignored",
+  MEDICINE_UNLINKED: "Unlinked",
+  MEDICINE_UNIGNORED: "Unignored",
+  MASTER_MEDICINE_CREATED: "Created Master Medicine",
+  MASTER_MEDICINE_IMAGE_UPLOADED: "Uploaded Image",
+  MASTER_MEDICINE_IMAGE_DELETED: "Deleted Image",
+  MEDICINE_LINK_PROPAGATED: "Auto-Linked (Propagated)",      // ← ADD
+  MEDICINE_UNLINK_PROPAGATED: "Auto-Unlinked (Propagated)",   // ← ADD
+};
 
   // ── Transform ───────────────────────────────────────────────────
   const actions = logs.map((log) => {
@@ -2933,7 +2976,7 @@ export async function exportAdminActivityDetailCSV({
       where: { cadmin_id: actorId },
       select: { name: true, username: true, email: true },
     });
-    actorName = admin?.name || admin?.username || admin?.email || "Unknown CAdmin";
+    actorName = admin?.username || admin?.name || admin?.email || "Unknown CAdmin";
   }
 
   // ── Build where clause ─────────────────────────────────────

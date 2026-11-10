@@ -427,17 +427,17 @@ const AdminActivityModal = ({ isOpen, onClose }) => {
                               <td className="px-4 py-3">
                                 <span
                                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                                    action.action.includes("LINK") ||
-                                    action.action.includes("MATCH") ||
-                                    action.action.includes("ACCEPT")
-                                      ? "bg-green-100 text-green-700"
-                                      : action.action.includes("UNLINK") ||
-                                          action.action.includes("REJECT")
-                                        ? "bg-red-100 text-red-700"
-                                        : action.action.includes("IGNORE")
-                                          ? "bg-orange-100 text-orange-700"
-                                          : action.action.includes("PROPAGAT")
-                                            ? "bg-blue-100 text-blue-700"
+                                    action.action.includes("PROPAGAT")
+                                      ? "bg-blue-100 text-blue-700"
+                                      : action.action.includes("LINK") ||
+                                          action.action.includes("MATCH") ||
+                                          action.action.includes("ACCEPT")
+                                        ? "bg-green-100 text-green-700"
+                                        : action.action.includes("UNLINK") ||
+                                            action.action.includes("REJECT")
+                                          ? "bg-red-100 text-red-700"
+                                          : action.action.includes("IGNORE")
+                                            ? "bg-orange-100 text-orange-700"
                                             : "bg-purple-100 text-purple-700"
                                   }`}
                                 >
