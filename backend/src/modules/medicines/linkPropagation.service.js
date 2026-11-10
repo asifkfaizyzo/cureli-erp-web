@@ -250,7 +250,9 @@ export async function propagateUnlinkToOtherShops({
   if (!name || !manufacturer || !previousVariantId) return;
 
   try {
-    // ── Step 1: Find all PROPAGATED copies linked to the same variant ──
+    // ── Step 1: Find ALL copies linked to the same variant ──
+    // ✅ FIX: Removed linked_by_type filter so it catches both
+    // the original (MANUAL/CADMIN) and propagated copies
     const targets = await prisma.medicine.findMany({
       where: {
         name: { equals: name.trim(), mode: "insensitive" },
@@ -258,7 +260,6 @@ export async function propagateUnlinkToOtherShops({
         medicine_id: { not: sourceMedicineId },
         linked_variant_id: previousVariantId,
         link_status: { in: ["AUTO_LINKED", "MANUAL_LINKED"] },
-        linked_by_type: "PROPAGATED",
         is_active: true,
       },
       select: {
@@ -273,7 +274,7 @@ export async function propagateUnlinkToOtherShops({
 
     const targetIds = targets.map((t) => t.medicine_id);
 
-    // ── Step 2: Bulk unlink all propagated copies ─────────────────
+    // ── Step 2: Bulk unlink all copies ─────────────────
     await prisma.medicine.updateMany({
       where: { medicine_id: { in: targetIds } },
       data: {
@@ -292,17 +293,8 @@ export async function propagateUnlinkToOtherShops({
       },
     });
 
-    // ── Step 3: Remove marketplace listings (best-effort) ─────────
-    // TODO: If you have a removeListingForMedicine() in listings.service.js,
-    //       import it and call it here for each target with a branch_id.
-    // for (const target of targets) {
-    //   if (!target.branch_id) continue;
-    //   try { await removeListingForMedicine(target.medicine_id, target.branch_id); }
-    //   catch { /* non-critical */ }
-    // }
-
-    // ── Step 4: Audit log (single batch entry) ────────────────────
-        try {
+    // ── Step 3: Audit log ────────────────────
+    try {
       await audit.log({
         action: "MEDICINE_UNLINK_PROPAGATED",
         entity_type: audit.EntityType?.MEDICINE || "MEDICINE",
@@ -324,7 +316,7 @@ export async function propagateUnlinkToOtherShops({
       /* non-critical */
     }
 
-    // ── Step 5: Notifications per shop ────────────────────────────
+    // ── Step 4: Notifications per shop ────────────────────
     const shopGroups = new Map();
     for (const target of targets) {
       if (!shopGroups.has(target.shop_id)) {
@@ -354,7 +346,7 @@ export async function propagateUnlinkToOtherShops({
 
     console.log(
       `[UnlinkPropagation] Unlinked "${name}" (${manufacturer}) ` +
-        `from ${targetIds.length} propagated copies across ${shopGroups.size} shops`,
+        `from ${targetIds.length} copies across ${shopGroups.size} shops`,
     );
   } catch (error) {
     console.error("[UnlinkPropagation] Failed:", error.message);
