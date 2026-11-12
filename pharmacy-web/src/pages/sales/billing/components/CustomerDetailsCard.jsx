@@ -1,6 +1,6 @@
 // pharmacy-web/src/pages/sales/billing/components/CustomerDetailsCard.jsx (do not remove this comment)
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   User,
   MapPin,
@@ -32,6 +32,7 @@ const AnimatedInput = ({
   type = "text",
   prefix = "",
   disabled = false,
+  onKeyDown,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const hasValue = value && value.toString().length > 0;
@@ -66,6 +67,7 @@ const AnimatedInput = ({
         type={type}
         value={value}
         onChange={onChange}
+        onKeyDown={onKeyDown}
         placeholder={isFocused && !readOnly ? placeholder : ""}
         readOnly={readOnly || disabled}
         disabled={disabled}
@@ -125,15 +127,46 @@ const CustomerDetailsCard = ({
   netAmount = 0,
   isLoading = false,
   billNo = "AUTO-000001",
-  readOnly = false, // ← locks all fields (marketplace mode)
+  readOnly = false,
 }) => {
+  const containerRef = useRef(null);
+
   const cashReceived = parseFloat(customer?.cashReceived) || 0;
   const balance =
     customer?.paymentType === "CREDIT" ? 0 : netAmount - cashReceived;
 
+  // ── Enter-key navigation ──────────────────────────────────────────────────
+  const handleEnterNav = useCallback(
+    (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Collect all editable inputs & selects in DOM order
+      const fields = Array.from(
+        container.querySelectorAll(
+          'input:not([disabled]):not([readonly]), select:not([disabled])'
+        )
+      );
+
+      if (fields.length === 0) return;
+
+      const activeIdx = fields.indexOf(document.activeElement);
+      const nextIdx = activeIdx + 1;
+
+      if (nextIdx < fields.length) {
+        fields[nextIdx].focus();
+      }
+      // If on last field, do nothing (or you could blur / trigger save)
+    },
+    []
+  );
+
   const updateField = useCallback(
     (field, value) => {
-      if (readOnly) return; // ignore updates in read-only mode
+      if (readOnly) return;
       setCustomer((prev) => {
         const updated = { ...prev, [field]: value };
         if (field === "name" && prev.sameAsCustomer)
@@ -183,6 +216,8 @@ const CustomerDetailsCard = ({
   // ── Main render ─────────────────────────────────────────────────────────────
   return (
     <div
+      ref={containerRef}
+      onKeyDown={handleEnterNav}
       className={`bg-white rounded-xl shadow-sm border w-full h-full flex flex-col overflow-visible
       ${readOnly ? "border-indigo-200" : "border-gray-100"}`}
     >
@@ -303,10 +338,10 @@ const CustomerDetailsCard = ({
             />
           </div>
 
-          {/* Toggle Checklist Checkbox — Positioned explicitly to the right of Mobile field */}
+          {/* Toggle Checklist Checkbox */}
           <div className="col-span-2 flex items-center justify-start h-9 self-end mb-0.5 pl-1">
             <ToggleCheckbox
-              checked={customer.showDiscountOnPrint !== false} // Defaults to true if missing
+              checked={customer.showDiscountOnPrint !== false}
               onChange={(checked) =>
                 updateField("showDiscountOnPrint", checked)
               }
@@ -357,10 +392,10 @@ const CustomerDetailsCard = ({
               <CreditCard size={14} strokeWidth={1.5} />
             </div>
             <select
-              value={customer.paymentType}
-              onChange={(e) => updateField("paymentType", e.target.value)}
-              disabled={readOnly}
-              className={`w-full h-9 pl-8 pr-3 text-[11px] rounded-lg border outline-none transition-all font-medium
+  value={customer.paymentType}
+  onChange={(e) => updateField("paymentType", e.target.value)}
+  disabled={readOnly}
+  className={`w-full h-9 pl-8 pr-3 text-[11px] rounded-lg border outline-none transition-all font-medium
                 ${
                   readOnly
                     ? "bg-slate-50 border-slate-200 text-slate-600 cursor-default"

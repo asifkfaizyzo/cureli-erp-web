@@ -111,6 +111,21 @@ const ReviewDetailModal = ({
     ? masterDetail?.variants
     : masterDetail?.variants?.slice(0, 5);
 
+  // Normalise shops list (grouped) with backward-compat fallback
+  const shopsList =
+    Array.isArray(item.shops) && item.shops.length > 0
+      ? item.shops
+      : item.shopName
+        ? [
+            {
+              id: item.shopId || "single",
+              name: item.shopName,
+              branchName: item.branchName || "",
+            },
+          ]
+        : [];
+  const shopCount = item.shopCount || shopsList.length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -152,6 +167,12 @@ const ReviewDetailModal = ({
                 >
                   {confidence}%
                 </span>
+                {shopCount > 1 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 flex-shrink-0">
+                    <Store size={10} />
+                    {shopCount} shops
+                  </span>
+                )}
               </div>
             </div>
 
@@ -301,10 +322,50 @@ const ReviewDetailModal = ({
                       />
                     )}
                     <div className="border-t border-gray-200 my-2" />
-                    <DetailRow label="Shop" value={item.shopName} />
-                    {item.branchName && (
-                      <DetailRow label="Branch" value={item.branchName} />
-                    )}
+
+                    {/* Shops list — one badge per shop (grouped) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs text-gray-400">
+                          {shopCount > 1
+                            ? `Shops (${shopCount})`
+                            : "Shop"}
+                        </span>
+                        {shopCount > 1 && (
+                          <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider">
+                            Cascaded
+                          </span>
+                        )}
+                      </div>
+                      {shopsList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {shopsList.map((s, idx) => (
+                            <span
+                              key={s.id || s.medicineId || idx}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-white text-gray-700 border border-gray-200"
+                              title={
+                                s.branchName
+                                  ? `${s.name} — ${s.branchName}`
+                                  : s.name
+                              }
+                            >
+                              <Store size={10} className="text-gray-400" />
+                              <span className="truncate max-w-[140px]">
+                                {s.name}
+                              </span>
+                              {s.branchName && (
+                                <span className="text-gray-400">
+                                  · {s.branchName}
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </div>
+
                     <DetailRow
                       label="Occurrences"
                       value={item.occurrenceCount}
@@ -669,6 +730,12 @@ const ReviewDetailModal = ({
                   })
                 : "—"}
             </span>
+            {shopCount > 1 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <Store size={10} />
+                Action applies to {shopCount} shops
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -681,7 +748,7 @@ const ReviewDetailModal = ({
                          text-sm font-medium flex items-center gap-2 transition-colors border border-red-200"
             >
               <XCircle size={15} />
-              Reject
+              Reject{shopCount > 1 ? ` (${shopCount})` : ""}
             </button>
             <button
               onClick={() => {
@@ -703,7 +770,7 @@ const ReviewDetailModal = ({
                          text-sm font-semibold flex items-center gap-2 transition-colors shadow-sm"
             >
               <Check size={15} />
-              Accept Match
+              Accept Match{shopCount > 1 ? ` (${shopCount})` : ""}
             </button>
           </div>
         </div>
