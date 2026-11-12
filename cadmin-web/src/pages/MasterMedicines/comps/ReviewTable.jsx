@@ -16,6 +16,7 @@ import {
   ImageOff,
   ArrowRight,
   Building2,
+  Store,
 } from "lucide-react";
 import Pagination from "../../../components/common/Pagination";
 import TableEmptyState from "../../../components/common/TableEmptyState";
@@ -49,7 +50,7 @@ const ReviewTable = ({
     arrow: 36,
     match: 210,
     confidence: 140,
-    source: 140,
+    source: 160,
     actions: 130,
   };
   const [columnWidths, setColumnWidths] = useState(defaultWidths);
@@ -104,9 +105,9 @@ const ReviewTable = ({
   const handleSort = (key) => {
     const isAsc = filters.sort === key && filters.order === "asc";
     const nextOrder = isAsc ? "desc" : "asc";
-    
+
     console.log(`[ReviewTable] Trigger sort. Key: "${key}", Order: "${nextOrder}"`);
-    
+
     onFiltersChange({
       sort: key,
       order: nextOrder,
@@ -377,6 +378,12 @@ const ReviewTable = ({
                   );
                   const shopMed = item.shopMedicine || {};
                   const isSelected = selectedIds.includes(item.id);
+                  const shopCount = item.shopCount || (item.shops?.length ?? 1);
+                  const firstShop = item.shops?.[0];
+                  const displayShopName =
+                    firstShop?.name || item.shopName || "—";
+                  const displayBranchName =
+                    firstShop?.branchName || item.branchName || "";
 
                   return (
                     <tr
@@ -487,17 +494,46 @@ const ReviewTable = ({
                       <td
                         className={`${styles.cell.base} ${styles.cell.center}`}
                       >
-                        <p
-                          className={`text-sm ${styles.cell.primary} truncate max-w-[120px] mx-auto`}
-                        >
-                          {item.shopName}
-                        </p>
-                        {item.branchName && (
-                          <p
-                            className={`text-xs ${styles.cell.muted} truncate max-w-[120px] mx-auto`}
-                          >
-                            {item.branchName}
-                          </p>
+                        {shopCount > 1 ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200"
+                              title={item.shops
+                                ?.map((s) =>
+                                  s.branchName
+                                    ? `${s.name} (${s.branchName})`
+                                    : s.name,
+                                )
+                                .join(", ")}
+                            >
+                              <Store size={10} />
+                              {shopCount} shops
+                            </span>
+                            <p
+                              className={`text-[11px] ${styles.cell.muted} truncate max-w-[130px] mx-auto`}
+                              title={displayShopName}
+                            >
+                              {displayShopName}
+                              {shopCount > 1 ? ` +${shopCount - 1}` : ""}
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <p
+                              className={`text-sm ${styles.cell.primary} truncate max-w-[130px] mx-auto`}
+                              title={displayShopName}
+                            >
+                              {displayShopName}
+                            </p>
+                            {displayBranchName && (
+                              <p
+                                className={`text-xs ${styles.cell.muted} truncate max-w-[130px] mx-auto`}
+                                title={displayBranchName}
+                              >
+                                {displayBranchName}
+                              </p>
+                            )}
+                          </>
                         )}
                       </td>
                       <td
@@ -508,7 +544,11 @@ const ReviewTable = ({
                           <button
                             onClick={() => onAccept(item)}
                             className={`${styles.actions.button.base} ${styles.actions.button.activate}`}
-                            title="Accept"
+                            title={
+                              shopCount > 1
+                                ? `Accept for all ${shopCount} shops`
+                                : "Accept"
+                            }
                           >
                             <Check size={14} />
                           </button>
@@ -522,7 +562,11 @@ const ReviewTable = ({
                           <button
                             onClick={() => onReject(item)}
                             className={`${styles.actions.button.base} ${styles.actions.button.suspend}`}
-                            title="Reject"
+                            title={
+                              shopCount > 1
+                                ? `Reject for all ${shopCount} shops`
+                                : "Reject"
+                            }
                           >
                             <XCircle size={14} />
                           </button>
