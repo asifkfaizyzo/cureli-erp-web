@@ -664,19 +664,34 @@ const SalesBillingPage = () => {
   );
 
   // ── Print ────────────────────────────────────────────────────────────────────
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `Sales_Invoice_${currentInvoice?.invoice_number || previewInvoiceNumber || "NEW"}`,
-    onAfterPrint: () =>
-      toast.success("Print Complete", "Invoice printed successfully."),
-    onPrintError: () => toast.error("Print Failed", "Failed to print invoice."),
-    pageStyle: `
-      @page { size: A4; margin: 10mm; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+const handlePrint = useReactToPrint({
+  contentRef: printRef,
+  documentTitle: `Sales_Invoice_${currentInvoice?.invoice_number || previewInvoiceNumber || "NEW"}`,
+  onAfterPrint: () =>
+    toast.success("Print Complete", "Invoice printed successfully."),
+  onPrintError: () => toast.error("Print Failed", "Failed to print invoice."),
+  pageStyle: `
+    @page {
+      size: A5 portrait;
+      margin: 0;
+    }
+    @media print {
+      html, body {
+        width: 148mm;
+        margin: 0 !important;
+        padding: 0 !important;
       }
-    `,
-  });
+      body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  `,
+});
 
   // ── Clear table ──────────────────────────────────────────────────────────────
   const handleClearTable = useCallback(() => {
