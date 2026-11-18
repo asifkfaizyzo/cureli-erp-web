@@ -1,0 +1,27 @@
+enum MetaOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  PERMANENT_FAILURE
+}
+
+model MetaOutboxEvent {
+  id            String           @id @default(uuid()) @db.Uuid
+  event_id      String           @unique
+  event_name    String
+  event_time    Int
+  user_id       String?          @db.Uuid
+  event_data    Json             @default("{}")
+  user_data     Json             @default("{}")
+  status        MetaOutboxStatus @default(PENDING)
+  attempts      Int              @default(0)
+  last_error    String?          @db.Text
+  next_retry_at DateTime?
+  processed_at  DateTime?
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
+
+  @@index([status, next_retry_at])
+  @@map("meta_outbox_events")
+}

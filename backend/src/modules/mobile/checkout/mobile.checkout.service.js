@@ -27,6 +27,8 @@ import { getEffectiveRateForShop } from "../../cadmin/commission/cadmin.commissi
 import { redeemPoints } from "../../loyalty/loyalty.service.js";
 import { getLoyaltyConfig } from "../../loyalty/loyalty.config.service.js";
 import { validateRedemption } from "../../loyalty/loyalty.engine.js";
+import { queueMetaOutboxEvent } from "../../../services/metaOutbox.service.js";
+import { buildHashedUserData } from "../../../utils/metaHasher.js";
 
 const SESSION_TTL_MINS = 15;
 
@@ -206,11 +208,12 @@ export async function getQuote({
     return {
       ...basePricing,
       distance_km,
-         delivery_charge: 0,
+      delivery_charge: 0,
       service_charge_anchor: null,
       delivery_charge_anchor: null,
       delivery_breakdown: null,
-      platform_savings: 0,      coupon_code: null,
+      platform_savings: 0,
+      coupon_code: null,
       coupon_discount: 0,
       coupon_reason: null,
       loyalty_points_redeemed: 0,
@@ -229,7 +232,6 @@ export async function getQuote({
   });
 
   // ── 0b. Auto-anchor from tier-based free charges ──────────────
-  // Only applies when slash engine didn't already set an anchor.
   if (
     slashed.service_charge === 0 &&
     !slashed.service_charge_anchor &&
@@ -249,11 +251,7 @@ export async function getQuote({
   }
 
   // ── 0b2. Free-radius auto-anchor (distance-surcharge "slashed km") ────
-  // Independent of promo slash config — purely derived from the free
-  // delivery radius setting. Merges with any existing anchor (promo or
-  // tier-based) via Math.max — whichever anchor is higher wins the
-  // strikethrough display.
-    if (!isPickup) {
+  if (!isPickup) {
     const freeRadiusAnchor = computeFreeRadiusAnchor({
       ...basePricing,
       distance_km,
@@ -335,8 +333,7 @@ export async function getQuote({
     }
   }
 
-  // Combined discounts cannot reduce payable total below ₹1.00 (Razorpay minimum)
-  // ── GST (post-slash, pre-discount) ──────────────
+  // GST calculation
   const gst = computeGST(slashed, config);
 
   const combinedDiscounts = coupon_discount + loyalty_discount;
@@ -344,7 +341,7 @@ export async function getQuote({
     slashed.grand_total + gst.gst_amount - combinedDiscounts;
   const grand_total = parseFloat(Math.max(1, rawGrandTotal).toFixed(2));
 
-  // ── Same Day availability (always included for the selector) ──
+  // Same Day availability
   let same_day_available = false;
   let same_day_cutoff_hour = 15;
   try {
@@ -359,7 +356,6 @@ export async function getQuote({
     // Non-critical — selector falls back to default
   }
 
-  // ── Build delivery breakdown for transparency tooltip ────────
   const matchedDT = basePricing.matchedDeliveryTier;
   const effectiveDistance = isPickup ? 0 : distance_km;
   const delivery_breakdown = matchedDT
@@ -572,8 +568,8 @@ export async function createCheckoutSession({
     if (anchor) slashed.delivery_charge_anchor = anchor;
   }
 
-  // ── 6d. Free-radius auto-anchor (distance-surcharge "slashed km") ────
- if (!isPickup) {
+  // ── 6d. Free-radius auto-anchor ──────────────────────────────
+  if (!isPickup) {
     const freeRadiusAnchor = computeFreeRadiusAnchor({
       ...pricing,
       distance_km: validatedDistanceKm,
@@ -646,8 +642,6 @@ export async function createCheckoutSession({
     loyalty_discount_amount = redemptionValidation.discount;
   }
 
-  // Final grand total after all discounts (min payable ₹1.00)
-  // ── GST (post-slash, pre-discount) ──────────────
   const gst = computeGST(slashed, config);
 
   const totalDiscount = coupon_discount_amount + loyalty_discount_amount;
@@ -657,7 +651,7 @@ export async function createCheckoutSession({
     ),
   );
 
-  // ── 9. Snapshot address (branch address for pickup) ──────
+  // ── 9. Snapshot address ──────────────────────────────────
   let address_snapshot;
   if (isPickup) {
     const branch = await prisma.branch.findUnique({
@@ -773,7 +767,7 @@ export async function createCheckoutSession({
     amount_paise,
     currency: RAZORPAY_MOBILE_CURRENCY,
     key_id: process.env.RAZORPAY_MOBILE_KEY_ID,
-   pricing: {
+    pricing: {
       subtotal: pricing.subtotal,
       service_charge: slashed.service_charge,
       service_charge_anchor: slashed.service_charge_anchor,
@@ -835,9 +829,6 @@ export async function confirmCheckoutPayment({
   if (session.status === "expired") throw new Error("Session expired");
 
   // ── 2. IDEMPOTENCY: Webhook already processed this payment ──
-  //    Razorpay webhook (payment.captured) can beat the app's
-  //    /confirm call by milliseconds. If the session is already
-  //    paid AND has an order, return that order as success.
   if (session.status === "paid" && session.order_id) {
     const existingOrder = await prisma.marketplaceOrder.findUnique({
       where: { order_id: session.order_id },
@@ -882,7 +873,7 @@ export async function confirmCheckoutPayment({
     razorpay_payment_id,
     razorpay_order_id,
     razorpay_signature,
-    resolved_payment_method: null, // Will fetch the actual method dynamically from Razorpay
+    resolved_payment_method: null,
   });
 
   return {
@@ -989,9 +980,6 @@ async function _createOrderFromSession({
       commissionAmountSnapshot = parseFloat(
         ((Number(session.subtotal) * rate) / 100).toFixed(2),
       );
-      // Try to capture the rule_id if available from the source
-      // The effective rate object doesn't expose rule_id directly,
-      // so we store null for now. Can be enhanced later.
       commissionRuleIdSnapshot = null;
     }
   } catch (err) {
@@ -1004,7 +992,7 @@ async function _createOrderFromSession({
   // Fetch customer snapshot
   const customer = await prisma.cureliMobileUser.findUnique({
     where: { id: session.customer_id },
-    select: { full_name: true, phone: true },
+    select: { id: true, full_name: true, phone: true, email: true },
   });
 
   const now = new Date();
@@ -1042,8 +1030,8 @@ async function _createOrderFromSession({
         customer_id: session.customer_id,
         delivery_address_id: session.delivery_address_id,
         delivery_address_snapshot: session.delivery_address_snapshot,
-        customer_name_snapshot: customer.full_name ?? customer.phone,
-        customer_phone_snapshot: customer.phone,
+        customer_name_snapshot: customer?.full_name ?? customer?.phone,
+        customer_phone_snapshot: customer?.phone,
         status: "PLACED",
         fulfillment_type: session.fulfillment_type || "INSTANT_DELIVERY",
         packing_charge: session.packing_charge ?? 0,
@@ -1161,6 +1149,34 @@ async function _createOrderFromSession({
         order_id: order.order_id,
       },
     });
+
+    // 8. Queue Authoritative Meta CAPI Purchase Event to Outbox
+    if (order && order.payment_status === "PAID") {
+      const stableEventId = `cureli_purchase_${order.order_id}`;
+
+      const hashedUserData = buildHashedUserData({
+        email: customer?.email,
+        phone: customer?.phone,
+        fullName: customer?.full_name,
+        userId: session.customer_id,
+      });
+
+      const customData = {
+        value: Number(order.total_amount),
+        currency: "INR",
+        content_type: "product",
+        num_items: cartItems?.length || 1,
+      };
+
+      await queueMetaOutboxEvent({
+        eventId: stableEventId,
+        eventName: "Purchase",
+        userId: session.customer_id,
+        eventData: customData,
+        userData: hashedUserData,
+        tx,
+      });
+    }
 
     return order;
   });
