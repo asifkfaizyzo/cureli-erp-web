@@ -1150,36 +1150,33 @@ async function _createOrderFromSession({
       },
     });
 
-    // 8. Queue Authoritative Meta CAPI Purchase Event to Outbox
-    if (order && order.payment_status === "PAID") {
-      const stableEventId = `cureli_purchase_${order.order_id}`;
-
-      const hashedUserData = buildHashedUserData({
-        email: customer?.email,
-        phone: customer?.phone,
-        fullName: customer?.full_name,
-        userId: session.customer_id,
-      });
-
-      const customData = {
-        value: Number(order.total_amount),
-        currency: "INR",
-        content_type: "product",
-        num_items: cartItems?.length || 1,
-      };
-
-      await queueMetaOutboxEvent({
-        eventId: stableEventId,
-        eventName: "Purchase",
-        userId: session.customer_id,
-        eventData: customData,
-        userData: hashedUserData,
-        tx,
-      });
-    }
-
     return order;
   });
+
+  // ── Post-commit isolated Meta Purchase check ─────────────────────────────
+  // Runs strictly AFTER the PostgreSQL order transaction has committed.
+  // Never runs for COD, pending, or failed payments.
+  // Isolated in try/catch so Meta errors can never fail a verified payment/order.
+  if (
+    createdOrder &&
+    createdOrder.order_id &&
+    createdOrder.payment_status === "PAID" &&
+    createdOrder.payment_method !== "COD"
+  ) {
+    try {
+      await queueMetaOutboxEvent({
+        eventId: `cureli_purchase_${createdOrder.order_id}`,
+        eventName: "Purchase",
+        userData: {},
+        eventData: {},
+      });
+    } catch (metaErr) {
+      console.warn(
+        "[Checkout] Meta Purchase event skipped:",
+        metaErr?.code || "POLICY_OR_OUTBOX_SKIP",
+      );
+    }
+  }
 
   // Fire events post-commit
   await fireOrderPlacedEvents({

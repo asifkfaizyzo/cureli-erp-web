@@ -24,6 +24,10 @@ import {
 import { initializeEmailBroadcastWorker } from "./emailBroadcastWorker.js";
 import { initializeFileCleanupWorker } from "./emailFileCleanupWorker.js";
 import cronLogger from "../utils/cronLogger.js";
+import {
+  startMetaOutboxWorker,
+  stopMetaOutboxWorker,
+} from "./metaOutbox.worker.js";
 
 import {
   transitionExpiredToGrace,
@@ -764,7 +768,11 @@ export function initializeCronJobs() {
   initializeStaleRiderJob();
   initializeStaleAssignmentJob();
   initializeRiderAssignmentTimeoutJob();
-    initializeStalePickupJob();
+  initializeStalePickupJob();
+
+  // ── Meta Outbox Background Worker ──────────────────────────
+  startMetaOutboxWorker();
+  cronLogger.info("Meta outbox background worker initialized (every 1 minute)");
 
   // ── Same Day Delivery Crons ──────────────────────────────
   // Cutoff alert: 3:05 PM IST (9:35 UTC) — default cutoff is 3 PM
@@ -866,10 +874,16 @@ export function initializeCronJobs() {
     "  - Rider assignment auto-decline: Every 30 seconds (90s timeout)",
   );
   cronLogger.info("  - Stale pickup sweep: Every 30 minutes");
-    cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
+  cronLogger.info("  - Commission suspension auto-resume: Every 15 minutes");
+  cronLogger.info("  - Meta outbox background worker: Every minute");
   cronLogger.info("  - Same Day cutoff alert: Daily at 3:05 PM IST");
   cronLogger.info("  - Same Day EOD cleanup: Daily at 11:05 PM IST");
   cronLogger.info(
     "  - Mobile notification cleanup: Daily at 4:15 AM (90-day retention)",
   );
+}
+
+export function stopCronJobs() {
+  cronLogger.info("Stopping cron jobs and workers...");
+  stopMetaOutboxWorker();
 }

@@ -1,5 +1,3 @@
-// backend/index.js 
-
 import "./env.js";
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -7,7 +5,7 @@ import cors from "cors";
 import helmet from "helmet";
 import path from "path";
 import { fileURLToPath } from "url";
-import { initializeCronJobs } from "./src/cron/jobs.js";
+import { initializeCronJobs, stopCronJobs } from "./src/cron/jobs.js";
 import { ensureIndexes } from "./src/config/ensureIndexes.js";
 
 // ============================================
@@ -285,7 +283,6 @@ app.use("/api/reports/financial", financialReportRoutes);
 app.use("/api/reports/marketplace", marketplaceReportRoutes);
 app.use("/api/marketplace/payouts", pharmacyPayoutErpRoutes);
 
-
 // ============================================
 // CADMIN ROUTES
 // ============================================
@@ -356,6 +353,7 @@ app.use("/rider", riderShopsRoutes);
 app.use("/rider/delivery", riderDeliveryRoutes);
 app.use("/rider/profile", riderProfileRoutes);
 app.use("/rider/earnings", riderEarningsRoutes);
+
 // ============================================
 // HEALTH CHECK
 // ============================================
@@ -415,8 +413,30 @@ function printStartupBanner(port) {
     console.warn("⚠️  Could not read Review Mode status:", err.message);
   }
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     printStartupBanner(PORT);
     initializeCronJobs();
   });
+
+  const handleShutdown = (signal) => {
+    console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
+    try {
+      stopCronJobs();
+    } catch (err) {
+      console.error("Error stopping cron jobs during shutdown:", err);
+    }
+
+    server.close(() => {
+      console.log("HTTP server closed. Shutdown complete.");
+      process.exit(0);
+    });
+
+    setTimeout(() => {
+      console.error("Forced shutdown due to timeout.");
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+  process.on("SIGINT", () => handleShutdown("SIGINT"));
 })();
