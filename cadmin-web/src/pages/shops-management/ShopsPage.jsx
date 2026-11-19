@@ -35,10 +35,9 @@ const SUBSCRIPTION_OPTIONS = [
   { value: "SUSPENDED", label: "Suspended" },
 ];
 
+// Activity Status locked strictly to Active only
 const ACTIVE_OPTIONS = [
-  { value: "", label: "All Status" },
   { value: "true", label: "Active" },
-  { value: "false", label: "Inactive" },
 ];
 
 const ShopsPage = () => {
@@ -58,10 +57,11 @@ const ShopsPage = () => {
   // Initialize from URL param
   const initialSearch = searchParams.get("search") || "";
   const [searchText, setSearchText] = useState(initialSearch);
-  
+
   const [verificationFilter, setVerificationFilter] = useState("");
   const [subscriptionFilter, setSubscriptionFilter] = useState("");
-  const [activeFilter, setActiveFilter] = useState("");
+  // Lock active filter to "true"
+  const [activeFilter, setActiveFilter] = useState("true");
   const [dateFilter, setDateFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -84,23 +84,22 @@ const ShopsPage = () => {
       setSearchText(searchFromUrl);
       setVerificationFilter("");
       setSubscriptionFilter("");
-      setActiveFilter("");
+      setActiveFilter("true");
       setDateFilter("");
       setCurrentPage(1);
     }
   }, [searchParams]);
 
-  // Count active filters
+  // Count active filters (excluding default activeFilter="true")
   const activeFiltersCount = useMemo(() => {
     return [
       verificationFilter,
       subscriptionFilter,
-      activeFilter,
       dateFilter,
     ].filter(Boolean).length;
-  }, [verificationFilter, subscriptionFilter, activeFilter, dateFilter]);
+  }, [verificationFilter, subscriptionFilter, dateFilter]);
 
-  // Check if any filter is active
+  // Check if any additional filter is active
   const hasActiveFilters = useMemo(() => {
     return activeFiltersCount > 0 || searchText.trim().length > 0;
   }, [activeFiltersCount, searchText]);
@@ -116,7 +115,7 @@ const ShopsPage = () => {
         search: searchText || undefined,
         verification_status: verificationFilter || undefined,
         subscription_status: subscriptionFilter || undefined,
-        is_active: activeFilter || undefined,
+        is_active: "true", // Always restrict query to active shops
         date_start: dateFilter || undefined,
         sort_by: sortConfig.sortBy,
         sort_order: sortConfig.order,
@@ -129,8 +128,13 @@ const ShopsPage = () => {
       const response = await getShops(params);
       const payload = response.data?.data || {};
 
-      setShops(payload.data || []);
-      setTotalItems(payload.meta?.total || 0);
+      // Filter out any non-active shops as a client safeguard
+      const activeShopsOnly = (payload.data || []).filter(
+        (s) => s.is_active === true || s.is_active === "true" || s.is_active === undefined
+      );
+
+      setShops(activeShopsOnly);
+      setTotalItems(payload.meta?.total || activeShopsOnly.length);
     } catch (err) {
       console.error("Failed to fetch shops:", err);
       const errorMessage =
@@ -148,7 +152,6 @@ const ShopsPage = () => {
     searchText,
     verificationFilter,
     subscriptionFilter,
-    activeFilter,
     dateFilter,
     sortConfig,
     toast,
@@ -166,7 +169,6 @@ const ShopsPage = () => {
     searchText,
     verificationFilter,
     subscriptionFilter,
-    activeFilter,
     dateFilter,
     sortConfig,
   ]);
@@ -181,7 +183,7 @@ const ShopsPage = () => {
     setSearchText("");
     setVerificationFilter("");
     setSubscriptionFilter("");
-    setActiveFilter("");
+    setActiveFilter("true");
     setDateFilter("");
     searchParams.delete("search");
     setSearchParams(searchParams);
@@ -200,18 +202,21 @@ const ShopsPage = () => {
   const handleShopUpdate = useCallback(
     (shopId, updates) => {
       try {
+        // If shop is deactivated/suspended, remove it from view
+        if (updates.is_active === false) {
+          setShops((prev) => prev.filter((shop) => shop.shop_id !== shopId));
+          setTotalItems((prev) => Math.max(0, prev - 1));
+          toast.success("Shop Suspended", "Shop has been deactivated and removed from active list.");
+          return;
+        }
+
         setShops((prev) =>
           prev.map((shop) =>
             shop.shop_id === shopId ? { ...shop, ...updates } : shop
           )
         );
 
-        if (updates.is_active !== undefined) {
-          toast.success(
-            updates.is_active ? "Shop Activated" : "Shop Deactivated",
-            `Shop status updated successfully.`
-          );
-        } else if (updates.verification_status !== undefined) {
+        if (updates.verification_status !== undefined) {
           toast.success(
             "Verification Updated",
             `Shop verification status changed to ${updates.verification_status}.`
@@ -257,7 +262,7 @@ const ShopsPage = () => {
                 Shop Management
               </h1>
               <p className="text-sm text-gray-500">
-                {totalItems} total shop{totalItems !== 1 ? "s" : ""}
+                {totalItems} active shop{totalItems !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
@@ -284,7 +289,7 @@ const ShopsPage = () => {
               />
               <input
                 type="text"
-                placeholder="Search by shop name, email, or phone..."
+                placeholder="Search active shops by name, email, or phone..."
                 value={searchText}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full h-10 sm:h-11 pl-10 pr-10 border border-gray-300 rounded-lg text-sm 
@@ -353,7 +358,7 @@ const ShopsPage = () => {
                   value={activeFilter}
                   onChange={(value) => setActiveFilter(value)}
                   options={ACTIVE_OPTIONS}
-                  placeholder="All Status"
+                  placeholder="Active"
                 />
 
                 <StyledDateFilter

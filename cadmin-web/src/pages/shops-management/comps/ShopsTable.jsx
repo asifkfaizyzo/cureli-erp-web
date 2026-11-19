@@ -1,12 +1,11 @@
 // cadmin-web/src/pages/shops-management/comps/ShopsTable.jsx (do not remove this comment)
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Pencil,
   ChevronUp,
   ChevronDown,
   Ban,
-  CheckCircle,
   Store,
 } from "lucide-react";
 import {
@@ -50,6 +49,11 @@ const ShopsTable = ({
   const toast = useToast();
   const { styles, heights } = TABLE_CONFIG;
 
+  // Strict Filter: Only show active shops in table
+  const activeShops = useMemo(() => {
+    return shops.filter((shop) => shop.is_active === true || shop.is_active === "true" || shop.is_active === undefined);
+  }, [shops]);
+
   // Modal states
   const [selectedShop, setSelectedShop] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,9 +74,7 @@ const ShopsTable = ({
   });
   const [resizing, setResizing] = useState(null);
 
-  // ============================================
-  // COLUMN RESIZING HANDLERS
-  // ============================================
+  // Column Resizing Handlers
   const handleMouseDown = (column, e) => {
     if (column === 'slNo') return;
     e.preventDefault();
@@ -103,27 +105,19 @@ const ShopsTable = ({
     };
   }, [resizing, handleMouseMove, handleMouseUp]);
 
-  // ============================================
-  // COMPUTED VALUES
-  // ============================================
+  // Computed Values
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const hasData = shops && shops.length > 0;
+  const hasData = activeShops && activeShops.length > 0;
   const showTable = loading || hasData;
   const showEmptyState = !loading && !hasData;
   const showPagination = !loading && hasData;
 
-  // ============================================
-  // ROW CLICK HANDLER (Opens View Modal)
-  // ============================================
   const handleRowClick = (shop) => {
     setSelectedShop(shop);
     setModalMode("view");
     setIsModalOpen(true);
   };
 
-  // ============================================
-  // ACTION HANDLERS (Must stop propagation!)
-  // ============================================
   const handleEditClick = (e, shop) => {
     e.stopPropagation();
     setSelectedShop(shop);
@@ -141,31 +135,14 @@ const ShopsTable = ({
     if (!shopToSuspend) return;
     setSuspendLoading(true);
     try {
-      const newIsActive = !shopToSuspend.is_active;
-      await toggleShopActive(shopToSuspend.shop_id, newIsActive);
-      onShopUpdate?.(shopToSuspend.shop_id, { is_active: newIsActive });
+      await toggleShopActive(shopToSuspend.shop_id, false);
+      onShopUpdate?.(shopToSuspend.shop_id, { is_active: false });
       setShowSuspendConfirm(false);
-      
-      if (newIsActive) {
-        toast.success(
-          "Shop Activated",
-          `"${shopToSuspend.business_name}" has been activated successfully.`
-        );
-      } else {
-        toast.success(
-          "Shop Suspended",
-          `"${shopToSuspend.business_name}" has been suspended.`
-        );
-      }
-      
       setShopToSuspend(null);
     } catch (err) {
-      console.error("Suspend/Activate failed:", err);
-      const errorMessage = err.response?.data?.message || "Failed to update shop status";
-      toast.error(
-        "Action Failed",
-        errorMessage
-      );
+      console.error("Suspend failed:", err);
+      const errorMessage = err.response?.data?.message || "Failed to suspend shop";
+      toast.error("Action Failed", errorMessage);
     } finally {
       setSuspendLoading(false);
     }
@@ -179,16 +156,9 @@ const ShopsTable = ({
     }
   };
 
-  // ============================================
-  // BADGE COMPONENTS
-  // ============================================
   const PlanBadge = ({ subscription }) => {
     if (!subscription || !subscription.name) {
-      return (
-        <span className={styles.badges.status.inactive}>
-          None
-        </span>
-      );
+      return <span className={styles.badges.status.inactive}>None</span>;
     }
 
     const isExpired =
@@ -213,9 +183,6 @@ const ShopsTable = ({
     );
   };
 
-  // ============================================
-  // SORTABLE HEADER COMPONENT
-  // ============================================
   const SortableHeader = ({ columnKey }) => {
     const column = COLUMNS[columnKey];
     const isActive = sortConfig?.sortBy === column.key;
@@ -259,9 +226,6 @@ const ShopsTable = ({
     );
   };
 
-  // ============================================
-  // NON-SORTABLE HEADER COMPONENT
-  // ============================================
   const TableHeader = ({ columnKey }) => {
     const column = COLUMNS[columnKey];
 
@@ -287,16 +251,11 @@ const ShopsTable = ({
     );
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <div className={styles.container.wrapper}>
-      {/* Table - Show when loading OR has data */}
       {showTable && (
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full border-collapse text-sm" style={{ minWidth: "850px" }}>
-            {/* Table Header */}
             <thead className="sticky top-0 z-10">
               <tr className={styles.header.row}>
                 <TableHeader columnKey="slNo" />
@@ -309,7 +268,6 @@ const ShopsTable = ({
               </tr>
             </thead>
 
-            {/* Table Body */}
             <tbody>
               {loading ? (
                 <TableSkeleton
@@ -317,52 +275,41 @@ const ShopsTable = ({
                   columns={Object.keys(COLUMNS).filter(k => k !== 'slNo' && k !== 'actions')}
                 />
               ) : (
-                shops.map((shop, index) => (
+                activeShops.map((shop, index) => (
                   <tr
                     key={shop.shop_id}
                     onClick={() => handleRowClick(shop)}
-                    className={getClickableRowClass(index, !shop.is_active)}
+                    className={getClickableRowClass(index, false)}
                     style={{ height: `${heights.bodyRow}px` }}
                   >
-                    {/* Serial Number */}
                     <td className={`${styles.cell.base} ${styles.cell.muted} font-medium`}>
                       {startIndex + index + 1}
                     </td>
 
-                    {/* Business Name */}
                     <td className={`${styles.cell.base} ${styles.cell.primary}`}>
                       <div className="flex items-center gap-2">
                         <span className="truncate">{shop.business_name}</span>
-                        {!shop.is_active && (
-                          <Ban size={14} className="text-red-400 flex-shrink-0" />
-                        )}
                       </div>
                     </td>
 
-                    {/* Owner Name */}
                     <td className={`${styles.cell.base} ${styles.cell.secondary} truncate`}>
                       {shop.owner?.name || shop.owner?.full_name || "N/A"}
                     </td>
 
-                    {/* Business Type */}
                     <td className={`${styles.cell.base} ${styles.cell.secondary} truncate`}>
                       {shop.business_type || "N/A"}
                     </td>
 
-                    {/* Plan */}
                     <td className={`${styles.cell.base} ${styles.cell.center}`}>
                       <PlanBadge subscription={shop.subscription} />
                     </td>
 
-                    {/* Verification */}
                     <td className={`${styles.cell.base} ${styles.cell.center}`}>
                       <VerificationBadge status={shop.verification_status} />
                     </td>
 
-                    {/* Actions - NO EYE ICON (row click handles view) */}
                     <td className={styles.cell.base}>
                       <div className={styles.actions.container}>
-                        {/* Edit Button */}
                         <button
                           onClick={(e) => handleEditClick(e, shop)}
                           className={`${styles.actions.button.base} ${styles.actions.button.edit}`}
@@ -371,17 +318,12 @@ const ShopsTable = ({
                           <Pencil size={15} />
                         </button>
 
-                        {/* Suspend/Activate Button */}
                         <button
                           onClick={(e) => handleSuspendClick(e, shop)}
-                          className={`${styles.actions.button.base} ${
-                            shop.is_active
-                              ? styles.actions.button.suspend
-                              : styles.actions.button.activate
-                          }`}
-                          title={shop.is_active ? "Suspend Shop" : "Activate Shop"}
+                          className={`${styles.actions.button.base} ${styles.actions.button.suspend}`}
+                          title="Suspend Shop"
                         >
-                          {shop.is_active ? <Ban size={15} /> : <CheckCircle size={15} />}
+                          <Ban size={15} />
                         </button>
                       </div>
                     </td>
@@ -393,16 +335,14 @@ const ShopsTable = ({
         </div>
       )}
 
-      {/* Empty State */}
       {showEmptyState && (
         <TableEmptyState
           icon={Store}
-          title="No shops found"
+          title="No active shops found"
           subtitle="Try adjusting your search or filters"
         />
       )}
 
-      {/* Pagination */}
       {showPagination && (
         <Pagination
           currentPage={currentPage}
@@ -412,7 +352,6 @@ const ShopsTable = ({
         />
       )}
 
-      {/* Shop Details Modal */}
       <ShopDetailsModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
@@ -420,7 +359,6 @@ const ShopsTable = ({
         mode={modalMode}
       />
 
-      {/* Suspend Confirm Dialog */}
       <ConfirmDialog
         isOpen={showSuspendConfirm}
         onClose={() => {
@@ -428,15 +366,11 @@ const ShopsTable = ({
           setShopToSuspend(null);
         }}
         onConfirm={handleSuspendConfirm}
-        title={shopToSuspend?.is_active ? "Suspend Shop?" : "Activate Shop?"}
-        message={
-          shopToSuspend?.is_active
-            ? `Are you sure you want to suspend "${shopToSuspend?.business_name}"? All users under this shop will lose access.`
-            : `Are you sure you want to activate "${shopToSuspend?.business_name}"? Users will regain access.`
-        }
-        confirmText={shopToSuspend?.is_active ? "Suspend" : "Activate"}
+        title="Suspend Shop?"
+        message={`Are you sure you want to suspend "${shopToSuspend?.business_name}"? All users under this shop will lose access and it will be removed from the active list.`}
+        confirmText="Suspend"
         cancelText="Cancel"
-        type={shopToSuspend?.is_active ? "warning" : "success"}
+        type="warning"
         loading={suspendLoading}
       />
     </div>

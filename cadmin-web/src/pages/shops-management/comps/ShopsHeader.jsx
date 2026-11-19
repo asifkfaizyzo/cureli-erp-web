@@ -39,22 +39,21 @@ const ShopsHeader = ({
   const hasActiveFilters =
     !!verificationFilter ||
     !!subscriptionFilter ||
-    !!activeFilter ||
     !!dateFilter ||
     !!searchText;
 
   const clearFilters = () => {
     setVerificationFilter("");
     setSubscriptionFilter("");
-    setActiveFilter("");
+    setActiveFilter("true");
     setDateFilter("");
     setSearchText("");
     toast.info("Filters Cleared", "All filters have been reset.");
   };
 
-  // CSV generator
   const generateCSV = (data) => {
-    if (!data || data.length === 0) return null;
+    const activeOnlyData = (data || []).filter((s) => s.is_active === true || s.is_active === "true" || s.is_active === undefined);
+    if (!activeOnlyData || activeOnlyData.length === 0) return null;
 
     const headers = [
       "Shop ID",
@@ -71,7 +70,7 @@ const ShopsHeader = ({
       "Created At",
     ];
 
-    const rows = data.map((shop) => [
+    const rows = activeOnlyData.map((shop) => [
       shop.shop_id || "",
       shop.business_name || "",
       shop.owner?.name || shop.owner?.full_name || "",
@@ -82,7 +81,7 @@ const ShopsHeader = ({
       shop.verification_status || "",
       shop.subscription?.name || "None",
       shop.subscription?.status || "None",
-      shop.is_active ? "Active" : "Inactive",
+      "Active",
       shop.created_at ? new Date(shop.created_at).toLocaleDateString() : "",
     ]);
 
@@ -98,16 +97,16 @@ const ShopsHeader = ({
     try {
       const blob = generateCSV(shops);
       if (!blob) {
-        toast.warning("No Data", "No shops available to export.");
+        toast.warning("No Data", "No active shops available to export.");
         return;
       }
 
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `shops_export_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = `active_shops_export_${new Date().toISOString().split("T")[0]}.csv`;
       link.click();
       setShowExportMenu(false);
-      toast.success("Export Successful", `${shops.length} shop(s) exported to CSV.`);
+      toast.success("Export Successful", "Active shop(s) exported to CSV.");
     } catch (error) {
       console.error("Export failed:", error);
       toast.error("Export Failed", "Could not export shops. Please try again.");
@@ -118,23 +117,22 @@ const ShopsHeader = ({
     try {
       const blob = generateCSV(shops);
       if (!blob) {
-        toast.warning("No Data", "No shops available to export.");
+        toast.warning("No Data", "No active shops available to export.");
         return;
       }
 
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `shops_all_export_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = `all_active_shops_export_${new Date().toISOString().split("T")[0]}.csv`;
       link.click();
       setShowExportMenu(false);
-      toast.success("Export Successful", `${shops.length} shop(s) exported to CSV.`);
+      toast.success("Export Successful", "Active shop(s) exported to CSV.");
     } catch (error) {
       console.error("Export failed:", error);
       toast.error("Export Failed", "Could not export shops. Please try again.");
     }
   };
 
-  // Toggle menu with position calculation
   const handleToggleMenu = () => {
     if (!showExportMenu && exportMenuRef.current) {
       const rect = exportMenuRef.current.getBoundingClientRect();
@@ -146,7 +144,6 @@ const ShopsHeader = ({
     setShowExportMenu(!showExportMenu);
   };
 
-  // Verification status options
   const verificationOptions = [
     { value: "", label: "All Verification" },
     { value: "pending", label: "Pending" },
@@ -156,7 +153,6 @@ const ShopsHeader = ({
     { value: "partially_rejected", label: "Partially Rejected" },
   ];
 
-  // Subscription status options
   const subscriptionOptions = [
     { value: "", label: "All Subscriptions" },
     { value: "active", label: "Active" },
@@ -164,11 +160,9 @@ const ShopsHeader = ({
     { value: "none", label: "No Subscription" },
   ];
 
-  // Active status options
+  // Active option restricted strictly to "Active"
   const activeOptions = [
-    { value: "", label: "All Status" },
-    { value: "Active", label: "Active" },
-    { value: "Inactive", label: "Inactive" },
+    { value: "true", label: "Active" },
   ];
 
   return (
@@ -196,7 +190,7 @@ const ShopsHeader = ({
               <button
                 onClick={() => setSearchText("")}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded
-                         text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+                           text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
               >
                 <X size={14} />
               </button>
@@ -222,12 +216,12 @@ const ShopsHeader = ({
           options={subscriptionOptions}
         />
 
-        {/* Active Status Filter */}
+        {/* Active Status Filter - Locked to Active */}
         <StyledSelect
           label="Status"
           value={activeFilter}
           onChange={setActiveFilter}
-          placeholder="All Status"
+          placeholder="Active"
           options={activeOptions}
         />
 
@@ -256,7 +250,6 @@ const ShopsHeader = ({
 
       {/* Right Actions */}
       <div className="flex items-center gap-2 self-center">
-        {/* Export Menu */}
         <div className="relative" ref={exportMenuRef}>
           <button
             onClick={handleToggleMenu}
@@ -284,7 +277,7 @@ const ShopsHeader = ({
                 <div>
                   <div className="font-medium">Export Visible</div>
                   <div className="text-xs text-gray-400">
-                    {shops.length} shops
+                    {shops.filter(s => s.is_active).length} shops
                   </div>
                 </div>
               </button>
@@ -298,7 +291,7 @@ const ShopsHeader = ({
               >
                 <FileSpreadsheet size={16} className="text-green-600" />
                 <div>
-                  <div className="font-medium">Export All (Visible)</div>
+                  <div className="font-medium">Export All Active</div>
                   <div className="text-xs text-gray-400">
                     {totalItems} total
                   </div>
